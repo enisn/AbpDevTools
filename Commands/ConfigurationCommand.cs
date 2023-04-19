@@ -5,42 +5,44 @@ using System.Runtime.InteropServices;
 
 namespace AbpDevTools.Commands;
 
-[Command("replace config", Description = "Allows managing replacement configuration.")]
-public class ReplaceConfigurationCommand : ICommand
+public abstract class ConfigurationBasecommand : ICommand
 {
-    public ValueTask ExecuteAsync(IConsole console)
-    {
-        ReplacementConfiguration.GetOptions();
+    protected abstract string FilePath { get; }
 
-        console.Output.WriteLine("Opening file " + ReplacementConfiguration.FilePath);
+    public virtual ValueTask ExecuteAsync(IConsole console)
+    {
+        console.Output.WriteLine("Opening file " + FilePath);
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Process.Start(new ProcessStartInfo("explorer", ReplacementConfiguration.FilePath));
+            Process.Start(new ProcessStartInfo("explorer", FilePath));
         }
         else
         {
-            Process.Start(new ProcessStartInfo("open", ReplacementConfiguration.FilePath));
+            Process.Start(new ProcessStartInfo("open", FilePath));
         }
         return ValueTask.CompletedTask;
     }
 }
 
-[Command("envapp config", Description = "Allows managing replacement configuration.")]
-public class ConfigurationCommand : ICommand
+[Command("replace config", Description = "Allows managing replacement configuration.")]
+public class ReplaceConfigurationCommand : ConfigurationBasecommand
 {
+    protected override string FilePath => ReplacementConfiguration.FilePath;
+    public override ValueTask ExecuteAsync(IConsole console)
+    {
+        ReplacementConfiguration.GetOptions();
+
+        return base.ExecuteAsync(console);
+    }
+}
+
+[Command("envapp config", Description = "Allows managing replacement configuration.")]
+public class ConfigurationCommand : ConfigurationBasecommand
+{
+    protected override string FilePath => EnvironmentAppConfiguration.FilePath;
     public ValueTask ExecuteAsync(IConsole console)
     {
-        EnvironmentToolConfiguration.GetOptions();
-
-        console.Output.WriteLine("Opening file " + EnvironmentToolConfiguration.FilePath);
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            Process.Start(new ProcessStartInfo("explorer", EnvironmentToolConfiguration.FilePath));
-        }
-        else
-        {
-            Process.Start(new ProcessStartInfo("open", EnvironmentToolConfiguration.FilePath));
-        }
+        EnvironmentAppConfiguration.GetOptions();
         return ValueTask.CompletedTask;
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 
 namespace AbpDevTools.Configuration;
-public static class EnvironmentToolConfiguration
+public static class EnvironmentAppConfiguration
 {
     public static string FolderPath => Path.Combine(
                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -26,11 +26,6 @@ public static class EnvironmentToolConfiguration
         }
 
         return options;
-    }
-
-    public static void Remove()
-    {
-        File.Delete(FilePath);
     }
 }
 

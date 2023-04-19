@@ -27,9 +27,4 @@ public static class ReplacementConfiguration
 
         return options;
     }
-
-    public static void Remove()
-    {
-        File.Delete(FilePath);
-    }
 }

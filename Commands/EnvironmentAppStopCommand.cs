@@ -13,7 +13,7 @@ public class EnvironmentAppStopCommand : ICommand
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
-        var configurations = EnvironmentToolConfiguration.GetOptions();
+        var configurations = EnvironmentAppConfiguration.GetOptions();
 
         if (string.IsNullOrEmpty(AppName))
         {
