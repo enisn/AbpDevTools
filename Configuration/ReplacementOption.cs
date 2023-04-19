@@ -5,14 +5,16 @@ public class ReplacementOption
     public string Find { get; set; }
     public string Replace { get; set; }
 
-    public static List<ReplacementOption> GetDefaults()
-        => new List<ReplacementOption>
+    public static Dictionary<string, ReplacementOption> GetDefaults()
+        => new Dictionary<string, ReplacementOption>
         {
-            new ReplacementOption
             {
-                FilePattern = "appsettings.json",
-                Find = "Trusted_Connection=True;",
-                Replace = "User  ID=SA;Password=12345678Aa;"
+                "ConnectionStrings", new ReplacementOption
+                {
+                    FilePattern = "appsettings.json",
+                    Find = "Trusted_Connection=True;",
+                    Replace = "User  ID=SA;Password=12345678Aa;"
+                }
             }
         };
 }

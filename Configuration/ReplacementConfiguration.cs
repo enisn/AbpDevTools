@@ -7,7 +7,7 @@ public static class ReplacementConfiguration
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "abpdev");
     public static string FilePath => Path.Combine(FolderPath, "replacements.json");
-    public static List<ReplacementOption> GetOptions()
+    public static Dictionary<string, ReplacementOption> GetOptions()
     {
         if (!Directory.Exists(FolderPath))
             Directory.CreateDirectory(FolderPath);
@@ -16,7 +16,7 @@ public static class ReplacementConfiguration
         var options = ReplacementOption.GetDefaults();
         if (File.Exists(FilePath))
         {
-            options = JsonSerializer.Deserialize<List<ReplacementOption>>(File.ReadAllText(FilePath));
+            options = JsonSerializer.Deserialize<Dictionary<string, ReplacementOption>>(File.ReadAllText(FilePath));
         }
         else
         {
