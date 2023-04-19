@@ -28,12 +28,15 @@ public class RunCommand : ICommand
 
     private static readonly string[] _runnableProjects = new string[]{
         ".HttpApi.Host",
-        ".Web",
+        ".HttpApi.HostWithIds",
         ".AuthServer",
+        ".Web",
         ".Web.Host",
-        ".Blazor.Host",
         ".Blazor",
+        ".Blazor.Host",
         ".Blazor.Server",
+        ".Blazor.Server.Host",
+        ".Blazor.Server.Tiered",
     };
 
     public async ValueTask ExecuteAsync(IConsole console)
