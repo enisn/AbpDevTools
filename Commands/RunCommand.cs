@@ -1,4 +1,4 @@
-using CliFx.Infrastructure;
+﻿using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
 
@@ -33,6 +33,7 @@ public class RunCommand : ICommand
         ".Web.Host",
         ".Blazor.Host",
         ".Blazor",
+        ".Blazor.Server",
     };
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -68,12 +69,13 @@ public class RunCommand : ICommand
             await console.Output.WriteLineAsync($"\n");
             var choosedProjects = AnsiConsole.Prompt(
                 new MultiSelectionPrompt<string>()
-                    .Title("Choose [green]projects[/] to run.")
+                    .Title("Choose [blueviolet]projects[/] to run.")
                     .Required(true)
                     .PageSize(12)
+                    .HighlightStyle(new Style(foreground: Color.BlueViolet))
                     .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
                     .InstructionsText(
-                        "[grey](Press [blue]<space>[/] to toggle a project, " +
+                        "[grey](Press [blueviolet]<space>[/] to toggle a project, " +
                         "[green]<enter>[/] to accept)[/]")
                     .AddChoices(projects.Select(s => s.Name)));
 
@@ -146,13 +148,13 @@ public class RunCommand : ICommand
                   {
                       if (project.IsRunning)
                       {
-                          table.AddRow($"[green]{project.Name}[/]", $"[green]{project.Status}[/]");
+                          table.AddRow(project.Name, $"[green]*[/] {project.Status}");
                       }
                       else
                       {
                           if (project.Process.HasExited)
                           {
-                              project.Status = $"Exited({project.Process.ExitCode})";
+                              project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
                           }
                           table.AddRow(project.Name, project.Status);
                       }
