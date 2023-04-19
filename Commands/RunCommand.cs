@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using CliFx.Infrastructure;
+using Spectre.Console;
 
 namespace AbpDevTools.Commands;
 
@@ -16,6 +17,15 @@ public class RunCommand : ICommand
     [CommandOption("watch", 'w', Description = "Watch mode")]
     public bool Watch { get; set; }
 
+    [CommandOption("skip-migrate", Description = "Skips migration and runs projects directly.")]
+    public bool SkipMigration { get; set; }
+
+    [CommandOption("select", 's' , Description = "Projects to run will be asked as prompt. By default runs all of them.")]
+    public bool SelectProjectToRun { get; set; }
+
+    [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
+    public bool NoBuild { get; set; }
+
     protected IConsole console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -27,7 +37,6 @@ public class RunCommand : ICommand
         ".Web.Host",
         ".Blazor.Host",
         ".Blazor",
-        ".DbMigrator"
     };
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -40,50 +49,61 @@ public class RunCommand : ICommand
         var cancellationToken = console.RegisterCancellationHandler();
 
         var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-            .Where(x => _runnableProjects.Any(y => x.Contains(y)))
+            .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
             .Select(x => new FileInfo(x))
             .ToList();
 
         await console.Output.WriteLineAsync($"{csprojs.Count} csproj file(s) found.");
 
-        var dbMigrators = csprojs.Where(x => x.Name.Contains(".DbMigrator")).ToList();
-
-        await console.Output.WriteLineAsync($"{dbMigrators.Count} db migrator(s) found and prioritized.");
-
-        foreach (var dbMigrator in dbMigrators)
+        if (!SkipMigration)
         {
-            runningProjects.Add( new RunningProjectItem
-            { 
-                Name = dbMigrator.Name, 
-                Process =Process.Start(new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}")
+            await new MigrateCommand()
+            {
+                WorkingDirectory = this.WorkingDirectory
+            }.ExecuteAsync(console);
+        }
+
+        await console.Output.WriteLineAsync("Starting projects...");
+
+        var projects = csprojs.Where(x => !x.Name.Contains(".DbMigrator")).ToArray();
+
+        if (SelectProjectToRun)
+        {
+            await console.Output.WriteLineAsync($"\n");
+            var choosedProjects = AnsiConsole.Prompt(
+                new MultiSelectionPrompt<string>()
+                    .Title("Choose [green]projects[/] to run.")
+                    .Required(true)
+                    .PageSize(12)
+                    .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
+                    .InstructionsText(
+                        "[grey](Press [blue]<space>[/] to toggle a project, " +
+                        "[green]<enter>[/] to accept)[/]")
+                    .AddChoices(projects.Select(s => s.Name)));
+
+            projects = projects.Where(x => choosedProjects.Contains(x.Name)).ToArray();
+        }
+
+        var watchCommand = Watch ? "watch " : string.Empty;
+        var noBuildCommand = NoBuild ? "--no-build" : string.Empty;
+
+        foreach (var csproj in projects)
+        {
+            runningProjects.Add(new RunningProjectItem
+            {
+                Name = csproj.Name,
+                Process = Process.Start(new ProcessStartInfo("dotnet", watchCommand + $"run --project {csproj.FullName}" + noBuildCommand)
                 {
-                    WorkingDirectory = WorkingDirectory
+                    WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
                 }),
                 Status = "Building..."
             });
         }
 
-        await console.Output.WriteAsync("Waiting for db migrators to finish...");
-        await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync(cancellationToken)));
+        Task.Factory.StartNew(() => RenderProcesses(cancellationToken));
 
-        await console.Output.WriteLineAsync("Migrations finished.");
-        runningProjects.Clear();
-
-        await console.Output.WriteLineAsync("Starting other projects...");
-        foreach (var csproj in csprojs.Where(x => !x.Name.Contains(".DbMigrator")))
-        {
-            runningProjects.Add(new RunningProjectItem{
-                Name = csproj.Name, 
-                Process = Process.Start(new ProcessStartInfo("dotnet", $"run --project {csproj.FullName}")
-                {
-                    WorkingDirectory = WorkingDirectory,
-                    UseShellExecute = true
-                }),
-                Status = "Building..."
-            });
-        }
-
-        Task.Factory.StartNew(()=>RenderProcesses(cancellationToken));
         await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync(cancellationToken)));
     }
 
@@ -91,30 +111,45 @@ public class RunCommand : ICommand
     {
         foreach (var project in runningProjects)
         {
-            project.Process.OutputDataReceived += (sender, args) => 
+            project.Process.OutputDataReceived += (sender, args) =>
             {
-                if(args.Data != null && args.Data.Contains("Now listening on: "))
+                if (args.Data != null && args.Data.Contains("Now listening on: "))
                 {
-                    project.Status = args.Data.Substring(args.Data.IndexOf("Now listening on: "));
+                    project.Status = args.Data[args.Data.IndexOf("Now listening on: ")..];
+                    project.Process.CancelOutputRead();
+                    project.IsRunning = true;
+                }
+
+                if (DateTime.Now - project.Process.StartTime > TimeSpan.FromMinutes(2))
+                {
+                    project.Process.CancelOutputRead();
                 }
             };
+            project.Process.BeginOutputReadLine();
         }
 
         while (!cancellationToken.IsCancellationRequested)
         {
             await Task.Delay(1000);
-            Console.Clear();
+            console.Clear();
             foreach (var project in runningProjects)
             {
-                Console.WriteLine($"{project.Name} - {project.Process.Id} - {project.Status}");
+                if (project.IsRunning)
+                {
+                    using (console.WithForegroundColor(ConsoleColor.Green))
+                    {
+                        await console.Output.WriteLineAsync($"{project.Name} - Running - {project.Status}");
+                    }
+                }
+                else
+                {
+                    if (project.Process.HasExited)
+                    {
+                        project.Status = $"Exited({project.Process.ExitCode})";
+                    }
+                    await console.Output.WriteLineAsync($"{project.Name} - {project.Status}");
+                }
             }
         }
-    }
-
-    public class RunningProjectItem
-    {
-        public string Name { get; set; }
-        public Process Process { get; set; }
-        public string Status { get; set; }
     }
 }
