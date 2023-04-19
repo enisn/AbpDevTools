@@ -1,0 +1,1 @@
+dotnet tool update -g AbpDevTools --add-source ./nupkg
