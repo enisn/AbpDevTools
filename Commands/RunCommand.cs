@@ -20,8 +20,8 @@ public class RunCommand : ICommand
     [CommandOption("skip-migrate", Description = "Skips migration and runs projects directly.")]
     public bool SkipMigration { get; set; }
 
-    [CommandOption("select", 's', Description = "Projects to run will be asked as prompt. By default runs all of them.")]
-    public bool SelectProjectToRun { get; set; }
+    [CommandOption("all", 'a', Description = "Projects to run will not be asked as prompt. All of them will run.")]
+    public bool RunAll { get; set; }
 
     [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
     public bool NoBuild { get; set; }
@@ -67,7 +67,7 @@ public class RunCommand : ICommand
 
         var projects = csprojs.Where(x => !x.Name.Contains(".DbMigrator")).ToArray();
 
-        if (SelectProjectToRun)
+        if (!RunAll)
         {
             await console.Output.WriteLineAsync($"\n");
             var choosedProjects = AnsiConsole.Prompt(
