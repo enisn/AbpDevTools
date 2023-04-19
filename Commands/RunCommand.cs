@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 using CliFx.Infrastructure;
 using Spectre.Console;
+using System.Diagnostics;
 
 namespace AbpDevTools.Commands;
 
