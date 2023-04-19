@@ -19,15 +19,16 @@ public class ConfigurationClearCommand : ICommand
         {
             await console
                 .Output
-                .WriteAsync($"Are you sure to remove existing configuration at path {ReplacementConfiguration.FilePath}?\nY/N?");
+                .WriteAsync($"Are you sure to remove existing configurations at path {ReplacementConfiguration.FolderPath}?\nY/N?");
 
             var confirm = await console.Input.ReadLineAsync();
-            if (confirm != "Y")
+            if (!confirm.Equals("Y", StringComparison.InvariantCultureIgnoreCase))
             {
                 return;
             }
         }
 
         ReplacementConfiguration.Remove();
+        EnvironmentToolConfiguration.Remove();
     }
 }

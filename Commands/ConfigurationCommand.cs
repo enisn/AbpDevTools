@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 
 namespace AbpDevTools.Commands;
 
-[Command("config", Description = "Allows managing configuration.")]
-public class ConfigurationCommand : ICommand
+[Command("replace config", Description = "Allows managing replacement configuration.")]
+public class ReplaceConfigurationCommand : ICommand
 {
     public ValueTask ExecuteAsync(IConsole console)
     {
@@ -20,6 +20,26 @@ public class ConfigurationCommand : ICommand
         else
         {
             Process.Start(new ProcessStartInfo("open", ReplacementConfiguration.FilePath));
+        }
+        return ValueTask.CompletedTask;
+    }
+}
+
+[Command("envapp config", Description = "Allows managing replacement configuration.")]
+public class ConfigurationCommand : ICommand
+{
+    public ValueTask ExecuteAsync(IConsole console)
+    {
+        EnvironmentToolConfiguration.GetOptions();
+
+        console.Output.WriteLine("Opening file " + EnvironmentToolConfiguration.FilePath);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Process.Start(new ProcessStartInfo("explorer", EnvironmentToolConfiguration.FilePath));
+        }
+        else
+        {
+            Process.Start(new ProcessStartInfo("open", EnvironmentToolConfiguration.FilePath));
         }
         return ValueTask.CompletedTask;
     }

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AbpDevTools": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    }
+  }
+}

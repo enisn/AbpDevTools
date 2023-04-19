@@ -12,7 +12,6 @@ public static class ReplacementConfiguration
         if (!Directory.Exists(FolderPath))
             Directory.CreateDirectory(FolderPath);
 
-
         var options = ReplacementOption.GetDefaults();
         if (File.Exists(FilePath))
         {
@@ -32,6 +31,5 @@ public static class ReplacementConfiguration
     public static void Remove()
     {
         File.Delete(FilePath);
-        Directory.Delete(FolderPath, true);
     }
 }
