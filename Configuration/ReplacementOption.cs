@@ -13,7 +13,15 @@ public class ReplacementOption
                 {
                     FilePattern = "appsettings.json",
                     Find = "Trusted_Connection=True;",
-                    Replace = "User  ID=SA;Password=12345678Aa;"
+                    Replace = "User ID=SA;Password=12345678Aa;"
+                }
+            },
+            {
+                "LocalDb", new ReplacementOption
+                {
+                    FilePattern = "appsettings.json",
+                    Find = "Server=(LocalDb)\\\\MSSQLLocalDB;",
+                    Replace = "Server=localhost;"
                 }
             }
         };

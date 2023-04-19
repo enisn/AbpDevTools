@@ -39,7 +39,7 @@ public class EnvironmentAppStartCommand : ICommand
         {
             var process = Process.Start("docker", option.StartCmd
                 .Replace("docker ", string.Empty)
-                .Replace("{Password}", DefaultPassword));
+                .Replace("Passw0rd", DefaultPassword));
             await process.WaitForExitAsync(console.RegisterCancellationHandler());
         }
         else
