@@ -12,13 +12,13 @@ public class ConfigurationCommand : ICommand
     {
         ReplacementConfiguration.GetOptions();
 
+        console.Output.WriteLine("Opening file " + ReplacementConfiguration.FilePath);
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Process.Start(new ProcessStartInfo("notepad", ReplacementConfiguration.FilePath));
+            Process.Start(new ProcessStartInfo("explorer", ReplacementConfiguration.FilePath));
         }
         else
         {
-            System.Console.WriteLine(ReplacementConfiguration.FilePath);
             Process.Start(new ProcessStartInfo("open", ReplacementConfiguration.FilePath));
         }
         return ValueTask.CompletedTask;
