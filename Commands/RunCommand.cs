@@ -20,7 +20,7 @@ public class RunCommand : ICommand
     [CommandOption("skip-migrate", Description = "Skips migration and runs projects directly.")]
     public bool SkipMigration { get; set; }
 
-    [CommandOption("select", 's' , Description = "Projects to run will be asked as prompt. By default runs all of them.")]
+    [CommandOption("select", 's', Description = "Projects to run will be asked as prompt. By default runs all of them.")]
     public bool SelectProjectToRun { get; set; }
 
     [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
@@ -102,54 +102,68 @@ public class RunCommand : ICommand
             });
         }
 
-        Task.Factory.StartNew(() => RenderProcesses(cancellationToken));
+        await RenderProcesses(cancellationToken);
 
-        await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync(cancellationToken)));
-    }
-
-    private async void RenderProcesses(CancellationToken cancellationToken)
-    {
         foreach (var project in runningProjects)
         {
-            project.Process.OutputDataReceived += (sender, args) =>
-            {
-                if (args.Data != null && args.Data.Contains("Now listening on: "))
-                {
-                    project.Status = args.Data[args.Data.IndexOf("Now listening on: ")..];
-                    project.Process.CancelOutputRead();
-                    project.IsRunning = true;
-                }
-
-                if (DateTime.Now - project.Process.StartTime > TimeSpan.FromMinutes(2))
-                {
-                    project.Process.CancelOutputRead();
-                }
-            };
-            project.Process.BeginOutputReadLine();
+            project.Process.Kill();
         }
+    }
 
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            await Task.Delay(1000);
-            console.Clear();
-            foreach (var project in runningProjects)
-            {
-                if (project.IsRunning)
-                {
-                    using (console.WithForegroundColor(ConsoleColor.Green))
-                    {
-                        await console.Output.WriteLineAsync($"{project.Name} - Running - {project.Status}");
-                    }
-                }
-                else
-                {
-                    if (project.Process.HasExited)
-                    {
-                        project.Status = $"Exited({project.Process.ExitCode})";
-                    }
-                    await console.Output.WriteLineAsync($"{project.Name} - {project.Status}");
-                }
-            }
-        }
+    private async Task RenderProcesses(CancellationToken cancellationToken)
+    {
+        var table = new Table().MarkdownBorder();
+
+        await AnsiConsole.Live(table)
+          .StartAsync(async ctx =>
+          {
+              table.AddColumn("Project").AddColumn("Status");
+
+              foreach (var project in runningProjects)
+              {
+                  table.AddRow(project.Name, project.Status);
+
+                  project.Process.OutputDataReceived += (sender, args) =>
+                  {
+                      if (args.Data != null && args.Data.Contains("Now listening on: "))
+                      {
+                          project.Status = args.Data[args.Data.IndexOf("Now listening on: ")..];
+                          project.Process.CancelOutputRead();
+                          project.IsRunning = true;
+                      }
+
+                      if (DateTime.Now - project.Process.StartTime > TimeSpan.FromMinutes(2))
+                      {
+                          project.Process.CancelOutputRead();
+                      }
+                  };
+                  project.Process.BeginOutputReadLine();
+              }
+              ctx.Refresh();
+
+              while (!cancellationToken.IsCancellationRequested)
+              {
+                  await Task.Delay(1000);
+                  table.Rows.Clear();
+
+                  foreach (var project in runningProjects)
+                  {
+                      if (project.IsRunning)
+                      {
+                          table.AddRow($"[green]{project.Name}[/]", $"[green]{project.Status}[/]");
+                      }
+                      else
+                      {
+                          if (project.Process.HasExited)
+                          {
+                              project.Status = $"Exited({project.Process.ExitCode})";
+                          }
+                          table.AddRow(project.Name, project.Status);
+                      }
+                  }
+
+                  ctx.Refresh();
+              }
+          });
     }
 }
