@@ -16,6 +16,10 @@ public class MigrateCommand : ICommand
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
+        if (string.IsNullOrEmpty(WorkingDirectory))
+        {
+            WorkingDirectory = Directory.GetCurrentDirectory();
+        }
 
         var dbMigrators = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
            .Where(x => x.EndsWith("DbMigrator.csproj"))
