@@ -112,7 +112,7 @@ public class RunCommand : ICommand
 
     private async Task RenderProcesses(CancellationToken cancellationToken)
     {
-        var table = new Table().MarkdownBorder();
+        var table = new Table().Ascii2Border();
 
         await AnsiConsole.Live(table)
           .StartAsync(async ctx =>
