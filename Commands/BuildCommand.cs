@@ -30,6 +30,11 @@ public class BuildCommand : ICommand
             WorkingDirectory = WorkingDirectory
         });
 
-        await runningProcess.WaitForExitAsync(cancellationToken);
+        cancellationToken.Register(() =>
+        {
+            runningProcess.Kill();
+        });
+
+        await runningProcess.WaitForExitAsync();
     }
 }
