@@ -18,7 +18,8 @@ public class ConfigurationCommand : ICommand
         }
         else
         {
-            Process.Start(new ProcessStartInfo("/bin/bash", "open " + ReplacementConfiguration.FilePath));
+            System.Console.WriteLine(ReplacementConfiguration.FilePath);
+            Process.Start(new ProcessStartInfo("open", ReplacementConfiguration.FilePath));
         }
         return ValueTask.CompletedTask;
     }
