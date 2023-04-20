@@ -22,6 +22,9 @@ public class RunCommand : ICommand
     [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
     public bool NoBuild { get; set; }
 
+    [CommandOption("install-libs", 'i', Description = "Runs 'abp install-libs' command while running the project simultaneously.")]
+    public bool InstallLibs { get; set; }
+
     protected IConsole console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -90,17 +93,35 @@ public class RunCommand : ICommand
 
         foreach (var csproj in projects)
         {
-            runningProjects.Add(new RunningProjectItem
+            runningProjects.Add(
+                new RunningCsProjItem(
+                    csproj.Name,
+                    Process.Start(new ProcessStartInfo("dotnet", watchCommand + $"run --project {csproj.FullName}" + noBuildCommand)
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                    })
+                )
+            );
+
+            if (InstallLibs)
             {
-                Name = csproj.Name,
-                Process = Process.Start(new ProcessStartInfo("dotnet", watchCommand + $"run --project {csproj.FullName}" + noBuildCommand)
+                var installLibsRunninItem = new RunningProjectItem
                 {
-                    WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                }),
-                Status = "Building..."
-            });
+                    Name = csproj.Name.Replace(".csproj", " install-libs"),
+                    Status = "installing...",
+                    Process = Process.Start(new ProcessStartInfo("abp", "install-libs")
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                    })
+                };
+                runningProjects.Add(installLibsRunninItem);
+                installLibsRunninItem.Process.OutputDataReceived += (sender, args) => { /*dump*/};
+                installLibsRunninItem.Process.BeginOutputReadLine();
+            }
         }
 
         await RenderProcesses(cancellationToken);
@@ -123,22 +144,6 @@ public class RunCommand : ICommand
               foreach (var project in runningProjects)
               {
                   table.AddRow(project.Name, project.Status);
-
-                  project.Process.OutputDataReceived += (sender, args) =>
-                  {
-                      if (args.Data != null && args.Data.Contains("Now listening on: "))
-                      {
-                          project.Status = args.Data[args.Data.IndexOf("Now listening on: ")..];
-                          project.Process.CancelOutputRead();
-                          project.IsRunning = true;
-                      }
-
-                      if (DateTime.Now - project.Process.StartTime > TimeSpan.FromMinutes(2))
-                      {
-                          project.Process.CancelOutputRead();
-                      }
-                  };
-                  project.Process.BeginOutputReadLine();
               }
               ctx.Refresh();
 
@@ -149,7 +154,7 @@ public class RunCommand : ICommand
 
                   foreach (var project in runningProjects)
                   {
-                      if (project.IsRunning)
+                      if (project.IsCompleted)
                       {
                           table.AddRow(project.Name, $"[green]*[/] {project.Status}");
                       }
