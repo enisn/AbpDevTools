@@ -39,3 +39,33 @@ public class RunningCsProjItem : RunningProjectItem
         }
     }
 }
+
+public class RunningInstallLibsItem : RunningProjectItem
+{
+    public RunningInstallLibsItem(string name, Process process, string status = null)
+    {
+        this.Name=name;
+        this.Process = process;
+        this.Status = status ?? "Installing...";
+
+        process.OutputDataReceived += OutputReceived;
+
+        Process.BeginOutputReadLine();
+    }
+
+    protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)
+    {
+        if (args.Data != null && args.Data.Contains("Done in"))
+        {
+            Status = "Completed.";
+            Process.CancelOutputRead();
+            IsCompleted = true;
+        }
+
+        if (DateTime.Now - Process.StartTime > TimeSpan.FromMinutes(5))
+        {
+            Process.OutputDataReceived -= OutputReceived;
+            Process.CancelOutputRead();
+        }
+    }
+}

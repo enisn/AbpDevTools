@@ -25,6 +25,9 @@ public class RunCommand : ICommand
     [CommandOption("install-libs", 'i', Description = "Runs 'abp install-libs' command while running the project simultaneously.")]
     public bool InstallLibs { get; set; }
 
+    [CommandOption("graphBuild",'g', Description = "Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance.")]
+    public bool GraphBuild { get; set; }
+
     protected IConsole console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -88,15 +91,19 @@ public class RunCommand : ICommand
             projects = projects.Where(x => choosedProjects.Contains(x.Name)).ToArray();
         }
 
-        var watchCommand = Watch ? "watch " : string.Empty;
-        var noBuildCommand = NoBuild ? "--no-build" : string.Empty;
+        var commandPrefix = Watch ? "watch " : string.Empty;
+        var commandPostfix = NoBuild ? " --no-build" : string.Empty;
+        if (GraphBuild)
+        {
+            commandPostfix += " /graphBuild";
+        }
 
         foreach (var csproj in projects)
         {
             runningProjects.Add(
                 new RunningCsProjItem(
                     csproj.Name,
-                    Process.Start(new ProcessStartInfo("dotnet", watchCommand + $"run --project {csproj.FullName}" + noBuildCommand)
+                    Process.Start(new ProcessStartInfo("dotnet", commandPrefix + $"run --project {csproj.FullName}" + commandPostfix)
                     {
                         WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                         UseShellExecute = false,
@@ -124,12 +131,9 @@ public class RunCommand : ICommand
             }
         }
 
-        await RenderProcesses(cancellationToken);
+        cancellationToken.Register(KillRunningProcesses);
 
-        foreach (var project in runningProjects)
-        {
-            project.Process.Kill();
-        }
+        await RenderProcesses(cancellationToken);
     }
 
     private async Task RenderProcesses(CancellationToken cancellationToken)
@@ -171,5 +175,16 @@ public class RunCommand : ICommand
                   ctx.Refresh();
               }
           });
+    }
+
+    protected void KillRunningProcesses()
+    {
+        console.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
+        foreach (var project in runningProjects)
+        {
+            project.Process.Kill(entireProcessTree: true);
+
+            project.Process.WaitForExit();
+        }
     }
 }
