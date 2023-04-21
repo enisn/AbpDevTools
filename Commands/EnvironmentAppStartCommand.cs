@@ -7,7 +7,7 @@ namespace AbpDevTools.Commands;
 [Command("envapp start", Description = "Deploys infrastructural tools to docker. Such as Redis, RabbitMQ, SqlServer etc.")]
 public class EnvironmentAppStartCommand : ICommand
 {
-    [CommandParameter(0, IsRequired = false , Description = "Name of the app.")]
+    [CommandParameter(0, IsRequired = false, Description = "Name of the app.")]
     public string AppName { get; set; }
 
     [CommandOption("password", 'p', Description = "Default password for sql images when applicable. Default: 12345678Aa")]
@@ -21,7 +21,7 @@ public class EnvironmentAppStartCommand : ICommand
         {
             console.Output.WriteLine("You must specify an app to run.\n" +
                 "envapp start <ToolName>\n" +
-                "Available app names:\n" + string.Join("\n - ",configurations.Keys));
+                "Available app names:\n" + string.Join("\n - ", configurations.Keys));
             return;
         }
 
@@ -35,16 +35,18 @@ public class EnvironmentAppStartCommand : ICommand
             DefaultPassword = "12345678Aa";
         }
 
-        if (option.StartCmd.StartsWith("docker "))
+        await RunCommandAsync(option.StartCmd.Replace("Passw0rd", DefaultPassword));
+    }
+
+    protected async Task RunCommandAsync(string command)
+    {
+        var commands = command.Split(';');
+        foreach (var c in commands)
         {
-            var process = Process.Start("docker", option.StartCmd
-                .Replace("docker ", string.Empty)
-                .Replace("Passw0rd", DefaultPassword));
-            await process.WaitForExitAsync(console.RegisterCancellationHandler());
-        }
-        else
-        {
-            throw new CommandException($"Only docker apps supported currently. Your command can't be executed. \n'{option.StartCmd}'\n");
+            var fileName = c[..c.IndexOf(' ')];
+
+            var process = Process.Start(fileName, c[c.IndexOf(' ')..]);
+            await process.WaitForExitAsync();
         }
     }
 }
