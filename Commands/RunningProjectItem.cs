@@ -49,8 +49,7 @@ public class RunningInstallLibsItem : RunningProjectItem
         this.Status = status ?? "Installing...";
 
         process.OutputDataReceived += OutputReceived;
-
-        Process.BeginOutputReadLine();
+        process.BeginOutputReadLine();
     }
 
     protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)

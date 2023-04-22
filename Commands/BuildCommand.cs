@@ -1,11 +1,6 @@
 ﻿using CliFx.Infrastructure;
 using Spectre.Console;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AbpDevTools.Commands;
 
@@ -29,9 +24,10 @@ public class BuildCommand : ICommand
         var buildFiles = await AnsiConsole.Status()
            .StartAsync("Looking for solution files (.sln)", async ctx =>
            {
+               ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
                var slns = Directory.EnumerateFiles(WorkingDirectory, "*.sln", SearchOption.AllDirectories)
-                    .Select(x => new FileInfo(x))
-                    .ToArray();
+                   .Select(x => new FileInfo(x))
+                   .ToArray();
 
                AnsiConsole.MarkupLine($"[green]{slns.Length}[/] .sln files found.");
 
@@ -45,6 +41,7 @@ public class BuildCommand : ICommand
             buildFiles = await AnsiConsole.Status()
                 .StartAsync("Looging for C# Projects (.csproj)", async ctx =>
                 {
+                    ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
                     var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
                         .Select(x => new FileInfo(x))
                         .ToArray();
@@ -56,14 +53,12 @@ public class BuildCommand : ICommand
 
         await AnsiConsole.Status().StartAsync("Starting build...", async ctx =>
         {
-
             for (int i = 0; i < buildFiles.Length; i++)
             {
                 var buildFile = buildFiles[i];
                 var progressRatio = $"[yellow]{i + 1}/{buildFiles.Length}[/]";
                 ctx.Status($"{progressRatio} - [bold]Building[/] {buildFile.FullName}");
-                ctx.Spinner(Spinner.Known.Material);
-                
+
                 runningProcess = Process.Start(new ProcessStartInfo("dotnet", "build /graphBuild")
                 {
                     WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
