@@ -86,7 +86,6 @@ public class ReplaceCommand : ICommand
                 .Where(x => Regex.IsMatch(x, option.FilePattern))
                 .ToList();
 
-            await Task.Delay(2000);
             ctx.Status($"[green]{files.Count}[/] file(s) found with pattern.");
 
             int affectedFileCount = 0;
@@ -97,7 +96,6 @@ public class ReplaceCommand : ICommand
                 if (text.Contains(option.Find))
                 {
                     File.WriteAllText(file, text.Replace(option.Find, option.Replace));
-                    await Task.Delay(2000);
                     ctx.Status($"{file} updated.");
                     affectedFileCount++;
                 }
