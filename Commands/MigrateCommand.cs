@@ -33,7 +33,7 @@ public class MigrateCommand : ICommand
 
         await console.Output.WriteLineAsync($"{dbMigrators.Count} db migrator(s) found.");
 
-        var commandPostFix = NoBuild ? " --nu-build" : string.Empty;
+        var commandPostFix = NoBuild ? " --no-build" : string.Empty;
 
         foreach (var dbMigrator in dbMigrators)
         {
