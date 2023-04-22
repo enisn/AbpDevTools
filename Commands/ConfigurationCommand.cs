@@ -37,12 +37,24 @@ public class ReplaceConfigurationCommand : ConfigurationBasecommand
 }
 
 [Command("envapp config", Description = "Allows managing replacement configuration.")]
-public class ConfigurationCommand : ConfigurationBasecommand
+public class EnvironmentAppConfigurationCommand : ConfigurationBasecommand
 {
     protected override string FilePath => EnvironmentAppConfiguration.FilePath;
-    public ValueTask ExecuteAsync(IConsole console)
+    public override ValueTask ExecuteAsync(IConsole console)
     {
         EnvironmentAppConfiguration.GetOptions();
-        return ValueTask.CompletedTask;
+        return base.ExecuteAsync(console);
+    }
+}
+
+[Command("run config")]
+public class RunConfigurationCommand : ConfigurationBasecommand
+{
+    protected override string FilePath => RunConfiguration.FilePath;
+
+    public override ValueTask ExecuteAsync(IConsole console)
+    {
+        RunConfiguration.GetOptions();
+        return base.ExecuteAsync(console);
     }
 }

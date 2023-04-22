@@ -38,7 +38,8 @@ public class ConfigurationClearCommand : ICommand
     protected readonly ConfigurationClearCommandBase[] configurationClearCommands = new ConfigurationClearCommandBase[]
     {
         new ReplacementConfigClearCommand(),
-        new EnvironmentAppConfigClearCommand()
+        new EnvironmentAppConfigClearCommand(),
+        new RunConfigClearCommand()
     };
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -61,4 +62,10 @@ public class ReplacementConfigClearCommand : ConfigurationClearCommandBase
 public class EnvironmentAppConfigClearCommand : ConfigurationClearCommandBase
 {
     protected override string FilePath => EnvironmentAppConfiguration.FilePath;
+}
+
+[Command("run config clear")]
+public class RunConfigClearCommand : ConfigurationClearCommandBase
+{
+    protected override string FilePath => RunConfiguration.FilePath;
 }

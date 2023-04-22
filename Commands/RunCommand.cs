@@ -1,4 +1,5 @@
-﻿using CliFx.Infrastructure;
+﻿using AbpDevTools.Configuration;
+using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
 
@@ -32,19 +33,6 @@ public class RunCommand : ICommand
 
     protected readonly List<RunningProjectItem> runningProjects = new();
 
-    private static readonly string[] _runnableProjects = new string[]{
-        ".HttpApi.Host",
-        ".HttpApi.HostWithIds",
-        ".AuthServer",
-        ".Web",
-        ".Web.Host",
-        ".Blazor",
-        ".Blazor.Host",
-        ".Blazor.Server",
-        ".Blazor.Server.Host",
-        ".Blazor.Server.Tiered",
-    };
-
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
@@ -53,6 +41,8 @@ public class RunCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
         var cancellationToken = console.RegisterCancellationHandler();
+
+        var _runnableProjects = RunConfiguration.GetOptions().RunnableProjects;
 
         var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
             .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
