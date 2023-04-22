@@ -72,11 +72,11 @@ public class BuildCommand : ICommand
 
                 if (runningProcess.ExitCode == 0)
                 {
-                    AnsiConsole.MarkupLine($"{progressRatio} - [bold]Building[/] [silver]{buildFile.FullName}[/] [green]completed[/]");
+                    AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{buildFile.Name}[/]");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"{progressRatio} - [red][bold]Building[/] {buildFile.Name} failed. Exit Code: {runningProcess.ExitCode}[/]");
+                    AnsiConsole.MarkupLine($"{progressRatio} - [red]failed [bold]Building[/] {buildFile.Name} Exit Code: {runningProcess.ExitCode}[/]");
                     AnsiConsole.MarkupLine($"[grey]{_output}[/]");
                 }
 
@@ -84,6 +84,8 @@ public class BuildCommand : ICommand
                 {
                     break;
                 }
+
+                runningProcess.Kill(entireProcessTree: true);
             }
         });
 
