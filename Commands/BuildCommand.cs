@@ -47,7 +47,7 @@ public class BuildCommand : ICommand
                         .Select(x => new FileInfo(x))
                         .ToArray();
 
-                    AnsiConsole.MarkupLine($"[green]{csprojs.Length}[/] .sln files found.");
+                    AnsiConsole.MarkupLine($"[green]{csprojs.Length}[/] .csproj files found.");
                     return csprojs;
                 });
         }
@@ -70,6 +70,7 @@ public class BuildCommand : ICommand
 
                 // equivalent of WaitforExit
                 var _output = await runningProcess.StandardOutput.ReadToEndAsync();
+                await runningProcess.WaitForExitAsync();
 
                 if (runningProcess.ExitCode == 0)
                 {
