@@ -1,4 +1,5 @@
 ﻿using CliFx.Infrastructure;
+using Spectre.Console;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -25,16 +26,75 @@ public class BuildCommand : ICommand
 
         var cancellationToken = console.RegisterCancellationHandler();
 
-        runningProcess = Process.Start(new ProcessStartInfo("dotnet", "build /graphBuild")
+        var buildFiles = await AnsiConsole.Status()
+           .StartAsync("Looking for solution files (.sln)", async ctx =>
+           {
+               var slns = Directory.EnumerateFiles(WorkingDirectory, "*.sln", SearchOption.AllDirectories)
+                    .Select(x => new FileInfo(x))
+                    .ToArray();
+
+               AnsiConsole.MarkupLine($"[green]{slns.Length}[/] .sln files found.");
+
+               return slns;
+           });
+
+        if (buildFiles.Length == 0)
         {
-            WorkingDirectory = WorkingDirectory
+            await console.Output.WriteLineAsync("No .sln files found. Looking for .csproj files.");
+
+            buildFiles = await AnsiConsole.Status()
+                .StartAsync("Looging for C# Projects (.csproj)", async ctx =>
+                {
+                    var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
+                        .Select(x => new FileInfo(x))
+                        .ToArray();
+
+                    AnsiConsole.MarkupLine($"[green]{csprojs.Length}[/] .sln files found.");
+                    return csprojs;
+                });
+        }
+
+        await AnsiConsole.Status().StartAsync("Starting build...", async ctx =>
+        {
+
+            for (int i = 0; i < buildFiles.Length; i++)
+            {
+                var buildFile = buildFiles[i];
+                var progressRatio = $"[yellow]{i + 1}/{buildFiles.Length}[/]";
+                ctx.Status($"{progressRatio} - [bold]Building[/] {buildFile.FullName}");
+                ctx.Spinner(Spinner.Known.Material);
+                
+                runningProcess = Process.Start(new ProcessStartInfo("dotnet", "build /graphBuild")
+                {
+                    WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                });
+
+                // equivalent of WaitforExit
+                var _output = await runningProcess.StandardOutput.ReadToEndAsync();
+
+                if (runningProcess.ExitCode == 0)
+                {
+                    AnsiConsole.MarkupLine($"{progressRatio} - [bold]Building[/] [silver]{buildFile.FullName}[/] [green]completed[/]");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"{progressRatio} - [red][bold]Building[/] {buildFile.Name} failed. Exit Code: {runningProcess.ExitCode}[/]");
+                    AnsiConsole.MarkupLine($"[grey]{_output}[/]");
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
         });
 
         cancellationToken.Register(() =>
         {
-            runningProcess.Kill();
+            runningProcess.Kill(entireProcessTree: true);
         });
-
-        await runningProcess.WaitForExitAsync();
     }
 }
