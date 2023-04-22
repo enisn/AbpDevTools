@@ -1,5 +1,6 @@
 ﻿using CliFx.Infrastructure;
 using Spectre.Console;
+using System;
 using System.Diagnostics;
 
 namespace AbpDevTools.Commands;
@@ -89,9 +90,13 @@ public class BuildCommand : ICommand
             }
         });
 
-        cancellationToken.Register(() =>
-        {
-            runningProcess.Kill(entireProcessTree: true);
-        });
+        cancellationToken.Register(KillRunningProcesses);
+    }
+
+    protected void KillRunningProcesses()
+    {
+        runningProcess.Kill(entireProcessTree: true);
+
+        runningProcess.WaitForExit();
     }
 }

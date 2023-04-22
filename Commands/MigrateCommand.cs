@@ -1,4 +1,5 @@
 ﻿using CliFx.Infrastructure;
+using Spectre.Console;
 using System.Diagnostics;
 
 namespace AbpDevTools.Commands;
@@ -37,28 +38,81 @@ public class MigrateCommand : ICommand
 
         foreach (var dbMigrator in dbMigrators)
         {
+            var process = Process.Start(new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}" + commandPostFix)
+            {
+                WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName),
+                RedirectStandardOutput = true,
+            });
+
             runningProjects.Add(new RunningProjectItem
             {
                 Name = dbMigrator.Name,
-                Process = Process.Start(new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}" + commandPostFix)
-                {
-                    WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName)
-                }),
-                Status = "Building..."
+                Process = process,
+                Status = "Running..."
             });
         }
 
         await console.Output.WriteAsync("Waiting for db migrators to finish...");
-        cancellationToken.Register(() =>
-        {
-            foreach (var runningProject in runningProjects)
-            {
-                runningProject.Process.Kill(entireProcessTree: true);
-            }
-        });
+        cancellationToken.Register(KillRunningProcesses);
 
-        await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync()));
+        await RenderStatusAsync();
 
         await console.Output.WriteLineAsync("Migrations finished.");
+
+        KillRunningProcesses();
+    }
+
+    private async Task RenderStatusAsync()
+    {
+        var table = new Table().Border(TableBorder.Ascii);
+
+        AnsiConsole.WriteLine(Environment.NewLine);
+        await AnsiConsole.Live(table)
+            .StartAsync(async ctx =>
+            {
+                table.AddColumn("Project");
+                table.AddColumn("Status");
+                
+                UpdateTable(table);
+                ctx.UpdateTarget(table);
+
+                foreach (var runningProject in runningProjects)
+                {
+                    runningProject.Process.OutputDataReceived += (sender, args) =>
+                    {
+                        if (args?.Data != null && args.Data.Length < 90)
+                        {
+                            runningProject.Status = args.Data[args.Data.IndexOf(']')..].Replace('[', '\0').Replace(']', '\0');
+                            UpdateTable(table);
+                            ctx.UpdateTarget(table);
+                        }
+                    };
+                    runningProject.Process.BeginOutputReadLine();
+                }
+
+                await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync()));
+            });
+    }
+
+    private void UpdateTable(Table table)
+    {
+        table.Rows.Clear();
+        foreach (var runningProject in runningProjects)
+        {
+            table.AddRow(
+                runningProject.Name,
+                runningProject.Status);
+        }
+    }
+
+    protected void KillRunningProcesses()
+    {
+        console.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
+        foreach (var project in runningProjects)
+        {
+            project.Process.Kill(entireProcessTree: true);
+
+            project.Process.WaitForExit();
+        }
     }
 }
