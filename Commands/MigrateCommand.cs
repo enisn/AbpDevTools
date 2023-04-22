@@ -44,8 +44,15 @@ public class MigrateCommand : ICommand
         }
 
         await console.Output.WriteAsync("Waiting for db migrators to finish...");
+        cancellationToken.Register(() =>
+        {
+            foreach (var runningProject in runningProjects)
+            {
+                runningProject.Process.Kill(entireProcessTree: true);
+            }
+        });
 
-        await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync(cancellationToken)));
+        await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync()));
 
         await console.Output.WriteLineAsync("Migrations finished.");
     }
