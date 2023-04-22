@@ -79,7 +79,7 @@ public class ReplaceCommand : ICommand
         await AnsiConsole.Status()
         .StartAsync($"Executing...", async ctx =>
         {
-            AnsiConsole.MarkupLine($"Executing [blue]'{ReplacementConfigName}'[/] replacement configuration...");
+            AnsiConsole.MarkupLine($"Executing [blue]'{configurationName}'[/] replacement configuration...");
 
             ctx.Status($"[blue]{option.FilePattern}[/] file pattern executing.");
             var files = Directory.EnumerateFiles(WorkingDirectory, "*.*", SearchOption.AllDirectories)
