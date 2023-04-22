@@ -44,12 +44,18 @@ public class RunCommand : ICommand
 
         var _runnableProjects = RunConfiguration.GetOptions().RunnableProjects;
 
-        var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-            .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
-            .Select(x => new FileInfo(x))
-            .ToList();
+        FileInfo[] csprojs = Array.Empty<FileInfo>();
+        await AnsiConsole.Status()
+            .StartAsync("Looking for projects", async ctx =>
+            {
+                csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
+                    .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
+                    .Select(x => new FileInfo(x))
+                    .ToArray();
+            });
+        
 
-        await console.Output.WriteLineAsync($"{csprojs.Count} csproj file(s) found.");
+        await console.Output.WriteLineAsync($"{csprojs.Length} csproj file(s) found.");
 
         if (!SkipMigration)
         {
