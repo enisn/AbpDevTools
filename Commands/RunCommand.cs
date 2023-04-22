@@ -61,7 +61,8 @@ public class RunCommand : ICommand
         {
             await new MigrateCommand()
             {
-                WorkingDirectory = this.WorkingDirectory
+                WorkingDirectory = this.WorkingDirectory,
+                NoBuild = this.NoBuild,
             }.ExecuteAsync(console);
         }
 

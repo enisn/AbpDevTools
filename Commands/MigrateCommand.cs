@@ -9,6 +9,9 @@ public class MigrateCommand : ICommand
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string WorkingDirectory { get; set; }
 
+    [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
+    public bool NoBuild { get; set; }
+
     protected readonly List<RunningProjectItem> runningProjects = new();
 
     protected IConsole console;
@@ -30,12 +33,14 @@ public class MigrateCommand : ICommand
 
         await console.Output.WriteLineAsync($"{dbMigrators.Count} db migrator(s) found.");
 
+        var commandPostFix = NoBuild ? " --nu-build" : string.Empty;
+
         foreach (var dbMigrator in dbMigrators)
         {
             runningProjects.Add(new RunningProjectItem
             {
                 Name = dbMigrator.Name,
-                Process = Process.Start(new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}")
+                Process = Process.Start(new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}" + commandPostFix)
                 {
                     WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName)
                 }),
