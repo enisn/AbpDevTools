@@ -26,7 +26,7 @@ public class RunCommand : ICommand
     [CommandOption("install-libs", 'i', Description = "Runs 'abp install-libs' command while running the project simultaneously.")]
     public bool InstallLibs { get; set; }
 
-    [CommandOption("graphBuild",'g', Description = "Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance.")]
+    [CommandOption("graphBuild", 'g', Description = "Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance.")]
     public bool GraphBuild { get; set; }
 
     protected IConsole console;
@@ -44,16 +44,16 @@ public class RunCommand : ICommand
 
         var _runnableProjects = RunConfiguration.GetOptions().RunnableProjects;
 
-        FileInfo[] csprojs = Array.Empty<FileInfo>();
-        await AnsiConsole.Status()
+        FileInfo[] csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects", async ctx =>
             {
-                csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
+                ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+                return Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
                     .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
                     .Select(x => new FileInfo(x))
                     .ToArray();
             });
-        
+
 
         await console.Output.WriteLineAsync($"{csprojs.Length} csproj file(s) found.");
 
@@ -110,20 +110,17 @@ public class RunCommand : ICommand
 
             if (InstallLibs)
             {
-                var installLibsRunninItem = new RunningProjectItem
-                {
-                    Name = csproj.Name.Replace(".csproj", " install-libs"),
-                    Status = "installing...",
-                    Process = Process.Start(new ProcessStartInfo("abp", "install-libs")
+                var installLibsRunninItem = new RunningInstallLibsItem(
+                    csproj.Name.Replace(".csproj", " install-libs"),
+                    Process.Start(new ProcessStartInfo("abp", "install-libs")
                     {
                         WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                     })
-                };
+                );
+
                 runningProjects.Add(installLibsRunninItem);
-                installLibsRunninItem.Process.OutputDataReceived += (sender, args) => { /*dump*/};
-                installLibsRunninItem.Process.BeginOutputReadLine();
             }
         }
 
@@ -160,7 +157,7 @@ public class RunCommand : ICommand
                       }
                       else
                       {
-                          if (project.Process.HasExited)
+                          if (project.Process.HasExited && !project.IsCompleted)
                           {
                               project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
                           }
