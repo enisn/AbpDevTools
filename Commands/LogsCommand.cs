@@ -7,11 +7,11 @@ namespace AbpDevTools.Commands;
 [Command("logs")]
 public class LogsCommand : ICommand
 {
-    [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
-
-    [CommandOption("project", 'p', Description = "Determines the project to open logs of it.")]
+    [CommandParameter(0, Description = "Determines the project to open logs of it.")]
     public string ProjectName { get; set; }
+
+    [CommandOption("path", 'p', Description = "Working directory of the command. Probably solution directory. Default: . (CurrentDirectory) ")]
+    public string WorkingDirectory { get; set; }
 
     [CommandOption("interactive", 'i', Description = "Options will be asked as prompt when this option used.")]
     public bool Interactive { get; set; }
@@ -48,7 +48,7 @@ public class LogsCommand : ICommand
                 await console.Output.WriteLineAsync("\n\tUsage:");
                 await console.Output.WriteLineAsync("\tlogs -p <project-name>");
                 await console.Output.WriteLineAsync("\nAvailable project names:\n\n\t - " +
-                    string.Join("\n\t - ", _runnableProjects.Select(x => x.Split(Path.DirectorySeparatorChar).Last())));
+                    string.Join("\n\t - ", csprojs.Select(x => x.Name.Split(Path.DirectorySeparatorChar).Last())));
                 return;
             }
         }
