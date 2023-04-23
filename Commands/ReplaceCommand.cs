@@ -44,7 +44,7 @@ public class ReplaceCommand : ICommand
                 console.Output.WriteLine("\tUse 'replace <config-name>' to execute a rule");
                 console.Output.WriteLine("\tUse 'replace all' to execute a rules");
                 console.Output.WriteLine("\tUse 'replace config' to manage rules.\n\n");
-                console.Output.WriteLine("Available execution rules:\n\n\t" + string.Join("\n\t -", options.Keys));
+                console.Output.WriteLine("Available execution rules:\n\n\t - " + string.Join("\n\t - ", options.Keys));
                 return;
             }
         }
