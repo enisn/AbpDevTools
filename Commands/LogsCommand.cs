@@ -7,7 +7,7 @@ namespace AbpDevTools.Commands;
 [Command("logs")]
 public class LogsCommand : ICommand
 {
-    [CommandParameter(0, Description = "Determines the project to open logs of it.")]
+    [CommandParameter(0, Description = "Determines the project to open logs of it.", IsRequired = false)]
     public string ProjectName { get; set; }
 
     [CommandOption("path", 'p', Description = "Working directory of the command. Probably solution directory. Default: . (CurrentDirectory) ")]
