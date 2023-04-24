@@ -24,10 +24,18 @@ public class LogsCommand : ICommand
         }
 
         var _runnableProjects = RunConfiguration.GetOptions().RunnableProjects;
-        var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-                .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
-                .Select(x => new FileInfo(x))
-                .ToList();
+        var csprojs = await AnsiConsole.Status()
+            .StartAsync("Looking for projects...", async ctx =>
+            {
+                ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+                var projects = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
+                    .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
+                    .Select(x => new FileInfo(x))
+                    .ToArray();
+                AnsiConsole.MarkupLine($"[green]{projects.Length}[/] .sln files found.");
+
+                return projects;
+            });
 
         if (string.IsNullOrEmpty(ProjectName))
         {
