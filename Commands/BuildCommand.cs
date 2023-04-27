@@ -14,6 +14,9 @@ public class BuildCommand : ICommand
     [CommandOption("build-files", 'f', Description = "(Array) Names or part of names of projects or solutions will be built.")]
     public string[] BuildFiles { get; set; }
 
+    [CommandOption("interactive", 'i', Description = "Interactive build file selection.")]
+    public bool Interactive { get; set; }
+
     Process runningProcess;
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -24,13 +27,20 @@ public class BuildCommand : ICommand
         }
 
         var cancellationToken = console.RegisterCancellationHandler();
-        var buildFiles = await FindSolutionBuildFilesAsync();
+        var buildFiles = await FindBuildFilesAsync("*.sln", "solution");
 
         if (buildFiles.Length == 0)
         {
             await console.Output.WriteLineAsync("No .sln files found. Looking for .csproj files.");
 
-            buildFiles = await FindCsprojBuildFilesAsync(buildFiles);
+            buildFiles = await FindBuildFilesAsync("*.csproj", "csproj");
+        }
+
+        if (buildFiles.Length == 0)
+        {
+            await console.Output.WriteLineAsync("No .csproj files found. No files to build.");
+
+            return;
         }
 
         await AnsiConsole.Status().StartAsync("Starting build...", async ctx =>
@@ -74,14 +84,15 @@ public class BuildCommand : ICommand
 
         cancellationToken.Register(KillRunningProcesses);
     }
-
-    private async Task<FileInfo[]> FindSolutionBuildFilesAsync()
+    private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string nameOfPattern = null)
     {
-        return await AnsiConsole.Status()
-                .StartAsync("Looking for solution files (.sln)", async ctx =>
+        nameOfPattern ??= "build";
+
+        var files = await AnsiConsole.Status()
+                .StartAsync($"Looking for {nameOfPattern} files ({pattern})", async ctx =>
                 {
                     ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
-                    var query = Directory.EnumerateFiles(WorkingDirectory, "*.sln", SearchOption.AllDirectories);
+                    var query = Directory.EnumerateFiles(WorkingDirectory, pattern, SearchOption.AllDirectories);
 
                     if (BuildFiles?.Length > 0)
                     {
@@ -92,33 +103,28 @@ public class BuildCommand : ICommand
                         .Select(x => new FileInfo(x))
                         .ToArray();
 
-                    AnsiConsole.MarkupLine($"[green]{slns.Length}[/] .sln files found.");
+                    AnsiConsole.MarkupLine($"[green]{slns.Length}[/] {pattern.Replace('*', '\0')} files found.");
 
                     return slns;
                 });
-    }
 
-    private async Task<FileInfo[]> FindCsprojBuildFilesAsync(FileInfo[] buildFiles)
-    {
-        buildFiles = await AnsiConsole.Status()
-            .StartAsync("Looging for C# Projects (.csproj)", async ctx =>
-            {
-                ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
-                var query = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories);
+        if (Interactive)
+        {
+            var choosed = AnsiConsole.Prompt(
+                new MultiSelectionPrompt<string>()
+                    .Title("Choose files to be built:")
+                    .NotRequired() // Not required to have a favorite fruit
+                    .PageSize(12)
+                    .MoreChoicesText("[grey](Move up and down to reveal more files)[/]")
+                    .InstructionsText(
+                        "[grey](Press [blue]<space>[/] to toggle a file, " +
+                        "[green]<enter>[/] to accept)[/]")
+                    .AddChoices(files.Select(s => s.FullName)));
 
-                if (BuildFiles?.Length > 0)
-                {
-                    query = query.Where(x => BuildFiles.Any(y => x.Contains(y, StringComparison.InvariantCultureIgnoreCase)));
-                }
+            files = files.Where(x => choosed.Contains(x.FullName)).ToArray();
+        }
 
-                var csprojs = query
-                    .Select(x => new FileInfo(x))
-                    .ToArray();
-
-                AnsiConsole.MarkupLine($"[green]{csprojs.Length}[/] .csproj files found.");
-                return csprojs;
-            });
-        return buildFiles;
+        return files;
     }
 
     protected void KillRunningProcesses()
