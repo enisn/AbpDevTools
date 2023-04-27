@@ -29,6 +29,9 @@ public class RunCommand : ICommand
     [CommandOption("graphBuild", 'g', Description = "Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance.")]
     public bool GraphBuild { get; set; }
 
+    [CommandOption("projects", 'p', Description = "(Array) Names or part of names of projects will be ran.")]
+    public string[] Projects { get; set; }
+
     protected IConsole console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -54,7 +57,6 @@ public class RunCommand : ICommand
                     .ToArray();
             });
 
-
         await console.Output.WriteLineAsync($"{csprojs.Length} csproj file(s) found.");
 
         if (!SkipMigration)
@@ -73,19 +75,27 @@ public class RunCommand : ICommand
         if (!RunAll)
         {
             await console.Output.WriteLineAsync($"\n");
-            var choosedProjects = AnsiConsole.Prompt(
-                new MultiSelectionPrompt<string>()
-                    .Title("Choose [blueviolet]projects[/] to run.")
-                    .Required(true)
-                    .PageSize(12)
-                    .HighlightStyle(new Style(foreground: Color.BlueViolet))
-                    .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
-                    .InstructionsText(
-                        "[grey](Press [blueviolet]<space>[/] to toggle a project, " +
-                        "[green]<enter>[/] to accept)[/]")
-                    .AddChoices(projects.Select(s => s.Name)));
 
-            projects = projects.Where(x => choosedProjects.Contains(x.Name)).ToArray();
+            if (Projects == null || Projects.Length == 0)
+            {
+                var choosedProjects = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<string>()
+                        .Title("Choose [blueviolet]projects[/] to run.")
+                        .Required(true)
+                        .PageSize(12)
+                        .HighlightStyle(new Style(foreground: Color.BlueViolet))
+                        .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
+                        .InstructionsText(
+                            "[grey](Press [blueviolet]<space>[/] to toggle a project, " +
+                            "[green]<enter>[/] to accept)[/]")
+                        .AddChoices(projects.Select(s => s.Name)));
+
+                projects = projects.Where(x => choosedProjects.Contains(x.Name)).ToArray();
+            }
+            else
+            {
+                projects = projects.Where(x => Projects.Any(y => x.FullName.Contains(y, StringComparison.InvariantCultureIgnoreCase))).ToArray();
+            }
         }
 
         var commandPrefix = Watch ? "watch " : string.Empty;
