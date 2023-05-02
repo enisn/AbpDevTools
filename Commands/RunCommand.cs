@@ -72,7 +72,7 @@ public class RunCommand : ICommand
 
         var projects = csprojs.Where(x => !x.Name.Contains(".DbMigrator")).ToArray();
 
-        if (!RunAll)
+        if (!RunAll && projects.Length > 1)
         {
             await console.Output.WriteLineAsync($"\n");
 
