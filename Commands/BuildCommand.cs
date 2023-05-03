@@ -133,7 +133,7 @@ public class BuildCommand : ICommand
                     .PageSize(12)
                     .MoreChoicesText("[grey](Move up and down to reveal more files)[/]")
                     .InstructionsText(
-                        "[grey](Press [blue]<space>[/] to toggle a file, " +
+                        "[grey](Press [blueviolet]<space>[/] to toggle a file, " +
                         "[green]<enter>[/] to accept)[/]")
                     .AddChoices(files.Select(s => s.FullName)));
 
