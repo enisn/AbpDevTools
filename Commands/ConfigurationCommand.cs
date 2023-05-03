@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace AbpDevTools.Commands;
 
-public abstract class ConfigurationBasecommand : ICommand
+public abstract class ConfigurationBaseCommand : ICommand
 {
     protected abstract string FilePath { get; }
 
@@ -25,7 +25,7 @@ public abstract class ConfigurationBasecommand : ICommand
 }
 
 [Command("replace config", Description = "Allows managing replacement configuration.")]
-public class ReplaceConfigurationCommand : ConfigurationBasecommand
+public class ReplaceConfigurationCommand : ConfigurationBaseCommand
 {
     protected override string FilePath => ReplacementConfiguration.FilePath;
     public override ValueTask ExecuteAsync(IConsole console)
@@ -37,7 +37,7 @@ public class ReplaceConfigurationCommand : ConfigurationBasecommand
 }
 
 [Command("envapp config", Description = "Allows managing replacement configuration.")]
-public class EnvironmentAppConfigurationCommand : ConfigurationBasecommand
+public class EnvironmentAppConfigurationCommand : ConfigurationBaseCommand
 {
     protected override string FilePath => EnvironmentAppConfiguration.FilePath;
     public override ValueTask ExecuteAsync(IConsole console)
@@ -48,7 +48,7 @@ public class EnvironmentAppConfigurationCommand : ConfigurationBasecommand
 }
 
 [Command("run config")]
-public class RunConfigurationCommand : ConfigurationBasecommand
+public class RunConfigurationCommand : ConfigurationBaseCommand
 {
     protected override string FilePath => RunConfiguration.FilePath;
 

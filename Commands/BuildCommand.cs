@@ -1,4 +1,5 @@
-﻿using CliFx.Infrastructure;
+﻿using AbpDevTools.Notifications;
+using CliFx.Infrastructure;
 using Spectre.Console;
 using System;
 using System.Diagnostics;
@@ -18,6 +19,12 @@ public class BuildCommand : ICommand
     public bool Interactive { get; set; }
 
     Process runningProcess;
+    protected readonly INotificationManager notificationManager;
+
+    public BuildCommand(INotificationManager notificationManager)
+    {
+        this.notificationManager = notificationManager;
+    }
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
@@ -81,6 +88,15 @@ public class BuildCommand : ICommand
                 runningProcess.Kill(entireProcessTree: true);
             }
         });
+
+        if (buildFiles.Length == 1)
+        {
+            await notificationManager.SendAsync("Build Completed!", $"{buildFiles[0].Name} has been built.");
+        }
+        else
+        {
+            await notificationManager.SendAsync("Build Completed!", $"{buildFiles.Length} projects have been built.");
+        }
 
         cancellationToken.Register(KillRunningProcesses);
     }
