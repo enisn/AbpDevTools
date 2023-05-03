@@ -95,7 +95,7 @@ public class BuildCommand : ICommand
         }
         else
         {
-            await notificationManager.SendAsync("Build Completed!", $"{buildFiles.Length} projects have been built.");
+            await notificationManager.SendAsync("Build Completed!", $"{buildFiles.Length} projects have been built in '{WorkingDirectory}' folder.");
         }
 
         cancellationToken.Register(KillRunningProcesses);
