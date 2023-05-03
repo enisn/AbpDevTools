@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Configuration;
+using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -36,6 +37,13 @@ public class RunCommand : ICommand
 
     protected readonly List<RunningProjectItem> runningProjects = new();
 
+    protected readonly INotificationManager notificationManager;
+
+    public RunCommand(INotificationManager notificationManager)
+    {
+        this.notificationManager = notificationManager;
+    }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
@@ -61,7 +69,7 @@ public class RunCommand : ICommand
 
         if (!SkipMigration)
         {
-            await new MigrateCommand()
+            await new MigrateCommand(notificationManager)
             {
                 WorkingDirectory = this.WorkingDirectory,
                 NoBuild = this.NoBuild,
