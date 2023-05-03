@@ -8,26 +8,45 @@ namespace AbpDevTools.Commands;
 public class EnvironmentAppStartCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Name of the app.")]
-    public string AppName { get; set; }
+    public string[] AppNames { get; set; }
 
     [CommandOption("password", 'p', Description = "Default password for sql images when applicable. Default: 12345678Aa")]
     public string DefaultPassword { get; set; }
 
+    protected IConsole console;
+    protected Dictionary<string,EnvironmentToolOption> configurations;
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
-        var configurations = EnvironmentAppConfiguration.GetOptions();
+        this.console = console;
+        configurations = EnvironmentAppConfiguration.GetOptions();
 
-        if (string.IsNullOrEmpty(AppName))
+        if (AppNames == null || AppNames.Length == 0)
         {
             console.Output.WriteLine("You must specify an app to run.\n" +
                 "envapp start <ToolName>\n" +
-                "Available app names:\n" + string.Join("\n - ", configurations.Keys));
+                "Available app names:\n - " + string.Join("\n - ", configurations.Keys));
+
             return;
         }
 
-        if (!configurations.TryGetValue(AppName, out var option))
+        foreach (var appName in AppNames)
         {
-            throw new CommandException("ToolName couldn't be recognized. Try one of them: \n" + string.Join("\n - ", configurations.Keys));
+            await StartAppAsync(appName);
+        }
+    }
+
+    protected async Task StartAppAsync(string appName)
+    {
+        if (string.IsNullOrEmpty(appName))
+        {
+            await console.Output.WriteAsync("App Name can't be null or empty.");
+            return;
+        }
+
+        if (!configurations.TryGetValue(appName, out var option))
+        {
+            throw new CommandException("ToolName couldn't be recognized. Try one of them: \n - " + string.Join("\n - ", configurations.Keys));
         }
 
         if (string.IsNullOrEmpty(DefaultPassword))
