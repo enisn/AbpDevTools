@@ -26,6 +26,21 @@ public class EnableNotificationsCommand : ICommand
             return;
         }
 
+        if(RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            var process = Process.Start("bash", "osascript -e 'display notification \"Notifications enabled.\" with title \"AbpDevTools\"'");
+
+            console.RegisterCancellationHandler().Register(() => process.Kill(entireProcessTree: true));
+
+            await process.WaitForExitAsync();
+
+            var options = NotificationConfiguration.GetOptions();
+            options.Enabled = true;
+            NotificationConfiguration.SetOptions(options);
+
+            return;
+        }
+
         throw new CommandException($"This operation isn't supported on {RuntimeInformation.OSDescription} currently. :(");
     }
 }
