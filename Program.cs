@@ -59,6 +59,10 @@ public static class Startup
         {
             services.AddTransient<INotificationManager, WindowsNotificationManager>();
         }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            services.AddTransient<INotificationManager, MacCatalystNotificationManager>();
+        }
         else
         {
             services.AddTransient<INotificationManager, DefaultNotificationManager>();
