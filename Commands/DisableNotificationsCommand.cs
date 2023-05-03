@@ -6,21 +6,27 @@ using System.Runtime.InteropServices;
 
 namespace AbpDevTools.Commands;
 
-[Command("enable-notifications")]
-public class EnableNotificationsCommand : ICommand
+[Command("disable-notifications")]
+public class DisableNotificationsCommand : ICommand
 {
+    [CommandOption("uninstall", 'u', Description = "Uninstalls the 'BurntToast' powershell module.")]
+    public bool UninstallBurntToast { get; set; }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var process = Process.Start("pwsh", "-Command Install-Module -Name BurntToast");
+            if (UninstallBurntToast) 
+            {
+                var process = Process.Start("pwsh", "-Command Uninstall-Module -Name BurntToast");
 
-            console.RegisterCancellationHandler().Register(() => process.Kill(entireProcessTree: true));
+                console.RegisterCancellationHandler().Register(() => process.Kill(entireProcessTree: true));
 
-            await process.WaitForExitAsync();
+                await process.WaitForExitAsync();
+            }
 
             var options = NotificationConfiguration.GetOptions();
-            options.Enabled = true;
+            options.Enabled = false;
             NotificationConfiguration.SetOptions(options);
 
             return;

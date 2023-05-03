@@ -34,6 +34,7 @@ public static class Startup
             typeof(ReplaceConfigurationCommand),
             typeof(EnvironmentAppConfigurationCommand),
             typeof(RunConfigurationCommand),
+            typeof(DisableNotificationsCommand),
             typeof(EnableNotificationsCommand),
             typeof(EnvironmentAppCommand),
             typeof(EnvironmentAppStartCommand),
@@ -53,25 +54,6 @@ public static class Startup
                 services.AddSingleton(commandType);
             }
         }
-
-        builder
-            .AddCommand<BuildCommand>()
-            .AddCommand<ConfigurationClearCommand>()
-            .AddCommand<ReplacementConfigClearCommand>()
-            .AddCommand<EnvironmentAppConfigClearCommand>()
-            .AddCommand<RunConfigClearCommand>()
-            .AddCommand<ReplaceConfigurationCommand>()
-            .AddCommand<EnvironmentAppConfigurationCommand>()
-            .AddCommand<RunConfigurationCommand>()
-            .AddCommand<EnableNotificationsCommand>()
-            .AddCommand<EnvironmentAppCommand>()
-            .AddCommand<EnvironmentAppStartCommand>()
-            .AddCommand<EnvironmentAppStopCommand>()
-            .AddCommand<LogsClearCommand>()
-            .AddCommand<LogsCommand>()
-            .AddCommand<MigrateCommand>()
-            .AddCommand<ReplaceCommand>()
-            .AddCommand<RunCommand>();
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
