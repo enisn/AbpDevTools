@@ -1,4 +1,5 @@
-﻿using CliFx.Infrastructure;
+﻿using AbpDevTools.Notifications;
+using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
 
@@ -16,6 +17,13 @@ public class MigrateCommand : ICommand
     protected readonly List<RunningProjectItem> runningProjects = new();
 
     protected IConsole console;
+
+    protected readonly INotificationManager notificationManager;
+
+    public MigrateCommand(INotificationManager notificationManager)
+    {
+        this.notificationManager = notificationManager;
+    }
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
@@ -60,6 +68,8 @@ public class MigrateCommand : ICommand
         await console.Output.WriteLineAsync("Migrations finished.");
 
         KillRunningProcesses();
+
+        await notificationManager.SendAsync("Migration Completed", $"Complated migrations in {WorkingDirectory}");
     }
 
     private async Task RenderStatusAsync()
