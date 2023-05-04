@@ -50,8 +50,9 @@ public class BuildCommand : ICommand
             return;
         }
 
-        await AnsiConsole.Status().StartAsync("Starting build...", async ctx =>
+        var successfulCount = await AnsiConsole.Status().StartAsync("Starting build...", async ctx =>
         {
+            int completed = 0;
             for (int i = 0; i < buildFiles.Length; i++)
             {
                 var buildFile = buildFiles[i];
@@ -72,6 +73,7 @@ public class BuildCommand : ICommand
 
                 if (runningProcess.ExitCode == 0)
                 {
+                    completed++;
                     AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{buildFile.Name}[/]");
                 }
                 else
@@ -87,19 +89,22 @@ public class BuildCommand : ICommand
 
                 runningProcess.Kill(entireProcessTree: true);
             }
+
+            return completed;
         });
 
         if (buildFiles.Length == 1)
         {
-            await notificationManager.SendAsync("Build Completed!", $"{buildFiles[0].Name} has been built.");
+            await notificationManager.SendAsync("Build "+ (successfulCount > 0 ? "Completed!" : "Failed!"), $"{buildFiles[0].Name} has been built.");
         }
         else
         {
-            await notificationManager.SendAsync("Build Completed!", $"{buildFiles.Length} projects have been built in '{WorkingDirectory}' folder.");
+            await notificationManager.SendAsync("Build Done!", $"{successfulCount} of {buildFiles.Length} projects have been built in '{WorkingDirectory}' folder.");
         }
 
         cancellationToken.Register(KillRunningProcesses);
     }
+
     private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string nameOfPattern = null)
     {
         nameOfPattern ??= "build";
@@ -124,7 +129,7 @@ public class BuildCommand : ICommand
                     return slns;
                 });
 
-        if (Interactive)
+        if (Interactive && files.Length > 1)
         {
             var choosed = AnsiConsole.Prompt(
                 new MultiSelectionPrompt<string>()
