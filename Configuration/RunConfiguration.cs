@@ -53,6 +53,7 @@ public class RunOptions
                 ".Blazor.Server",
                 ".Blazor.Server.Host",
                 ".Blazor.Server.Tiered",
+                ".Unified",
             }
         };
     }
