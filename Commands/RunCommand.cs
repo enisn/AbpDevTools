@@ -33,6 +33,9 @@ public class RunCommand : ICommand
     [CommandOption("projects", 'p', Description = "(Array) Names or part of names of projects will be ran.")]
     public string[] Projects { get; set; }
 
+    [CommandOption("configuration", 'c')]
+    public string Configuration { get; set; }
+
     protected IConsole console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -107,10 +110,16 @@ public class RunCommand : ICommand
         }
 
         var commandPrefix = Watch ? "watch " : string.Empty;
-        var commandPostfix = NoBuild ? " --no-build" : string.Empty;
+        var commandSuffix = NoBuild ? " --no-build" : string.Empty;
+
         if (GraphBuild)
         {
-            commandPostfix += " /graphBuild";
+            commandSuffix += " /graphBuild";
+        }
+
+        if (!string.IsNullOrEmpty(Configuration))
+        {
+            commandSuffix += $" --configuration {Configuration}";
         }
 
         foreach (var csproj in projects)
@@ -118,7 +127,7 @@ public class RunCommand : ICommand
             runningProjects.Add(
                 new RunningCsProjItem(
                     csproj.Name,
-                    Process.Start(new ProcessStartInfo("dotnet", commandPrefix + $"run --project {csproj.FullName}" + commandPostfix)
+                    Process.Start(new ProcessStartInfo("dotnet", commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
                     {
                         WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                         UseShellExecute = false,

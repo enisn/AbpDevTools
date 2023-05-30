@@ -18,6 +18,9 @@ public class BuildCommand : ICommand
     [CommandOption("interactive", 'i', Description = "Interactive build file selection.")]
     public bool Interactive { get; set; }
 
+    [CommandOption("configuration", 'c')]
+    public string Configuration { get; set; }
+
     Process runningProcess;
     protected readonly INotificationManager notificationManager;
 
@@ -59,7 +62,14 @@ public class BuildCommand : ICommand
                 var progressRatio = $"[yellow]{i + 1}/{buildFiles.Length}[/]";
                 ctx.Status($"{progressRatio} - [bold]Building[/] {buildFile.FullName}");
 
-                runningProcess = Process.Start(new ProcessStartInfo("dotnet", "build /graphBuild")
+                var commandSuffix = string.Empty;
+
+                if (!string.IsNullOrEmpty(Configuration))
+                {
+                    commandSuffix += $" --configuration {Configuration}";
+                }
+
+                runningProcess = Process.Start(new ProcessStartInfo("dotnet", "build /graphBuild" + commandSuffix)
                 {
                     WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
                     UseShellExecute = false,
