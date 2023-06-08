@@ -31,6 +31,8 @@ public class EnableNotificationsCommand : ICommand
             options.Enabled = true;
             NotificationConfiguration.SetOptions(options);
 
+            await notificationManager.SendAsync("Notifications Enabled", "Notifications will be displayed like this.");
+
             return;
         }
 
