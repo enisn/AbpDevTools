@@ -55,6 +55,8 @@ public class ReplaceCommand : ICommand
             {
                 await ExecuteConfigAsync(item.Key, item.Value);
             }
+
+            return;
         }
 
         if (!string.IsNullOrEmpty(ReplacementConfigName))
