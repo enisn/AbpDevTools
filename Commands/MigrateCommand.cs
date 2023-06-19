@@ -65,11 +65,13 @@ public class MigrateCommand : ICommand
 
         await RenderStatusAsync();
 
-        await console.Output.WriteLineAsync("Migrations finished.");
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            await console.Output.WriteLineAsync("Migrations finished.");
+            await notificationManager.SendAsync("Migration Completed", $"Complated migrations in {WorkingDirectory}");
+        }
 
         KillRunningProcesses();
-
-        await notificationManager.SendAsync("Migration Completed", $"Complated migrations in {WorkingDirectory}");
     }
 
     private async Task RenderStatusAsync()
@@ -82,7 +84,7 @@ public class MigrateCommand : ICommand
             {
                 table.AddColumn("Project");
                 table.AddColumn("Status");
-                
+
                 UpdateTable(table);
                 ctx.UpdateTarget(table);
 
