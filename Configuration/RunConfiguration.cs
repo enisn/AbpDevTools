@@ -46,6 +46,7 @@ public class RunOptions
                 ".IdentityServer",
                 ".Web",
                 ".Web.Host",
+                ".Web.Public",
                 ".Mvc",
                 ".Mvc.Host",
                 ".Blazor",
