@@ -275,5 +275,5 @@ _You can extend the list or change environments of apps by using `abpdev envapp 
 
 - Start SQL Server with custom SA password
     ```bash
-    abpdev envapp start -p myPassw0rd
+    abpdev envapp start sqlserver -p myPassw0rd
     ```
