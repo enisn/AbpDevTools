@@ -1,6 +1,5 @@
 ﻿using AbpDevTools.Commands;
 using AbpDevTools.Notifications;
-using CliFx;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 
@@ -11,7 +10,7 @@ public class Program
     public static async Task<int> Main() =>
         await new CliApplicationBuilder()
             .SetExecutableName("abpdev")
-            .SetDescription("Some tools that required running solutions in abp development.")
+            .SetDescription("A set of tools to make development with ABP easier.")
             .SetTitle("Abp Dev Tools")
             .BuildServices()
             .Build()
