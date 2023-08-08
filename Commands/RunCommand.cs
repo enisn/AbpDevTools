@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Configuration;
+using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -36,15 +37,22 @@ public class RunCommand : ICommand
     [CommandOption("configuration", 'c')]
     public string Configuration { get; set; }
 
+    [CommandOption("env", 'e', Description = "Uses the virtual environment for this process. Use 'abpdev env config' command to see/manage environments.")]
+    public string EnvironmentName { get; set; }
+
     protected IConsole console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
 
     protected readonly INotificationManager notificationManager;
+    protected readonly MigrateCommand migrateCommand;
+    protected readonly IProcessEnvironmentManager environmentManager;
 
-    public RunCommand(INotificationManager notificationManager)
+    public RunCommand(INotificationManager notificationManager, MigrateCommand migrateCommand, IProcessEnvironmentManager environmentManager)
     {
         this.notificationManager = notificationManager;
+        this.migrateCommand = migrateCommand;
+        this.environmentManager = environmentManager;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -72,11 +80,11 @@ public class RunCommand : ICommand
 
         if (!SkipMigration)
         {
-            await new MigrateCommand(notificationManager)
-            {
-                WorkingDirectory = this.WorkingDirectory,
-                NoBuild = this.NoBuild,
-            }.ExecuteAsync(console);
+            migrateCommand.WorkingDirectory = this.WorkingDirectory;
+            migrateCommand.NoBuild = this.NoBuild;
+            migrateCommand.EnvironmentName = this.EnvironmentName;
+
+            await migrateCommand.ExecuteAsync(console);
         }
 
         await console.Output.WriteLineAsync("Starting projects...");
@@ -124,15 +132,23 @@ public class RunCommand : ICommand
 
         foreach (var csproj in projects)
         {
+            var startInfo = new ProcessStartInfo("dotnet", commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
+            {
+                WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+
+            if (!string.IsNullOrEmpty(EnvironmentName))
+            {
+                environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
+            }
+
             runningProjects.Add(
                 new RunningCsProjItem(
                     csproj.Name,
-                    Process.Start(new ProcessStartInfo("dotnet", commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
-                    {
-                        WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                    })
+                    Process.Start(startInfo)
                 )
             );
 

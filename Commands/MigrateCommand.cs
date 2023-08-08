@@ -1,4 +1,5 @@
-﻿using AbpDevTools.Notifications;
+﻿using AbpDevTools.Environments;
+using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -14,15 +15,20 @@ public class MigrateCommand : ICommand
     [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
     public bool NoBuild { get; set; }
 
+    [CommandOption("env", 'e', Description = "Uses the virtual environment for this process. Use 'abpdev env config' command to see/manage environments.")]
+    public string EnvironmentName { get; set; }
+
     protected readonly List<RunningProjectItem> runningProjects = new();
 
     protected IConsole console;
 
     protected readonly INotificationManager notificationManager;
+    protected readonly IProcessEnvironmentManager environmentManager;
 
-    public MigrateCommand(INotificationManager notificationManager)
+    public MigrateCommand(INotificationManager notificationManager, IProcessEnvironmentManager environmentManager)
     {
         this.notificationManager = notificationManager;
+        this.environmentManager = environmentManager;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -44,13 +50,26 @@ public class MigrateCommand : ICommand
 
         var commandPostFix = NoBuild ? " --no-build" : string.Empty;
 
+        if (!string.IsNullOrEmpty(EnvironmentName))
+        {
+            environmentManager.SetEnvironment(EnvironmentName, WorkingDirectory);
+        }
+
         foreach (var dbMigrator in dbMigrators)
         {
-            var process = Process.Start(new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}" + commandPostFix)
+
+            var startInfo = new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}" + commandPostFix)
             {
                 WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName),
                 RedirectStandardOutput = true,
-            });
+            };
+
+            if (!string.IsNullOrEmpty(EnvironmentName))
+            {
+                environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
+            }
+
+            var process = Process.Start(startInfo);
 
             runningProjects.Add(new RunningProjectItem
             {

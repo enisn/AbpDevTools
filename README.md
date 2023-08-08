@@ -94,6 +94,7 @@ OPTIONS
   -g|--graphBuild   Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance. Default: "False".
   -p|--projects     (Array) Names or part of names of projects will be ran.
   -c|--configuration
+  -e| --env        Virtual Environment name. You can manage virtual environments by using 'abpdev env config'
   -h|--help         Shows help text.
 ```
 
@@ -137,6 +138,40 @@ Convention: `*.csproj` files with specific names are considered as applications 
     ```bash
     abpdev run -w
     ```
+
+## Virtual Environments
+Virtual environments are used to run multiple solutions with different configurations. For example, you can run different solutions with different environments _(connectionstrings etc.)_.
+
+```bash
+abpdev env config
+```
+
+> You'll see the following screen. You can add, edit, delete, and select virtual environments.
+> ```json
+> {
+>  "SqlServer": {
+>    "Variables": {
+>      "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;>Password=12345678Aa;TrustServerCertificate=True"
+>    }
+>  },
+>  "MongoDB": {
+>    "Variables": {
+>      "ConnectionStrings__Default": "mongodb://localhost:27017/{AppName}_{Today}"
+>    }
+>  }
+>}
+> ```
+> **{Today}** will be replaced with the current date. So you can run multiple solutions with different databases.
+> **{AppName}** will be replaced with the application name. So you can run multiple solutions with different databases. _When app name couldn't be detected, folder name will be used.
+
+
+### Example commands
+
+- Run in a specific virtual environment
+    ```bash
+    abpdev run -e SqlServer
+    ```
+
 
 ## abpdev logs
 Finds given project under the current directory and shows logs of it.

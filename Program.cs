@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Commands;
+using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
@@ -43,6 +44,8 @@ public static class Startup
             typeof(MigrateCommand),
             typeof(ReplaceCommand),
             typeof(RunCommand),
+            typeof(EnvironmentCommand),
+            typeof(EnvironmentConfigurationCommand),
         };
 
         foreach (var commandType in commands)
@@ -53,6 +56,8 @@ public static class Startup
                 services.AddSingleton(commandType);
             }
         }
+
+        services.AddTransient<IProcessEnvironmentManager, ProcessEnvironmentManager>();
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
