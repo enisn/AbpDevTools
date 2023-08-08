@@ -153,7 +153,7 @@ abpdev env config
 > {
 >  "SqlServer": {
 >    "Variables": {
->      "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;>Password=12345678Aa;TrustServerCertificate=True"
+>      "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=12345678Aa;TrustServerCertificate=True"
 >    }
 >  },
 >  "MongoDB": {
