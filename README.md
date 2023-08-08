@@ -142,6 +142,8 @@ Convention: `*.csproj` files with specific names are considered as applications 
 ## Virtual Environments
 Virtual environments are used to run multiple solutions with different configurations. For example, you can run different solutions with different environments _(connectionstrings etc.)_.
 
+ You can manage virtual environments by using `abpdev env config` command and use those pre-configured environments with other commands like: `abpdev run -e SqlServer`. This command will use the environment named SqlServer. You can set different connectionstrings for each environment.
+
 ```bash
 abpdev env config
 ```
