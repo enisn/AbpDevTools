@@ -55,6 +55,7 @@ public class RunOptions
                 ".Blazor.Server.Host",
                 ".Blazor.Server.Tiered",
                 ".Unified",
+                ".PublicWeb",
                 ".PublicWebGateway",
                 ".WebGateway"
             }
