@@ -40,6 +40,9 @@ public class RunCommand : ICommand
     [CommandOption("env", 'e', Description = "Uses the virtual environment for this process. Use 'abpdev env config' command to see/manage environments.")]
     public string EnvironmentName { get; set; }
 
+    [CommandOption("retry", 'r', Description = "Retries running again when application exits.")]
+    public bool Retry { get; set; }
+
     protected IConsole console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -190,7 +193,11 @@ public class RunCommand : ICommand
 
               while (!cancellationToken.IsCancellationRequested)
               {
-                  await Task.Delay(1000);
+#if DEBUG
+                  await Task.Delay(100);
+#else
+                  await Task.Delay(500);
+#endif
                   table.Rows.Clear();
 
                   foreach (var project in runningProjects)
@@ -201,9 +208,16 @@ public class RunCommand : ICommand
                       }
                       else
                       {
-                          if (project.Process.HasExited && !project.IsCompleted)
+                          if (project.Process.HasExited && !project.Queued)
                           {
                               project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
+
+                              if (Retry)
+                              {
+                                  project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
+
+                                  _ = RestartProject(project); // fire and forget
+                              }
                           }
                           table.AddRow(project.Name, project.Status);
                       }
@@ -212,6 +226,15 @@ public class RunCommand : ICommand
                   ctx.Refresh();
               }
           });
+    }
+
+    private static async Task RestartProject(RunningProjectItem project)
+    {
+        project.Queued = true;
+        await Task.Delay(3100);
+        project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode}) (Retrying...)";
+        project.Process = Process.Start(project.Process.StartInfo);
+        project.StartReadingOutput();
     }
 
     protected void KillRunningProcesses()
