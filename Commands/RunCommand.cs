@@ -99,13 +99,13 @@ public class RunCommand : ICommand
             {
                 var choosedProjects = AnsiConsole.Prompt(
                     new MultiSelectionPrompt<string>()
-                        .Title("Choose [blueviolet]projects[/] to run.")
+                        .Title("Choose [mediumpurple2]projects[/] to run.")
                         .Required(true)
                         .PageSize(12)
-                        .HighlightStyle(new Style(foreground: Color.BlueViolet))
+                        .HighlightStyle(new Style(foreground: Color.MediumPurple2))
                         .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
                         .InstructionsText(
-                            "[grey](Press [blueviolet]<space>[/] to toggle a project, " +
+                            "[grey](Press [mediumpurple2]<space>[/] to toggle a project, " +
                             "[green]<enter>[/] to accept)[/]")
                         .AddChoices(projects.Select(s => s.Name)));
 

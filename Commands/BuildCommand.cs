@@ -146,9 +146,10 @@ public class BuildCommand : ICommand
                     .Title("Choose files to be built:")
                     .NotRequired() // Not required to have a favorite fruit
                     .PageSize(12)
+                    .HighlightStyle(new Style(foreground: Color.MediumPurple2))
                     .MoreChoicesText("[grey](Move up and down to reveal more files)[/]")
                     .InstructionsText(
-                        "[grey](Press [blueviolet]<space>[/] to toggle a file, " +
+                        "[grey](Press [mediumpurple2]<space>[/] to toggle a file, " +
                         "[green]<enter>[/] to accept)[/]")
                     .AddChoices(files.Select(s => s.FullName)));
 

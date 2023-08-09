@@ -44,9 +44,9 @@ public class LogsCommand : ICommand
                 await console.Output.WriteLineAsync($"\n");
                 ProjectName = AnsiConsole.Prompt(
                     new SelectionPrompt<string>()
-                        .Title("Choose a [blueviolet]project[/] to open logs?")
+                        .Title("Choose a [mediumpurple2]project[/] to open logs?")
                         .PageSize(12)
-                        .HighlightStyle(new Style(foreground: Color.BlueViolet))
+                        .HighlightStyle(new Style(foreground: Color.MediumPurple2))
                         .MoreChoicesText("[grey](Move up and down to reveal more rules)[/]")
                         .AddChoices(csprojs.Select(s => s.Name)));
             }

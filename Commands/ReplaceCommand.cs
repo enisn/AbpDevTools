@@ -32,9 +32,9 @@ public class ReplaceCommand : ICommand
                 await console.Output.WriteLineAsync($"\n");
                 ReplacementConfigName = AnsiConsole.Prompt(
                     new SelectionPrompt<string>()
-                        .Title("Choose a [blueviolet]rule[/] to execute?")
+                        .Title("Choose a [mediumpurple2]rule[/] to execute?")
                         .PageSize(12)
-                        .HighlightStyle(new Style(foreground: Color.BlueViolet))
+                        .HighlightStyle(new Style(foreground: Color.MediumPurple2))
                         .MoreChoicesText("[grey](Move up and down to reveal more rules)[/]")
                         .AddChoices(options.Keys));
             }
