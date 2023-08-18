@@ -39,7 +39,7 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
 
         foreach (var variable in env.Variables)
         {
-            process.EnvironmentVariables[variable.Key] = PrepareValue(variable.Value);
+            process.EnvironmentVariables[variable.Key] = PrepareValue(variable.Value, process.WorkingDirectory);
         }
     }
 
@@ -60,12 +60,12 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
 
         var splitted = dir.Split(Path.DirectorySeparatorChar).Last().Split('.');
 
-        if (splitted.Length == 1)
+        if (splitted.Length <= 2)
         {
             return splitted.First();
         }
 
-        if (splitted.Length > 1)
+        if (splitted.Length > 2)
         {
             return splitted[1];
         }
