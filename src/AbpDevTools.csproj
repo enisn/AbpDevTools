@@ -6,7 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>abpdev</ToolCommandName>
-        <PackageOutputPath>./nupkg</PackageOutputPath>
+        <PackageOutputPath>../nupkg</PackageOutputPath>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
