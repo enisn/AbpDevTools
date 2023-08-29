@@ -5,7 +5,7 @@ VisualStudioVersion = 17.6.33606.364
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{63A376BC-8AD1-46C6-B16F-F890103018DB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AbpDevTools", "src\AbpDevTools.csproj", "{B5EFD9C0-CD69-4BFE-822A-03EA797B2663}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AbpDevTools", "src\AbpDevTools\AbpDevTools.csproj", "{C58E2B8D-4310-4DA3-AD79-3B0555C6DFC8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,16 +13,16 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{B5EFD9C0-CD69-4BFE-822A-03EA797B2663}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B5EFD9C0-CD69-4BFE-822A-03EA797B2663}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B5EFD9C0-CD69-4BFE-822A-03EA797B2663}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B5EFD9C0-CD69-4BFE-822A-03EA797B2663}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C58E2B8D-4310-4DA3-AD79-3B0555C6DFC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C58E2B8D-4310-4DA3-AD79-3B0555C6DFC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C58E2B8D-4310-4DA3-AD79-3B0555C6DFC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C58E2B8D-4310-4DA3-AD79-3B0555C6DFC8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{B5EFD9C0-CD69-4BFE-822A-03EA797B2663} = {63A376BC-8AD1-46C6-B16F-F890103018DB}
+		{C58E2B8D-4310-4DA3-AD79-3B0555C6DFC8} = {63A376BC-8AD1-46C6-B16F-F890103018DB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0798E145-DECF-44E8-9B64-2931A61A8E24}
