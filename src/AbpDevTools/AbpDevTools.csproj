@@ -2,11 +2,11 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <Version>1.1.1</Version>
+        <Version>1.2.0</Version>
         <ImplicitUsings>enable</ImplicitUsings>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>abpdev</ToolCommandName>
-        <PackageOutputPath>../nupkg</PackageOutputPath>
+        <PackageOutputPath>../../nupkg</PackageOutputPath>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -17,7 +17,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="CliFx" Version="2.3.2" />
+        <PackageReference Include="CliFx" Version="2.3.4" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
         <PackageReference Include="Spectre.Console" Version="0.46.1-preview.0.20" />
     </ItemGroup>
