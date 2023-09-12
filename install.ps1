@@ -1,2 +1,2 @@
-dotnet pack ./src/AbpDevTools/AbpDevTools.csproj -c Release
+pwsh ./pack.ps1
 dotnet tool update -g AbpDevTools --add-source ./nupkg --prerelease

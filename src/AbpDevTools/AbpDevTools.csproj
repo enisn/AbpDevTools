@@ -1,25 +1,32 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <Version>1.2.0</Version>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <PackAsTool>true</PackAsTool>
-        <ToolCommandName>abpdev</ToolCommandName>
-        <PackageOutputPath>../../nupkg</PackageOutputPath>
-    </PropertyGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Version>1.2.0</Version>
+    <IsPackable>true</IsPackable>
+    <RepositoryUrl>https://github.com/enisn/AbpDevTools</RepositoryUrl>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>abpdev</ToolCommandName>
+    <PackageOutputPath>../../nupkg</PackageOutputPath>
+  </PropertyGroup>
 
-    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-        <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-        <TargetFramework>net7.0</TargetFramework>
-    </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="CliFx" Version="2.3.4" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
-        <PackageReference Include="Spectre.Console" Version="0.46.1-preview.0.20" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CliFx" Version="2.3.4" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
+    <PackageReference Include="Spectre.Console" Version="0.46.1-preview.0.20" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE.txt" Pack="true" PackagePath=""/>
+  </ItemGroup>
 
 </Project>
