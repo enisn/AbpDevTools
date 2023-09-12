@@ -22,7 +22,7 @@ public class RunCommand : ICommand
     [CommandOption("all", 'a', Description = "Projects to run will not be asked as prompt. All of them will run.")]
     public bool RunAll { get; set; }
 
-    [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
+    [CommandOption("no-build", Description = "Skips build before running. Passes '--no-build' parameter to dotnet run.")]
     public bool NoBuild { get; set; }
 
     [CommandOption("install-libs", 'i', Description = "Runs 'abp install-libs' command while running the project simultaneously.")]
