@@ -77,7 +77,7 @@ public class BuildCommand : ICommand
                     RedirectStandardError = true,
                 });
 
-                // equivalent of WaitforExit
+                // equivalent of WaitForExit
                 var _output = await runningProcess.StandardOutput.ReadToEndAsync();
                 await runningProcess.WaitForExitAsync();
 
@@ -130,13 +130,13 @@ public class BuildCommand : ICommand
                         query = query.Where(x => BuildFiles.Any(y => x.Contains(y, StringComparison.InvariantCultureIgnoreCase)));
                     }
 
-                    var slns = query
+                    var fileInfos = query
                         .Select(x => new FileInfo(x))
                         .ToArray();
 
-                    AnsiConsole.MarkupLine($"[green]{slns.Length}[/] {pattern.Replace('*', '\0')} files found.");
+                    AnsiConsole.MarkupLine($"[green]{fileInfos.Length}[/] {pattern.Replace('*', '\0')} files found.");
 
-                    return slns;
+                    return fileInfos;
                 });
 
         if (Interactive && files.Length > 1)
