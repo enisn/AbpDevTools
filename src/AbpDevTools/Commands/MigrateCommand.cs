@@ -46,6 +46,12 @@ public class MigrateCommand : ICommand
 
         var cancellationToken = console.RegisterCancellationHandler();
 
+        if (dbMigrators.Count == 0)
+        {
+            await console.Output.WriteLineAsync($"No migrator(s) found in this folder. Migration not applied.");
+            return;
+        }
+
         await console.Output.WriteLineAsync($"{dbMigrators.Count} db migrator(s) found.");
 
         var commandPostFix = NoBuild ? " --no-build" : string.Empty;
