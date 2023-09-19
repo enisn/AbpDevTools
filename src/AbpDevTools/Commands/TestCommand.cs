@@ -91,7 +91,7 @@ public class TestCommand : ICommand
 
     private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string nameOfPattern = null)
     {
-        nameOfPattern ??= "build";
+        nameOfPattern ??= "solution";
 
         var files = await AnsiConsole.Status()
                 .StartAsync($"Looking for {nameOfPattern} files ({pattern})", async ctx =>
@@ -104,13 +104,13 @@ public class TestCommand : ICommand
                         query = query.Where(x => TestFiles.Any(y => x.Contains(y, StringComparison.InvariantCultureIgnoreCase)));
                     }
 
-                    var fileInfos = query
+                    var fileInfo = query
                         .Select(x => new FileInfo(x))
                         .ToArray();
 
-                    AnsiConsole.MarkupLine($"[green]{fileInfos.Length}[/] {pattern.Replace('*', '\0')} files found.");
+                    AnsiConsole.MarkupLine($"[green]{fileInfo.Length}[/] {pattern.Replace('*', '\0')} files found.");
 
-                    return fileInfos;
+                    return fileInfo;
                 });
 
         if (Interactive && files.Length > 1)
