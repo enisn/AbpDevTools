@@ -56,14 +56,8 @@ public class MigrateCommand : ICommand
 
         var commandPostFix = NoBuild ? " --no-build" : string.Empty;
 
-        if (!string.IsNullOrEmpty(EnvironmentName))
-        {
-            environmentManager.SetEnvironment(EnvironmentName, WorkingDirectory);
-        }
-
         foreach (var dbMigrator in dbMigrators)
         {
-
             var startInfo = new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}" + commandPostFix)
             {
                 WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName),

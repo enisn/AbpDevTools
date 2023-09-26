@@ -58,18 +58,13 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
     {
         var dir = directory ?? Directory.GetCurrentDirectory();
 
-        var splitted = dir.Split(Path.DirectorySeparatorChar).Last().Split('.');
-
-        if (splitted.Length <= 2)
+        if (dir.Contains("."))
         {
-            return splitted.First();
+            var folderName = new DirectoryInfo(dir).Name;
+
+            return folderName[..folderName.LastIndexOf('.')].Replace(".", string.Empty);
         }
 
-        if (splitted.Length > 2)
-        {
-            return splitted[1];
-        }
-
-        return splitted[^2];
+        return dir;
     }
 }
