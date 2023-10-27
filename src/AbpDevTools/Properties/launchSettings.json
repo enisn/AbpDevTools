@@ -1,8 +1,8 @@
 {
   "profiles": {
     "AbpDevTools": {
-      "commandName": "Project",
-      "commandLineArgs": "migrate C:\\P\\volo\\abp\\test-app\\aspnet-core\\src --no-build -e s"
+        "commandName": "Project",
+        "commandLineArgs": "up C:\\P\\MySlowApp"
     }
   }
 }

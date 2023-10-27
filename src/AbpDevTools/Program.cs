@@ -3,6 +3,9 @@ using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
+using YamlDotNet.Serialization.NamingConventions;
+using YamlDotNet.Serialization;
+using AbpDevTools.Running;
 
 namespace AbpDevTools;
 
@@ -48,6 +51,8 @@ public static class Startup
             typeof(EnvironmentConfigurationCommand),
             typeof(AbpBundleCommand),
             typeof(TestCommand),
+            typeof(GenerateRunningConfigurationCommand),
+            typeof(RunFromConfigurationCommand),
         };
 
         foreach (var commandType in commands)
@@ -72,7 +77,15 @@ public static class Startup
         else
         {
             services.AddTransient<INotificationManager, DefaultNotificationManager>();
-        }
+        } 
+
+        services.AddTransient<ISerializer>(sp => new SerializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build());
+
+        services.AddTransient<IDeserializer>(sp => new DeserializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build());
 
         var serviceProvider = services.BuildServiceProvider();
 

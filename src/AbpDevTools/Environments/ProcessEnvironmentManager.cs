@@ -62,7 +62,7 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
         {
             var folderName = new DirectoryInfo(dir).Name;
 
-            return folderName[..folderName.LastIndexOf('.')].Replace(".", string.Empty);
+            return folderName.Split('.').First();
         }
 
         return dir;
