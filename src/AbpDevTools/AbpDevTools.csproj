@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <Version>1.2.2</Version>
+    <Version>1.2.3</Version>
     <IsPackable>true</IsPackable>
     <RepositoryUrl>https://github.com/enisn/AbpDevTools</RepositoryUrl>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
