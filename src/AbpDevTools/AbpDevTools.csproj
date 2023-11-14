@@ -23,6 +23,7 @@
     <PackageReference Include="CliFx" Version="2.3.4" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
     <PackageReference Include="Spectre.Console" Version="0.46.1-preview.0.20" />
+    <PackageReference Include="Unidecode.NET" Version="2.1.0" />
   </ItemGroup>
 
   <ItemGroup>

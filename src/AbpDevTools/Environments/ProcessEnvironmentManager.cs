@@ -1,6 +1,8 @@
 ﻿using AbpDevTools.Configuration;
 using CliFx.Exceptions;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
+using Unidecode.NET;
 
 namespace AbpDevTools.Environments;
 public class ProcessEnvironmentManager : IProcessEnvironmentManager
@@ -58,13 +60,28 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
     {
         var dir = directory ?? Directory.GetCurrentDirectory();
 
-        if (dir.Contains("."))
+        var folderName = new DirectoryInfo(dir).Name;
+        if (folderName.Contains("."))
         {
-            var folderName = new DirectoryInfo(dir).Name;
+            var appName = folderName.Split('.').First();
 
-            return folderName.Split('.').First();
+            dir = dir.Replace(folderName, appName);
         }
 
-        return dir;
+        var normalized = Regex.Replace(dir.Unidecode().ToLowerInvariant(), @"[^a-z0-9]", string.Empty);
+
+        var result = TruncateStart(normalized, 116);
+
+        return result;
+    }
+
+    private static string TruncateStart(string value, int maximumLength)
+    {
+        if (value.Length <= maximumLength)
+        {
+            return value;
+        }
+
+        return value.Substring(value.Length - maximumLength);
     }
 }
