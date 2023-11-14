@@ -1,6 +1,7 @@
 ﻿using AbpDevTools.Commands;
 using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
+using AbpDevTools.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 
@@ -48,6 +49,7 @@ public static class Startup
             typeof(EnvironmentConfigurationCommand),
             typeof(AbpBundleCommand),
             typeof(TestCommand),
+            typeof(UpdateCheckCommand)
         };
 
         foreach (var commandType in commands)
@@ -60,6 +62,7 @@ public static class Startup
         }
 
         services.AddTransient<IProcessEnvironmentManager, ProcessEnvironmentManager>();
+        services.AddTransient<UpdateChecker>();
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

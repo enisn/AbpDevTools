@@ -1,6 +1,7 @@
 ﻿using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -50,12 +51,18 @@ public class RunCommand : ICommand
     protected readonly INotificationManager notificationManager;
     protected readonly MigrateCommand migrateCommand;
     protected readonly IProcessEnvironmentManager environmentManager;
+    protected readonly UpdateCheckCommand updateCheckCommand;
 
-    public RunCommand(INotificationManager notificationManager, MigrateCommand migrateCommand, IProcessEnvironmentManager environmentManager)
+    public RunCommand(
+        INotificationManager notificationManager,
+        MigrateCommand migrateCommand,
+        IProcessEnvironmentManager environmentManager,
+        UpdateCheckCommand updatecheckCommand)
     {
         this.notificationManager = notificationManager;
         this.migrateCommand = migrateCommand;
         this.environmentManager = environmentManager;
+        this.updateCheckCommand = updatecheckCommand;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -174,6 +181,8 @@ public class RunCommand : ICommand
         cancellationToken.Register(KillRunningProcesses);
 
         await RenderProcesses(cancellationToken);
+
+        await updateCheckCommand.SoftCheckAsync(console);
     }
 
     private async Task RenderProcesses(CancellationToken cancellationToken)

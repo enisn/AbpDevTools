@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using AbpDevTools.Configuration;
+using System.Diagnostics;
 
 namespace AbpDevTools.Notifications;
 public class WindowsNotificationManager : INotificationManager
@@ -9,6 +10,11 @@ public class WindowsNotificationManager : INotificationManager
 
     public async Task SendAsync(string title, string message = null, string icon = null)
     {
+        if (!NotificationConfiguration.GetOptions().Enabled)
+        {
+            return;
+        }
+
         var command = "New-BurntToastNotification";
 
         command += $" -Text \"{title}\"";
