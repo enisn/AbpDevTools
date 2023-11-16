@@ -1,1 +1,1 @@
-dotnet pack ./src/AbpDevTools/AbpDevTools.csproj -c Release
+dotnet pack ./src/AbpDevTools/AbpDevTools.csproj -c Release --include-symbols --include-source -o ./nupkg
