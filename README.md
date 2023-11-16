@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="art/logo.svg" height="256" />
+</p>
+
 # AbpDevTools
 A set of tools to make development with ABP easier. It's a dotnet tool and accessed via `abpdev` **CLI** command.
 
