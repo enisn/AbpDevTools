@@ -13,6 +13,14 @@ It helps the developer, build, run, replace, and manage logs of the projects. It
 dotnet tool install -g AbpDevTools
 ```
 
+- Installation for a specific runtime other than the latest:
+    
+    ```bash
+    dotnet tool install -g AbpDevTools --framework net7.0
+    # or
+    dotnet tool install -g AbpDevTools --framework net6.0
+    ```
+
 ## Local Installation
 If you don't have access to the package source. You can install it from the source code by the following code:
 
