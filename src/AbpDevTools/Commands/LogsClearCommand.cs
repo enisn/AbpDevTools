@@ -55,7 +55,7 @@ public class LogsClearCommand : ICommand
                 await console.Output.WriteLineAsync("\n\tUsage:");
                 await console.Output.WriteLineAsync("\tlogs -p <project-name>");
                 await console.Output.WriteLineAsync("\nAvailable project names:\n\n\t" +
-                    string.Join("\t - ", _runnableProjects.Select(x => x.Split(Path.DirectorySeparatorChar).Last())));
+                    string.Join("\n\t - ", _runnableProjects.Select(x => x.Split(Path.DirectorySeparatorChar).Last())));
                 return;
             }
         }
