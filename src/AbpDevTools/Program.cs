@@ -49,7 +49,8 @@ public static class Startup
             typeof(EnvironmentConfigurationCommand),
             typeof(AbpBundleCommand),
             typeof(TestCommand),
-            typeof(UpdateCheckCommand)
+            typeof(UpdateCheckCommand),
+            typeof(CleanCommand)
         };
 
         foreach (var commandType in commands)
