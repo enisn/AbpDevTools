@@ -14,11 +14,11 @@ public abstract class ConfigurationBaseCommand : ICommand
         console.Output.WriteLine("Opening file " + FilePath);
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Process.Start(new ProcessStartInfo("explorer", FilePath));
+            Process.Start(new ProcessStartInfo("explorer", $"\"FilePath\""));
         }
         else
         {
-            Process.Start(new ProcessStartInfo("open", FilePath));
+            Process.Start(new ProcessStartInfo("open", $"\"{FilePath}\""));
         }
         return ValueTask.CompletedTask;
     }
