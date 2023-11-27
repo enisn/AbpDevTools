@@ -28,6 +28,12 @@ If you don't have access to the package source. You can install it from the sour
 pwsh install.ps1
 ```
 
+# Getting Started
+  You can watch the **'Getting Started'** video for onboarding this tool:
+  
+  <a href="https://youtu.be/wG7MfdIq_Fo"> <img src="https://github.com/enisn/AbpDevTools/assets/23705418/b31a37a0-96c7-418c-8287-80922c178b3c"/> </a>
+
+
 # Usage
 
 Execute `abpdev` command in the terminal and it'll show you the help message.
