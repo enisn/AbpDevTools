@@ -5,6 +5,20 @@ using System.Runtime.InteropServices;
 
 namespace AbpDevTools.Commands;
 
+[Command("config")]
+public class ConfigCommand : ICommand
+{
+    public async ValueTask ExecuteAsync(IConsole console)
+    {
+        await console.Output.WriteLineAsync("Available commands:\n");
+        await console.Output.WriteLineAsync("- replace config");
+        await console.Output.WriteLineAsync("- envapp config");
+        await console.Output.WriteLineAsync("- run config");
+        await console.Output.WriteLineAsync("- clean config");
+        await console.Output.WriteLineAsync("- config clear  | Resets all the configurations to defaults.");
+    }
+}
+
 public abstract class ConfigurationBaseCommand : ICommand
 {
     protected abstract string FilePath { get; }
@@ -55,6 +69,18 @@ public class RunConfigurationCommand : ConfigurationBaseCommand
     public override ValueTask ExecuteAsync(IConsole console)
     {
         RunConfiguration.GetOptions();
+        return base.ExecuteAsync(console);
+    }
+}
+
+[Command("clean config")]
+public class CleanConfigurationCommand : ConfigurationBaseCommand
+{
+    protected override string FilePath => CleanConfiguration.FilePath;
+
+    public override ValueTask ExecuteAsync(IConsole console)
+    {
+        CleanConfiguration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }

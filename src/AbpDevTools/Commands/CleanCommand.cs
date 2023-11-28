@@ -1,4 +1,5 @@
-﻿using CliFx.Infrastructure;
+﻿using AbpDevTools.Configuration;
+using CliFx.Infrastructure;
 using Spectre.Console;
 
 namespace AbpDevTools.Commands;
@@ -9,19 +10,16 @@ public class CleanCommand : ICommand
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string WorkingDirectory { get; set; }
 
-    private static readonly string[] foldersToDelete = new[]
-    {
-        Path.DirectorySeparatorChar + "bin",
-        Path.DirectorySeparatorChar + "obj",
-        Path.DirectorySeparatorChar + "node_modules"
-    };
-
     public async ValueTask ExecuteAsync(IConsole console)
     {
         if (string.IsNullOrEmpty(WorkingDirectory))
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
+
+        var foldersToDelete = CleanConfiguration.GetOptions()
+            .Folders.Select(x => Path.DirectorySeparatorChar + x)
+            .ToArray();
 
         await AnsiConsole.Status()
             .StartAsync("Looking for directories...", async ctx =>

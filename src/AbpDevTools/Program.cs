@@ -35,6 +35,8 @@ public static class Startup
             typeof(ReplaceConfigurationCommand),
             typeof(EnvironmentAppConfigurationCommand),
             typeof(RunConfigurationCommand),
+            typeof(CleanConfigurationCommand),
+            typeof(ConfigCommand),
             typeof(DisableNotificationsCommand),
             typeof(EnableNotificationsCommand),
             typeof(EnvironmentAppCommand),
