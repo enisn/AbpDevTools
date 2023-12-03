@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
+using Spectre.Console;
 
 namespace AbpDevTools.Commands;
 
@@ -19,7 +20,7 @@ public class DatabaseDropCommand : ICommand
     {
         this.notificationManager = notificationManager;
     }
-
+    
     public async ValueTask ExecuteAsync(IConsole console)
     {
         if (string.IsNullOrEmpty(WorkingDirectory))
@@ -27,30 +28,27 @@ public class DatabaseDropCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var efCoreProjects = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-            .Where(x => x.EndsWith("EntityFrameworkCore.csproj"))
-            .Select(x => new FileInfo(x))
-            .ToList();
+        var efCoreProjects = await GetEfCoreProjectsAsync();
             
         var cancellationToken = console.RegisterCancellationHandler();
 
-        var projectCount = efCoreProjects.Count;
+        var projectCount = efCoreProjects.Length;
         if (projectCount == 0)
         {
             await console.Output.WriteLineAsync("Could not find any EntityFrameworkCore project in the working directory...");
             return;
         }
         
-        await console.Output.WriteLineAsync($"{projectCount} EntityFrameworkCore project(s) found in the directory. Trying to find and drop databases...");
+        AnsiConsole.MarkupLine($"[green]{projectCount}[/] EntityFrameworkCore project(s) found in the directory. Trying to find and drop databases...");
 
         var forcePostfix = Force ? " --force" : string.Empty;
 
-        for (int i = 0; i < projectCount; i++)
+        for (var i = 0; i < projectCount; i++)
         {
             var efCoreProject = efCoreProjects[i];
             
-            await console.Output.WriteLineAsync($"## Project {(i + 1)} - {efCoreProject.Name.Replace(".csproj", string.Empty)}");
-            
+            AnsiConsole.MarkupLine($"[blue]## Project{(i + 1)} - {efCoreProject.Name.Replace(".csproj", string.Empty)}[/]");
+
             var startInfo = new ProcessStartInfo("dotnet", $"ef database drop{forcePostfix}")
             {
                 WorkingDirectory = efCoreProject.DirectoryName!,
@@ -60,11 +58,11 @@ public class DatabaseDropCommand : ICommand
 
             var process = Process.Start(startInfo)!;
             
-            process.OutputDataReceived += (sender, args) =>
+            process.OutputDataReceived += async (sender, args) =>
             {
                 if (args?.Data != null)
                 {
-                    console.Output.WriteLine("* " + args.Data);
+                    await console.Output.WriteLineAsync("* " + args.Data);
                 }
             };
             
@@ -75,7 +73,23 @@ public class DatabaseDropCommand : ICommand
         
         if (!cancellationToken.IsCancellationRequested)
         {
-            await notificationManager.SendAsync("Dropped database(s)", $"Dropped database(s) in {WorkingDirectory}");
+            await notificationManager.SendAsync("Dropped database(s)", $"Dropped all databases in {WorkingDirectory}");
         }
+    }
+    
+    private async Task<FileInfo[]> GetEfCoreProjectsAsync()
+    {
+        return await AnsiConsole.Status()
+            .StartAsync("Searching EntityFrameworkCore projects...", ctx =>
+            {
+                ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+                
+                var efCoreProjects = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
+                    .Where(x => x.EndsWith("EntityFrameworkCore.csproj"))
+                    .Select(x => new FileInfo(x))
+                    .ToArray();
+                
+                return Task.FromResult(efCoreProjects);
+            });
     }
 }
