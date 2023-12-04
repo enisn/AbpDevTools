@@ -52,7 +52,8 @@ public static class Startup
             typeof(AbpBundleCommand),
             typeof(TestCommand),
             typeof(UpdateCheckCommand),
-            typeof(CleanCommand)
+            typeof(CleanCommand),
+            typeof(DatabaseDropCommand)
         };
 
         foreach (var commandType in commands)
