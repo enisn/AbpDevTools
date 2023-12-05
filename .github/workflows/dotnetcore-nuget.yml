@@ -1,0 +1,22 @@
+name: Nuget Publish Pipeline
+
+on: workflow_dispatch
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 8.0.100
+    - name: Restore
+      run: dotnet restore
+    - name: Pack
+      run: dotnet pack ./src/AbpDevTools/AbpDevTools.csproj -c Release --include-symbols --include-source -o ./nupkg
+    - name: Push
+      run: dotnet nuget push './nupkg/*.symbols.nupkg' --source ${{secrets.NUGET_SOURCE}} --api-key ${{secrets.NUGET_KEY}} --skip-duplicate
+      #continue-on-error: true
