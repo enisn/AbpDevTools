@@ -18,7 +18,7 @@ public class DisableNotificationsCommand : ICommand
         {
             if (UninstallBurntToast) 
             {
-                var process = Process.Start("pwsh", "-Command Uninstall-Module -Name BurntToast");
+                var process = Process.Start("powershell", "-Command Uninstall-Module -Name BurntToast");
 
                 console.RegisterCancellationHandler().Register(() => process.Kill(entireProcessTree: true));
 
