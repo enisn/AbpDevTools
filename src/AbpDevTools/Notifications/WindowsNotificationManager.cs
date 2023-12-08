@@ -35,7 +35,7 @@ public class WindowsNotificationManager : INotificationManager
 
         await File.WriteAllTextAsync(filePath, command);
 
-        var process = Process.Start("pwsh", filePath);
+        var process = Process.Start("powershell", filePath);
 
         await process.WaitForExitAsync();
 

@@ -21,7 +21,7 @@ public class EnableNotificationsCommand : ICommand
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var process = Process.Start("pwsh", "-Command Install-Module -Name BurntToast");
+            var process = Process.Start("powershell", "-Command Install-Module -Name BurntToast");
 
             console.RegisterCancellationHandler().Register(() => process.Kill(entireProcessTree: true));
 
