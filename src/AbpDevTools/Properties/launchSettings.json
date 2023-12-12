@@ -2,7 +2,7 @@
   "profiles": {
     "AbpDevTools": {
       "commandName": "Project",
-      "commandLineArgs": "config clear"
+      "commandLineArgs": "run C:\\P\\volo\\abp\\test-app\\aspnet-core"
     }
   }
 }

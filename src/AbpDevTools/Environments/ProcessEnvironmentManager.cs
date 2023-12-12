@@ -49,7 +49,12 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
             throw new CommandException("Environment not found! Check environments by 'abpdev env config' command.\nAvailable environments:\n" + environments);
         }
 
-        foreach (var variable in env.Variables)
+        SetEnvironmentVariablesForProcess(process, env.Variables);
+    }
+
+    public void SetEnvironmentVariablesForProcess(ProcessStartInfo process, Dictionary<string, string> variables)
+    {
+        foreach (var variable in variables)
         {
             process.EnvironmentVariables[variable.Key] = PrepareValue(variable.Value, process.WorkingDirectory);
         }

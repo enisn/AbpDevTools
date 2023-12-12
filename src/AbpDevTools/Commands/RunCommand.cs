@@ -1,7 +1,7 @@
 ﻿using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
+using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
-using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -9,7 +9,7 @@ using System.Diagnostics;
 namespace AbpDevTools.Commands;
 
 [Command("run", Description = "Run all the required applications")]
-public class RunCommand : ICommand
+public partial class RunCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string WorkingDirectory { get; set; }
@@ -52,23 +52,29 @@ public class RunCommand : ICommand
     protected readonly MigrateCommand migrateCommand;
     protected readonly IProcessEnvironmentManager environmentManager;
     protected readonly UpdateCheckCommand updateCheckCommand;
-    private readonly RunConfiguration runConfiguration;
-    private readonly ToolsConfiguration toolsConfiguration;
+    protected readonly RunConfiguration runConfiguration;
+    protected readonly ToolsConfiguration toolsConfiguration;
+    protected readonly FileExplorer fileExplorer;
+    private readonly LocalConfigurationManager localConfigurationManager;
 
     public RunCommand(
         INotificationManager notificationManager,
         MigrateCommand migrateCommand,
         IProcessEnvironmentManager environmentManager,
-        UpdateCheckCommand updatecheckCommand,
+        UpdateCheckCommand updateCheckCommand,
         RunConfiguration runConfiguration,
-        ToolsConfiguration toolsConfiguration)
+        ToolsConfiguration toolsConfiguration,
+        FileExplorer fileExplorer,
+        LocalConfigurationManager localConfigurationManager)
     {
         this.notificationManager = notificationManager;
         this.migrateCommand = migrateCommand;
         this.environmentManager = environmentManager;
-        this.updateCheckCommand = updatecheckCommand;
+        this.updateCheckCommand = updateCheckCommand;
         this.runConfiguration = runConfiguration;
         this.toolsConfiguration = toolsConfiguration;
+        this.fileExplorer = fileExplorer;
+        this.localConfigurationManager = localConfigurationManager;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -105,9 +111,9 @@ public class RunCommand : ICommand
 
         await console.Output.WriteLineAsync("Starting projects...");
 
-        var projects = csprojs.Where(x => !x.Name.Contains(".DbMigrator")).ToArray();
+        var projectFiles = csprojs.Where(x => !x.Name.Contains(".DbMigrator")).ToArray();
 
-        if (!RunAll && projects.Length > 1)
+        if (!RunAll && projectFiles.Length > 1)
         {
             await console.Output.WriteLineAsync($"\n");
 
@@ -123,13 +129,13 @@ public class RunCommand : ICommand
                         .InstructionsText(
                             "[grey](Press [mediumpurple2]<space>[/] to toggle a project, " +
                             "[green]<enter>[/] to accept)[/]")
-                        .AddChoices(projects.Select(s => s.Name)));
+                        .AddChoices(projectFiles.Select(s => s.Name)));
 
-                projects = projects.Where(x => choosedProjects.Contains(x.Name)).ToArray();
+                projectFiles = projectFiles.Where(x => choosedProjects.Contains(x.Name)).ToArray();
             }
             else
             {
-                projects = projects.Where(x => Projects.Any(y => x.FullName.Contains(y, StringComparison.InvariantCultureIgnoreCase))).ToArray();
+                projectFiles = projectFiles.Where(x => Projects.Any(y => x.FullName.Contains(y, StringComparison.InvariantCultureIgnoreCase))).ToArray();
             }
         }
 
@@ -146,7 +152,7 @@ public class RunCommand : ICommand
             commandSuffix += $" --configuration {Configuration}";
         }
 
-        foreach (var csproj in projects)
+        foreach (var csproj in projectFiles)
         {
             var tools = toolsConfiguration.GetOptions();
             var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
@@ -157,6 +163,8 @@ public class RunCommand : ICommand
                 RedirectStandardError = true,
             };
 
+            localConfigurationManager.ApplyLocalEnvironmentForProcess(csproj.FullName, startInfo);
+
             if (!string.IsNullOrEmpty(EnvironmentName))
             {
                 environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
@@ -165,7 +173,7 @@ public class RunCommand : ICommand
             runningProjects.Add(
                 new RunningCsProjItem(
                     csproj.Name,
-                    Process.Start(startInfo)
+                    Process.Start(startInfo)!
                 )
             );
 

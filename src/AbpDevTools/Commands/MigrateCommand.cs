@@ -1,5 +1,6 @@
 ﻿using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
+using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -26,12 +27,14 @@ public class MigrateCommand : ICommand
     protected readonly INotificationManager notificationManager;
     protected readonly IProcessEnvironmentManager environmentManager;
     protected readonly ToolsConfiguration toolsConfiguration;
+    protected readonly LocalConfigurationManager localConfigurationManager;
 
-    public MigrateCommand(INotificationManager notificationManager, IProcessEnvironmentManager environmentManager, ToolsConfiguration toolsConfiguration)
+    public MigrateCommand(INotificationManager notificationManager, IProcessEnvironmentManager environmentManager, ToolsConfiguration toolsConfiguration, LocalConfigurationManager localConfigurationManager)
     {
         this.notificationManager = notificationManager;
         this.environmentManager = environmentManager;
         this.toolsConfiguration = toolsConfiguration;
+        this.localConfigurationManager = localConfigurationManager;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -67,6 +70,8 @@ public class MigrateCommand : ICommand
                 WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName),
                 RedirectStandardOutput = true,
             };
+
+            localConfigurationManager.ApplyLocalEnvironmentForProcess(dbMigrator.FullName, startInfo);
 
             if (!string.IsNullOrEmpty(EnvironmentName))
             {

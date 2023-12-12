@@ -36,5 +36,5 @@ public class RunConfiguration : ConfigurationBase<RunOptions>
 
 public class RunOptions
 {
-    public string[] RunnableProjects { get; set; }
+    public string[] RunnableProjects { get; set; } = Array.Empty<string>();
 }

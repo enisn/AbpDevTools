@@ -1,10 +1,9 @@
 ﻿using AbpDevTools.Commands;
-using AbpDevTools.Configuration;
-using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
-using AbpDevTools.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace AbpDevTools;
 
@@ -33,6 +32,8 @@ public static class Startup
             typeof(ReplacementConfigClearCommand),
             typeof(EnvironmentAppConfigClearCommand),
             typeof(RunConfigClearCommand),
+            typeof(CleanConfigClearCommand),
+            typeof(ToolsConfigClearCommand),
             typeof(ReplaceConfigurationCommand),
             typeof(EnvironmentAppConfigurationCommand),
             typeof(RunConfigurationCommand),
@@ -69,6 +70,17 @@ public static class Startup
         }
 
         services.AutoRegisterFromAbpDevTools();
+
+        var yamlSerializer = new SerializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
+
+        services.AddSingleton(yamlSerializer);
+
+        services.AddSingleton(
+            new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build());
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

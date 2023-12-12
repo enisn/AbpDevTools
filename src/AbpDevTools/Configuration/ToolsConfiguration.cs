@@ -3,12 +3,13 @@ using System.Text.Json;
 
 namespace AbpDevTools.Configuration;
 
+
 [RegisterTransient]
-public class ToolsConfiguration : ConfigurationBase<Dictionary<string, string>>
+public class ToolsConfiguration : ConfigurationBase<ToolOption>
 {
     public override string FilePath => Path.Combine(FolderPath, "tools-configuration.json");
 
-    public override Dictionary<string, string> GetOptions()
+    public override ToolOption GetOptions()
     {
         if (!Directory.Exists(FolderPath))
             Directory.CreateDirectory(FolderPath);
@@ -34,9 +35,9 @@ public class ToolsConfiguration : ConfigurationBase<Dictionary<string, string>>
         return _defaults;
     }
 
-    protected override Dictionary<string, string> GetDefaults()
+    protected override ToolOption GetDefaults()
     {
-        var _defaults = new Dictionary<string, string>
+        var _defaults = new ToolOption
         {
             { "powershell", "pwsh"},
             { "dotnet", "dotnet" },
@@ -72,4 +73,9 @@ public class ToolsConfiguration : ConfigurationBase<Dictionary<string, string>>
 
         return changed;
     }
+}
+
+public class ToolOption : Dictionary<string, string>
+{
+
 }
