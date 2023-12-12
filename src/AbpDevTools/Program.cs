@@ -73,14 +73,14 @@ public static class Startup
         services.AutoRegisterFromAbpDevTools();
 
         var yamlSerializer = new SerializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .WithNamingConvention(HyphenatedNamingConvention.Instance)
             .Build();
 
         services.AddSingleton(yamlSerializer);
 
         services.AddSingleton(
             new DeserializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .WithNamingConvention(HyphenatedNamingConvention.Instance)
                 .Build());
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

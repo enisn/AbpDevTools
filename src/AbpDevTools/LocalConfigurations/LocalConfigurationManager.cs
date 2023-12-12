@@ -18,37 +18,36 @@ public class LocalConfigurationManager
         this.environmentManager = environmentManager;
     }
 
-    public bool TryLoad(string filePath, out LocalConfiguration? localConfiguration)
+    public bool TryLoad(string path, out LocalConfiguration? localConfiguration, FileSearchDirection direction = FileSearchDirection.Ascendants)
     {
-        if (!File.Exists(filePath))
+        localConfiguration = null;
+
+        var directory = Path.GetDirectoryName(path);
+        if (directory == null)
         {
-            localConfiguration = null;
             return false;
         }
 
-        var yml = File.ReadAllText(filePath);
+        var ymlPath = direction == FileSearchDirection.Ascendants ?
+            fileExplorer.FindAscendants(directory, "abpdev.yml").FirstOrDefault() :
+            fileExplorer.FindDescendants(directory, "abpdev.yml").FirstOrDefault()
+            ;
 
-        localConfiguration = _deserializer.Deserialize<LocalConfiguration>(yml);
+        if (string.IsNullOrEmpty(ymlPath))
+        {
+            return false;
+        }
+
+        var ymlContent = File.ReadAllText(ymlPath);
+
+        localConfiguration = _deserializer.Deserialize<LocalConfiguration>(ymlContent);
 
         return true;
     }
 
-    public void ApplyLocalEnvironmentForProcess(string path, ProcessStartInfo process)
+    public void ApplyLocalEnvironmentForProcess(string path, ProcessStartInfo process, LocalConfiguration? localConfiguration = null)
     {
-        var directory = Path.GetDirectoryName(path);
-        if (directory == null)
-        {
-            return;
-        }
-
-        var ymlPath = fileExplorer.FindAscendants(directory, "abpdev.yml").First();
-
-        if (string.IsNullOrEmpty(ymlPath))
-        {
-            return;
-        }
-
-        if (TryLoad(ymlPath, out var localConfiguration))
+        if (localConfiguration is not null || TryLoad(path, out localConfiguration))
         {
             if (!string.IsNullOrEmpty(localConfiguration?.Environment?.Name))
             {
@@ -63,4 +62,10 @@ public class LocalConfigurationManager
             }
         }
     }
+}
+
+public enum FileSearchDirection : byte
+{
+    Ascendants,
+    Descendants
 }

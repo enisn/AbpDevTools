@@ -88,6 +88,8 @@ public partial class RunCommand : ICommand
 
         var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
 
+        localConfigurationManager.TryLoad(WorkingDirectory!, out var localRootConfig, FileSearchDirection.Descendants);
+
         FileInfo[] csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects", async ctx =>
             {
@@ -103,7 +105,7 @@ public partial class RunCommand : ICommand
 
         await console.Output.WriteLineAsync($"{csprojs.Length} csproj file(s) found.");
 
-        if (!SkipMigration)
+        if (!SkipMigration && localRootConfig?.Run?.SkipMigrate != true)
         {
             migrateCommand.WorkingDirectory = this.WorkingDirectory;
             migrateCommand.NoBuild = this.NoBuild;
@@ -120,7 +122,9 @@ public partial class RunCommand : ICommand
         {
             await console.Output.WriteLineAsync($"\n");
 
-            if (Projects == null || Projects.Length == 0)
+            ApplyLocalProjects(localRootConfig);
+
+            if (Projects.Length == 0)
             {
                 var choosedProjects = AnsiConsole.Prompt(
                     new MultiSelectionPrompt<string>()
@@ -142,21 +146,16 @@ public partial class RunCommand : ICommand
             }
         }
 
-        var commandPrefix = Watch ? "watch " : string.Empty;
-        var commandSuffix = NoBuild ? " --no-build" : string.Empty;
-
-        if (GraphBuild)
-        {
-            commandSuffix += " /graphBuild";
-        }
-
-        if (!string.IsNullOrEmpty(Configuration))
-        {
-            commandSuffix += $" --configuration {Configuration}";
-        }
-
         foreach (var csproj in projectFiles)
         {
+            localConfigurationManager.TryLoad(csproj.FullName, out var localConfiguration);
+
+            var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
+            var commandSuffix = BuildCommandSuffix(
+                localConfiguration?.Run?.NoBuild,
+                localConfiguration?.Run?.GraphBuild,
+                localConfiguration?.Run?.Configuration);
+
             var tools = toolsConfiguration.GetOptions();
             var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
             {
@@ -166,7 +165,7 @@ public partial class RunCommand : ICommand
                 RedirectStandardError = true,
             };
 
-            localConfigurationManager.ApplyLocalEnvironmentForProcess(csproj.FullName, startInfo);
+            localConfigurationManager.ApplyLocalEnvironmentForProcess(csproj.FullName, startInfo, localConfiguration);
 
             if (!string.IsNullOrEmpty(EnvironmentName))
             {
@@ -201,6 +200,47 @@ public partial class RunCommand : ICommand
         await RenderProcesses(cancellationToken);
 
         await updateCheckCommand.SoftCheckAsync(console);
+    }
+
+    private void ApplyLocalProjects(LocalConfiguration? localConfiguration)
+    {
+        if(localConfiguration is not null)
+        {
+            if (Projects.Length == 0 && localConfiguration?.Run?.Projects.Length > 0)
+            {
+                Projects = localConfiguration.Run.Projects;
+            }
+        }
+    }
+
+    private string BuildCommandSuffix(bool? noBuild = null, bool? graphBuild = null, string? configuration = null)
+    {
+        var commandSuffix = (NoBuild || noBuild == true) ? " --no-build" : string.Empty;
+
+        if (GraphBuild || graphBuild == true)
+        {
+            commandSuffix += " /graphBuild";
+        }
+
+        if (configuration != null)
+        {
+            commandSuffix += $" --configuration {configuration}";
+        }
+        else if (!string.IsNullOrEmpty(Configuration))
+        {
+            commandSuffix += $" --configuration {Configuration}";
+        }
+
+        return commandSuffix;
+    }
+
+    private string BuildCommandPrefix(bool? watchOverride)
+    {
+        if (watchOverride is not null)
+        {
+            return watchOverride.Value ? "watch " : string.Empty;
+        }
+        return Watch ? "watch " : string.Empty;
     }
 
     private async Task RenderProcesses(CancellationToken cancellationToken)
