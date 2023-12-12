@@ -26,7 +26,8 @@ public class EnableNotificationsCommand : ICommand
                 throw new CommandException($"Powershell is not installed in your system. Please install it and try again.");
             }
 
-            var process = Process.Start("powershell", "-Command Install-Module -Name BurntToast");
+            var tools = ToolsConfiguration.GetOptions();
+            var process = Process.Start(tools["powershell"], "-Command Install-Module -Name BurntToast");
 
             console.RegisterCancellationHandler().Register(() => process.Kill(entireProcessTree: true));
 

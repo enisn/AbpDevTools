@@ -1,4 +1,5 @@
-﻿using CliFx.Infrastructure;
+﻿using AbpDevTools.Configuration;
+using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
 
@@ -62,7 +63,8 @@ public class TestCommand : ICommand
                     commandSuffix += $" --configuration {Configuration}";
                 }
 
-                var startInfo = new ProcessStartInfo("dotnet", $"test {buildFile.FullName}{commandSuffix}");
+                var tools = ToolsConfiguration.GetOptions();
+                var startInfo = new ProcessStartInfo(tools["dotnet"], $"test {buildFile.FullName}{commandSuffix}");
                 startInfo.RedirectStandardOutput = true;
                 startInfo.WorkingDirectory = WorkingDirectory;
 

@@ -10,7 +10,9 @@ public class MacCatalystNotificationManager : INotificationManager
             return;
         }
 
-        var process = Process.Start("osascript", $"-e \"display notification \\\"{message}\\\" with title \\\"{title}\\\"\"");
+        var tools = ToolsConfiguration.GetOptions();
+
+        var process = Process.Start(tools["osascript"], $"-e \"display notification \\\"{message}\\\" with title \\\"{title}\\\"\"");
 
         await process.WaitForExitAsync();
     }

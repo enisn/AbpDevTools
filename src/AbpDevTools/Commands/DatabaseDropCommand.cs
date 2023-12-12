@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using AbpDevTools.Configuration;
 using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -46,10 +47,11 @@ public class DatabaseDropCommand : ICommand
         for (var i = 0; i < projectCount; i++)
         {
             var efCoreProject = efCoreProjects[i];
-            
+
             AnsiConsole.MarkupLine($"[blue]## Project{(i + 1)} - {efCoreProject.Name.Replace(".csproj", string.Empty)}[/]");
 
-            var startInfo = new ProcessStartInfo("dotnet", $"ef database drop{forcePostfix}")
+            var tools = ToolsConfiguration.GetOptions();
+            var startInfo = new ProcessStartInfo(tools["dotnet"], $"ef database drop{forcePostfix}")
             {
                 WorkingDirectory = efCoreProject.DirectoryName!,
                 RedirectStandardOutput = true,

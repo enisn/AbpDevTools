@@ -142,7 +142,8 @@ public class RunCommand : ICommand
 
         foreach (var csproj in projects)
         {
-            var startInfo = new ProcessStartInfo("dotnet", commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
+            var tools = ToolsConfiguration.GetOptions();
+            var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
             {
                 WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                 UseShellExecute = false,

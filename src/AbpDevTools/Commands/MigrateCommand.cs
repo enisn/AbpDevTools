@@ -1,4 +1,5 @@
-﻿using AbpDevTools.Environments;
+﻿using AbpDevTools.Configuration;
+using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -58,7 +59,8 @@ public class MigrateCommand : ICommand
 
         foreach (var dbMigrator in dbMigrators)
         {
-            var startInfo = new ProcessStartInfo("dotnet", $"run --project {dbMigrator.FullName}" + commandPostFix)
+            var tools = ToolsConfiguration.GetOptions();
+            var startInfo = new ProcessStartInfo(tools["dotnet"], $"run --project {dbMigrator.FullName}" + commandPostFix)
             {
                 WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName),
                 RedirectStandardOutput = true,

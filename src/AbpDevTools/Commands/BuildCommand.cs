@@ -1,4 +1,5 @@
-﻿using AbpDevTools.Notifications;
+﻿using AbpDevTools.Configuration;
+using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System;
@@ -69,7 +70,8 @@ public class BuildCommand : ICommand
                     commandSuffix += $" --configuration {Configuration}";
                 }
 
-                runningProcess = Process.Start(new ProcessStartInfo("dotnet", "build /graphBuild" + commandSuffix)
+                var tools = ToolsConfiguration.GetOptions();
+                runningProcess = Process.Start(new ProcessStartInfo(tools["dotnet"], "build /graphBuild" + commandSuffix)
                 {
                     WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
                     UseShellExecute = false,
