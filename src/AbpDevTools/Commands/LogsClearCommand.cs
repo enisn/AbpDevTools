@@ -21,6 +21,12 @@ public class LogsClearCommand : ICommand
     public bool Force { get; set; }
 
     protected IConsole console;
+    protected readonly RunConfiguration runConfiguration;
+
+    public LogsClearCommand(RunConfiguration runConfiguration)
+    {
+        this.runConfiguration = runConfiguration;
+    }
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
@@ -30,7 +36,7 @@ public class LogsClearCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var _runnableProjects = RunConfiguration.GetOptions().RunnableProjects;
+        var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
         var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
                 .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
                 .Select(x => new FileInfo(x))

@@ -6,9 +6,16 @@ namespace AbpDevTools.Commands;
 [Command("envapp", Description = "Environment apps that required while development.")]
 public class EnvironmentAppCommand : ICommand
 {
+    private readonly EnvironmentAppConfiguration environmentAppConfiguration;
+
+    public EnvironmentAppCommand(EnvironmentAppConfiguration environmentAppConfiguration)
+    {
+        this.environmentAppConfiguration = environmentAppConfiguration;
+    }
+
     public ValueTask ExecuteAsync(IConsole console)
     {
-        var options = EnvironmentAppConfiguration.GetOptions();
+        var options = environmentAppConfiguration.GetOptions();
 
         console.Output.WriteLine("Available env apps:\n - " + string.Join("\n - ", options.Keys));
 

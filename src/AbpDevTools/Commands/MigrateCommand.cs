@@ -25,11 +25,13 @@ public class MigrateCommand : ICommand
 
     protected readonly INotificationManager notificationManager;
     protected readonly IProcessEnvironmentManager environmentManager;
+    protected readonly ToolsConfiguration toolsConfiguration;
 
-    public MigrateCommand(INotificationManager notificationManager, IProcessEnvironmentManager environmentManager)
+    public MigrateCommand(INotificationManager notificationManager, IProcessEnvironmentManager environmentManager, ToolsConfiguration toolsConfiguration)
     {
         this.notificationManager = notificationManager;
         this.environmentManager = environmentManager;
+        this.toolsConfiguration = toolsConfiguration;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -59,7 +61,7 @@ public class MigrateCommand : ICommand
 
         foreach (var dbMigrator in dbMigrators)
         {
-            var tools = ToolsConfiguration.GetOptions();
+            var tools = toolsConfiguration.GetOptions();
             var startInfo = new ProcessStartInfo(tools["dotnet"], $"run --project {dbMigrator.FullName}" + commandPostFix)
             {
                 WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName),

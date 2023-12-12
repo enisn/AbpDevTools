@@ -8,12 +8,18 @@ namespace AbpDevTools.Commands;
 [Command("envapp stop", Description = "Stops previously deployed environment app.")]
 public class EnvironmentAppStopCommand : ICommand
 {
+    private readonly EnvironmentAppConfiguration environmentAppConfiguration;
+
     [CommandParameter(0, IsRequired = false , Description = "Name of the app.")]
     public string AppName { get; set; }
 
+    public EnvironmentAppStopCommand(EnvironmentAppConfiguration environmentAppConfiguration)
+    {
+        this.environmentAppConfiguration = environmentAppConfiguration;
+    }
     public async ValueTask ExecuteAsync(IConsole console)
     {
-        var configurations = EnvironmentAppConfiguration.GetOptions();
+        var configurations = environmentAppConfiguration.GetOptions();
 
         if (string.IsNullOrEmpty(AppName))
         {

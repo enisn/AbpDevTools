@@ -18,12 +18,19 @@ public class ReplaceCommand : ICommand
     public bool InteractiveMode { get; set; }
 
     private IConsole console;
+    private readonly ReplacementConfiguration replacementConfiguration;
+
+    public ReplaceCommand(ReplacementConfiguration replacementConfiguration)
+    {
+        this.replacementConfiguration = replacementConfiguration;
+    }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
         WorkingDirectory ??= Directory.GetCurrentDirectory();
 
-        var options = ReplacementConfiguration.GetOptions();
+        var options = replacementConfiguration.GetOptions();
 
         if (string.IsNullOrEmpty(ReplacementConfigName))
         {

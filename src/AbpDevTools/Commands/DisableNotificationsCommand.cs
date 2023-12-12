@@ -12,11 +12,18 @@ public class DisableNotificationsCommand : ICommand
     [CommandOption("uninstall", 'u', Description = "Uninstalls the 'BurntToast' powershell module.")]
     public bool UninstallBurntToast { get; set; }
 
+    protected readonly NotificationConfiguration notificationConfiguration;
+
+    public DisableNotificationsCommand(NotificationConfiguration notificationConfiguration)
+    {
+        this.notificationConfiguration = notificationConfiguration;
+    }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (UninstallBurntToast) 
+            if (UninstallBurntToast)
             {
                 var process = Process.Start("powershell", "-Command Uninstall-Module -Name BurntToast");
 
@@ -24,10 +31,13 @@ public class DisableNotificationsCommand : ICommand
 
                 await process.WaitForExitAsync();
             }
+        }
 
-            var options = NotificationConfiguration.GetOptions();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            var options = notificationConfiguration.GetOptions();
             options.Enabled = false;
-            NotificationConfiguration.SetOptions(options);
+            notificationConfiguration.SetOptions(options);
 
             return;
         }

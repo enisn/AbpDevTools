@@ -1,32 +1,15 @@
 ﻿using System.Text.Json;
 
 namespace AbpDevTools.Configuration;
-public static class CleanConfiguration
+
+[RegisterTransient]
+public class CleanConfiguration : ConfigurationBase<CleanOptions>
 {
-    public static string FolderPath => Path.Combine(
-           Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-           "abpdev");
-    public static string FilePath => Path.Combine(FolderPath, "clean-configuration.json");
+    public override string FilePath => Path.Combine(FolderPath, "clean-configuration.json");
 
-    public static CleanOptions GetOptions()
+    protected override CleanOptions GetDefaults()
     {
-        if (!Directory.Exists(FolderPath))
-            Directory.CreateDirectory(FolderPath);
-
-        var options = new CleanOptions();
-        if (File.Exists(FilePath))
-        {
-            options = JsonSerializer.Deserialize<CleanOptions>(File.ReadAllText(FilePath));
-        }
-        else
-        {
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(options, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            }));
-        }
-
-        return options;
+        return new();
     }
 }
 

@@ -25,6 +25,12 @@ public class TestCommand : ICommand
 
     protected IConsole console;
     protected Process runningProcess;
+    protected readonly ToolsConfiguration toolsConfiguration;
+
+    public TestCommand(ToolsConfiguration toolsConfiguration)
+    {
+        this.toolsConfiguration = toolsConfiguration;
+    }
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
@@ -63,7 +69,7 @@ public class TestCommand : ICommand
                     commandSuffix += $" --configuration {Configuration}";
                 }
 
-                var tools = ToolsConfiguration.GetOptions();
+                var tools = toolsConfiguration.GetOptions();
                 var startInfo = new ProcessStartInfo(tools["dotnet"], $"test {buildFile.FullName}{commandSuffix}");
                 startInfo.RedirectStandardOutput = true;
                 startInfo.WorkingDirectory = WorkingDirectory;

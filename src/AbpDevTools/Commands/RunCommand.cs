@@ -52,17 +52,23 @@ public class RunCommand : ICommand
     protected readonly MigrateCommand migrateCommand;
     protected readonly IProcessEnvironmentManager environmentManager;
     protected readonly UpdateCheckCommand updateCheckCommand;
+    private readonly RunConfiguration runConfiguration;
+    private readonly ToolsConfiguration toolsConfiguration;
 
     public RunCommand(
         INotificationManager notificationManager,
         MigrateCommand migrateCommand,
         IProcessEnvironmentManager environmentManager,
-        UpdateCheckCommand updatecheckCommand)
+        UpdateCheckCommand updatecheckCommand,
+        RunConfiguration runConfiguration,
+        ToolsConfiguration toolsConfiguration)
     {
         this.notificationManager = notificationManager;
         this.migrateCommand = migrateCommand;
         this.environmentManager = environmentManager;
         this.updateCheckCommand = updatecheckCommand;
+        this.runConfiguration = runConfiguration;
+        this.toolsConfiguration = toolsConfiguration;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -74,7 +80,7 @@ public class RunCommand : ICommand
         }
         var cancellationToken = console.RegisterCancellationHandler();
 
-        var _runnableProjects = RunConfiguration.GetOptions().RunnableProjects;
+        var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
 
         FileInfo[] csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects", async ctx =>
@@ -142,7 +148,7 @@ public class RunCommand : ICommand
 
         foreach (var csproj in projects)
         {
-            var tools = ToolsConfiguration.GetOptions();
+            var tools = toolsConfiguration.GetOptions();
             var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
             {
                 WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
@@ -226,7 +232,7 @@ public class RunCommand : ICommand
                               {
                                   project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
 
-                                  _ = RestartProject(project); // fire and forget
+                                  _ = RestartProject(project, cancellationToken); // fire and forget
                               }
                           }
                           table.AddRow(project.Name, project.Status);
@@ -238,10 +244,16 @@ public class RunCommand : ICommand
           });
     }
 
-    private static async Task RestartProject(RunningProjectItem project)
+    private static async Task RestartProject(RunningProjectItem project, CancellationToken cancellationToken = default)
     {
         project.Queued = true;
-        await Task.Delay(3100);
+        await Task.Delay(3100, cancellationToken);
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
         project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode}) (Retrying...)";
         project.Process = Process.Start(project.Process.StartInfo);
         project.StartReadingOutput();

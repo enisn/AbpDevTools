@@ -2,19 +2,21 @@
 using System.Runtime.InteropServices;
 
 namespace AbpDevTools;
-public static class Platform
+
+[RegisterTransient]
+public class Platform
 {
-    public static void Open(string filePath)
+    public void Open(string filePath)
     {
         OpenProcess(filePath).WaitForExit();
     }
 
-    public static Task OpenAsync(string filePath)
+    public Task OpenAsync(string filePath)
     {
         return OpenProcess(filePath).WaitForExitAsync();
     }
 
-    private static Process OpenProcess(string filePath)
+    private Process OpenProcess(string filePath)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

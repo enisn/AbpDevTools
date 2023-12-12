@@ -16,10 +16,14 @@ public class EnvironmentAppStartCommand : ICommand
     protected IConsole console;
     protected Dictionary<string,EnvironmentToolOption> configurations;
 
+    public EnvironmentAppStartCommand(EnvironmentAppConfiguration environmentAppConfiguration)
+    {
+        configurations = environmentAppConfiguration.GetOptions();
+    }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
-        configurations = EnvironmentAppConfiguration.GetOptions();
 
         if (AppNames == null || AppNames.Length == 0)
         {

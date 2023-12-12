@@ -16,12 +16,14 @@ public class DatabaseDropCommand : ICommand
     public bool Force { get; set; }
     
     protected readonly INotificationManager notificationManager;
+    protected readonly ToolsConfiguration toolsConfiguration;
 
-    public DatabaseDropCommand(INotificationManager notificationManager)
+    public DatabaseDropCommand(INotificationManager notificationManager, ToolsConfiguration toolsConfiguration)
     {
         this.notificationManager = notificationManager;
+        this.toolsConfiguration = toolsConfiguration;
     }
-    
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         if (string.IsNullOrEmpty(WorkingDirectory))
@@ -50,7 +52,7 @@ public class DatabaseDropCommand : ICommand
 
             AnsiConsole.MarkupLine($"[blue]## Project{(i + 1)} - {efCoreProject.Name.Replace(".csproj", string.Empty)}[/]");
 
-            var tools = ToolsConfiguration.GetOptions();
+            var tools = toolsConfiguration.GetOptions();
             var startInfo = new ProcessStartInfo(tools["dotnet"], $"ef database drop{forcePostfix}")
             {
                 WorkingDirectory = efCoreProject.DirectoryName!,

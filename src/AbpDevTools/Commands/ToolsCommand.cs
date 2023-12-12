@@ -7,9 +7,16 @@ namespace AbpDevTools.Commands;
 [Command("tools")]
 public class ToolsCommand : ICommand
 {
+    protected readonly ToolsConfiguration toolsConfiguration;
+
+    public ToolsCommand(ToolsConfiguration toolsConfiguration)
+    {
+        this.toolsConfiguration = toolsConfiguration;
+    }
+
     public ValueTask ExecuteAsync(IConsole console)
     {
-        var tools = ToolsConfiguration.GetOptions();
+        var tools = toolsConfiguration.GetOptions();
 
         console.Output.WriteLine("Available tools:\n");
 

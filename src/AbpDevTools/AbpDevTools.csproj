@@ -25,6 +25,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
     <PackageReference Include="Spectre.Console" Version="0.46.1-preview.0.20" />
     <PackageReference Include="Unidecode.NET" Version="2.1.0" />
+    <PackageReference Include="AutoRegisterInject" Version="1.2.1" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,10 +24,12 @@ public class BuildCommand : ICommand
 
     Process runningProcess;
     protected readonly INotificationManager notificationManager;
+    protected readonly ToolsConfiguration toolsConfiguration;
 
-    public BuildCommand(INotificationManager notificationManager)
+    public BuildCommand(INotificationManager notificationManager, ToolsConfiguration toolsConfiguration)
     {
         this.notificationManager = notificationManager;
+        this.toolsConfiguration = toolsConfiguration;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -70,7 +72,7 @@ public class BuildCommand : ICommand
                     commandSuffix += $" --configuration {Configuration}";
                 }
 
-                var tools = ToolsConfiguration.GetOptions();
+                var tools = toolsConfiguration.GetOptions();
                 runningProcess = Process.Start(new ProcessStartInfo(tools["dotnet"], "build /graphBuild" + commandSuffix)
                 {
                     WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),

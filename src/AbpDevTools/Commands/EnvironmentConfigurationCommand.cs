@@ -1,21 +1,18 @@
 ﻿using AbpDevTools.Configuration;
 using CliFx.Infrastructure;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AbpDevTools.Commands;
 
 [Command("env config")]
-public class EnvironmentConfigurationCommand : ConfigurationBaseCommand
+public class EnvironmentConfigurationCommand : ConfigurationBaseCommand<EnvironmentConfiguration>
 {
-    protected override string FilePath => EnvironmentConfiguration.FilePath;
+    public EnvironmentConfigurationCommand(EnvironmentConfiguration configuration) : base(configuration)
+    {
+    }
+
     public override ValueTask ExecuteAsync(IConsole console)
     {
-        EnvironmentConfiguration.GetOptions();
-
+        Configuration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }

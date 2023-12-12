@@ -1,42 +1,15 @@
 ﻿using System.Text.Json;
 
 namespace AbpDevTools.Configuration;
-public static class EnvironmentConfiguration
+
+[RegisterTransient]
+public class EnvironmentConfiguration : ConfigurationBase<Dictionary<string, EnvironmentOption>>
 {
-    public static string FolderPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "abpdev");
+    public override string FilePath => Path.Combine(FolderPath, "environments.json");
 
-    public static string FilePath => Path.Combine(FolderPath, "environments.json");
-
-    public static Dictionary<string, EnvironmentOption> GetOptions()
+    protected override Dictionary<string, EnvironmentOption> GetDefaults()
     {
-        if (!Directory.Exists(FolderPath))
-            Directory.CreateDirectory(FolderPath);
-
-        var options = EnvironmentOption.GetDefaults();
-        if (File.Exists(FilePath))
-        {
-            options = JsonSerializer.Deserialize<Dictionary<string, EnvironmentOption>>(File.ReadAllText(FilePath));
-        }
-        else
-        {
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(options, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            }));
-        }
-
-        return options;
-    }
-}
-
-public class EnvironmentOption
-{
-    public Dictionary<string, string> Variables { get; set; }
-
-    public static Dictionary<string, EnvironmentOption> GetDefaults() =>
-        new Dictionary<string, EnvironmentOption>
+        return new Dictionary<string, EnvironmentOption>
         {
             {
                 "SqlServer", new EnvironmentOption
@@ -57,4 +30,11 @@ public class EnvironmentOption
                     }
             }
         };
+    }
+}
+
+public class EnvironmentOption
+{
+    public Dictionary<string, string> Variables { get; set; }
+        
 }

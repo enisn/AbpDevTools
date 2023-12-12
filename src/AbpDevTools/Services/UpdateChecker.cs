@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace AbpDevTools.Services;
+
+[RegisterTransient]
 public class UpdateChecker
 {
     public static string FolderPath => Path.Combine(

@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Commands;
+using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
 using AbpDevTools.Services;
@@ -67,8 +68,7 @@ public static class Startup
             }
         }
 
-        services.AddTransient<IProcessEnvironmentManager, ProcessEnvironmentManager>();
-        services.AddTransient<UpdateChecker>();
+        services.AutoRegisterFromAbpDevTools();
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

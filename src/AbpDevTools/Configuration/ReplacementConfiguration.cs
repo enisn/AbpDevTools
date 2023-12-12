@@ -1,30 +1,30 @@
-﻿using System.Text.Json;
+﻿namespace AbpDevTools.Configuration;
 
-namespace AbpDevTools.Configuration;
-public static class ReplacementConfiguration
+[RegisterTransient]
+public class ReplacementConfiguration : ConfigurationBase<Dictionary<string, ReplacementOption>>
 {
-    public static string FolderPath => Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "abpdev");
-    public static string FilePath => Path.Combine(FolderPath, "replacements.json");
-    public static Dictionary<string, ReplacementOption> GetOptions()
+    public override string FilePath => Path.Combine(FolderPath, "replacements.json");
+
+    protected override Dictionary<string, ReplacementOption> GetDefaults()
     {
-        if (!Directory.Exists(FolderPath))
-            Directory.CreateDirectory(FolderPath);
-
-        var options = ReplacementOption.GetDefaults();
-        if (File.Exists(FilePath))
+        return new Dictionary<string, ReplacementOption>
         {
-            options = JsonSerializer.Deserialize<Dictionary<string, ReplacementOption>>(File.ReadAllText(FilePath));
-        }
-        else
-        {
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(options, new JsonSerializerOptions
             {
-                WriteIndented = true
-            }));
-        }
-
-        return options;
+                "ConnectionStrings", new ReplacementOption
+                {
+                    FilePattern = "appsettings.json",
+                    Find = "Trusted_Connection=True;",
+                    Replace = "User ID=SA;Password=12345678Aa;"
+                }
+            },
+            {
+                "LocalDb", new ReplacementOption
+                {
+                    FilePattern = "appsettings.json",
+                    Find = "Server=(LocalDb)\\\\MSSQLLocalDB;",
+                    Replace = "Server=localhost;"
+                }
+            }
+        };
     }
 }

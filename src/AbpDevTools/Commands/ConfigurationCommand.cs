@@ -20,80 +20,97 @@ public class ConfigCommand : ICommand
     }
 }
 
-public abstract class ConfigurationBaseCommand : ICommand
+public abstract class ConfigurationBaseCommand<TConfiguration> : ICommand
+    where TConfiguration : IConfigurationBase
 {
-    protected abstract string FilePath { get; }
+    public TConfiguration Configuration { get; }
+
+    public ConfigurationBaseCommand(TConfiguration configuration)
+    {
+        Configuration = configuration;
+    }
 
     public virtual ValueTask ExecuteAsync(IConsole console)
     {
-        console.Output.WriteLine("Opening file " + FilePath);
+        console.Output.WriteLine("Opening file " + Configuration.FilePath);
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Process.Start(new ProcessStartInfo("explorer", FilePath));
+            Process.Start(new ProcessStartInfo("explorer", Configuration.FilePath));
         }
         else
         {
-            Process.Start(new ProcessStartInfo("open", $"\"{FilePath}\""));
+            Process.Start(new ProcessStartInfo("open", $"\"{Configuration.FilePath}\""));
         }
         return ValueTask.CompletedTask;
     }
 }
 
 [Command("replace config", Description = "Allows managing replacement configuration.")]
-public class ReplaceConfigurationCommand : ConfigurationBaseCommand
+public class ReplaceConfigurationCommand : ConfigurationBaseCommand<ReplacementConfiguration>
 {
-    protected override string FilePath => ReplacementConfiguration.FilePath;
+    public ReplaceConfigurationCommand(ReplacementConfiguration configuration) : base(configuration)
+    {
+    }
+
     public override ValueTask ExecuteAsync(IConsole console)
     {
-        ReplacementConfiguration.GetOptions();
-
+        Configuration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }
 
 [Command("envapp config", Description = "Allows managing replacement configuration.")]
-public class EnvironmentAppConfigurationCommand : ConfigurationBaseCommand
+public class EnvironmentAppConfigurationCommand : ConfigurationBaseCommand<EnvironmentAppConfiguration>
 {
-    protected override string FilePath => EnvironmentAppConfiguration.FilePath;
+    public EnvironmentAppConfigurationCommand(EnvironmentAppConfiguration configuration) : base(configuration)
+    {
+    }
+
     public override ValueTask ExecuteAsync(IConsole console)
     {
-        EnvironmentAppConfiguration.GetOptions();
+        Configuration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }
 
 [Command("run config")]
-public class RunConfigurationCommand : ConfigurationBaseCommand
+public class RunConfigurationCommand : ConfigurationBaseCommand<RunConfiguration>
 {
-    protected override string FilePath => RunConfiguration.FilePath;
+    public RunConfigurationCommand(RunConfiguration configuration) : base(configuration)
+    {
+    }
 
     public override ValueTask ExecuteAsync(IConsole console)
     {
-        RunConfiguration.GetOptions();
+        Configuration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }
 
 [Command("clean config")]
-public class CleanConfigurationCommand : ConfigurationBaseCommand
+public class CleanConfigurationCommand : ConfigurationBaseCommand<CleanConfiguration>
 {
-    protected override string FilePath => CleanConfiguration.FilePath;
+    public CleanConfigurationCommand(CleanConfiguration configuration) : base(configuration)
+    {
+    }
 
     public override ValueTask ExecuteAsync(IConsole console)
     {
-        CleanConfiguration.GetOptions();
+        Configuration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }
 
 [Command("tools config")]
-public class ToolsConfigurationCommand : ConfigurationBaseCommand
+public class ToolsConfigurationCommand : ConfigurationBaseCommand<ToolsConfiguration>
 {
-    protected override string FilePath => ToolsConfiguration.FilePath;
+    public ToolsConfigurationCommand(ToolsConfiguration configuration) : base(configuration)
+    {
+    }
 
     public override ValueTask ExecuteAsync(IConsole console)
     {
-        ToolsConfiguration.GetOptions();
+        Configuration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }

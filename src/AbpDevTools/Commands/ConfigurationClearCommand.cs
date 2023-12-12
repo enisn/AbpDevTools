@@ -8,15 +8,30 @@ public abstract class ConfigurationClearCommandBase : ICommand
     [CommandOption("force", 'f')]
     public bool Force { get; set; }
 
-    protected abstract string FilePath { get; }
+    public virtual ValueTask ExecuteAsync(IConsole console)
+    {
+        throw new NotImplementedException();
+    }
+}
 
-    public async ValueTask ExecuteAsync(IConsole console)
+public abstract class ConfigurationClearCommandBase<TConfiguration> : ConfigurationClearCommandBase
+    where TConfiguration : IConfigurationBase
+{
+
+    private readonly TConfiguration configuration;
+
+    public ConfigurationClearCommandBase(TConfiguration configuration)
+    {
+        this.configuration = configuration;
+    }
+
+    public override async ValueTask ExecuteAsync(IConsole console)
     {
         if (!Force)
         {
             await console
                 .Output
-                .WriteAsync($"Are you sure to remove existing configuration at path {FilePath}?\nY/N?");
+                .WriteAsync($"Are you sure to remove existing configuration at path {configuration.FilePath}?\nY/N?");
 
             var confirm = await console.Input.ReadLineAsync();
             if (!confirm.Equals("Y", StringComparison.InvariantCultureIgnoreCase))
@@ -25,7 +40,7 @@ public abstract class ConfigurationClearCommandBase : ICommand
             }
         }
 
-        File.Delete(FilePath);
+        File.Delete(configuration.FilePath);
     }
 }
 
@@ -35,12 +50,24 @@ public class ConfigurationClearCommand : ICommand
     [CommandOption("force", 'f')]
     public bool Force { get; set; }
 
-    protected readonly ConfigurationClearCommandBase[] configurationClearCommands = new ConfigurationClearCommandBase[]
+    protected readonly ConfigurationClearCommandBase[] configurationClearCommands;
+
+    public ConfigurationClearCommand(
+        ReplacementConfigClearCommand replacementConfigClearCommand,
+        EnvironmentAppConfigClearCommand environmentAppConfigClearCommand,
+        RunConfigClearCommand runConfigClearCommand,
+        CleanConfigClearCommand cleanConfigClearCommand,
+        ToolsConfigClearCommand toolsConfigClearCommand)
     {
-        new ReplacementConfigClearCommand(),
-        new EnvironmentAppConfigClearCommand(),
-        new RunConfigClearCommand()
-    };
+        configurationClearCommands = new ConfigurationClearCommandBase[]
+        {
+            replacementConfigClearCommand,
+            environmentAppConfigClearCommand,
+            runConfigClearCommand,
+            cleanConfigClearCommand,
+            toolsConfigClearCommand,
+        };
+    }
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
@@ -53,19 +80,41 @@ public class ConfigurationClearCommand : ICommand
 }
 
 [Command("replace config clear")]
-public class ReplacementConfigClearCommand : ConfigurationClearCommandBase
+[RegisterTransient]
+public class ReplacementConfigClearCommand : ConfigurationClearCommandBase<ReplacementConfiguration>
 {
-    protected override string FilePath => ReplacementConfiguration.FilePath;
+    public ReplacementConfigClearCommand(ReplacementConfiguration configuration) : base(configuration)
+    {
+    }
 }
 
 [Command("envapp config clear")]
-public class EnvironmentAppConfigClearCommand : ConfigurationClearCommandBase
+public class EnvironmentAppConfigClearCommand : ConfigurationClearCommandBase<EnvironmentAppConfiguration>
 {
-    protected override string FilePath => EnvironmentAppConfiguration.FilePath;
+    public EnvironmentAppConfigClearCommand(EnvironmentAppConfiguration configuration) : base(configuration)
+    {
+    }
 }
 
 [Command("run config clear")]
-public class RunConfigClearCommand : ConfigurationClearCommandBase
+public class RunConfigClearCommand : ConfigurationClearCommandBase<RunConfiguration>
 {
-    protected override string FilePath => RunConfiguration.FilePath;
+    public RunConfigClearCommand(RunConfiguration configuration) : base(configuration)
+    {
+    }
+}
+
+[Command("clean config clear")]
+public class CleanConfigClearCommand : ConfigurationClearCommandBase<CleanConfiguration>
+{
+    public CleanConfigClearCommand(CleanConfiguration configuration) : base(configuration)
+    {
+    }
+}
+[Command("tools config clear")]
+public class ToolsConfigClearCommand : ConfigurationClearCommandBase<ToolsConfiguration>
+{
+    public ToolsConfigClearCommand(ToolsConfiguration configuration) : base(configuration)
+    {
+    }
 }

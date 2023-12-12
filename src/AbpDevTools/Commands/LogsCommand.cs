@@ -16,6 +16,15 @@ public class LogsCommand : ICommand
     [CommandOption("interactive", 'i', Description = "Options will be asked as prompt when this option used.")]
     public bool Interactive { get; set; }
 
+    protected readonly RunConfiguration runConfiguration;
+    protected readonly Platform platform;
+
+    public LogsCommand(RunConfiguration runConfiguration, Platform platform)
+    {
+        this.runConfiguration = runConfiguration;
+        this.platform = platform;
+    }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         if (string.IsNullOrEmpty(WorkingDirectory))
@@ -23,7 +32,7 @@ public class LogsCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var _runnableProjects = RunConfiguration.GetOptions().RunnableProjects;
+        var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
         var csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects...", async ctx =>
             {
@@ -76,18 +85,18 @@ public class LogsCommand : ICommand
             var filePath = Path.Combine(logsDir, "logs.txt");
             if (File.Exists(filePath))
             {
-                Platform.Open(filePath);
+                platform.Open(filePath);
             }
             else
             {
-                Platform.Open(logsDir);
+                platform.Open(logsDir);
             }
         }
         else
         {
             await console.Output.WriteLineAsync("No logs folder found for project.\nOpening project folder...");
 
-            Platform.Open(dir);
+            platform.Open(dir);
         }
     }
 }

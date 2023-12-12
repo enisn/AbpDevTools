@@ -10,6 +10,13 @@ public class CleanCommand : ICommand
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string WorkingDirectory { get; set; }
 
+    private readonly CleanConfiguration cleanConfiguration;
+
+    public CleanCommand(CleanConfiguration cleanConfiguration)
+    {
+        this.cleanConfiguration = cleanConfiguration;
+    }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         if (string.IsNullOrEmpty(WorkingDirectory))
@@ -17,7 +24,7 @@ public class CleanCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var foldersToDelete = CleanConfiguration.GetOptions()
+        var foldersToDelete = cleanConfiguration.GetOptions()
             .Folders.Select(x => Path.DirectorySeparatorChar + x)
             .ToArray();
 

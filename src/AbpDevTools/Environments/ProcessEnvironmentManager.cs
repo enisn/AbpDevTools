@@ -1,10 +1,13 @@
 ﻿using AbpDevTools.Configuration;
+using AutoRegisterInject;
 using CliFx.Exceptions;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Unidecode.NET;
 
 namespace AbpDevTools.Environments;
+
+[RegisterTransient]
 public class ProcessEnvironmentManager : IProcessEnvironmentManager
 {
     private static Dictionary<string, Func<string, string>> replacements = new Dictionary<string, Func<string, string>>()
@@ -13,9 +16,16 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
         { "{AppName}", FindAppName }
     };
 
+    private readonly EnvironmentConfiguration environmentConfiguration;
+
+    public ProcessEnvironmentManager(EnvironmentConfiguration environmentConfiguration)
+    {
+        this.environmentConfiguration = environmentConfiguration;
+    }
+
     public void SetEnvironment(string environment, string directory)
     {
-        var options = EnvironmentConfiguration.GetOptions();
+        var options = environmentConfiguration.GetOptions();
 
         if (!options.TryGetValue(environment, out var env))
         {
@@ -31,7 +41,7 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
 
     public void SetEnvironmentForProcess(string environment, ProcessStartInfo process)
     {
-        var options = EnvironmentConfiguration.GetOptions();
+        var options = environmentConfiguration.GetOptions();
 
         if (!options.TryGetValue(environment, out var env))
         {

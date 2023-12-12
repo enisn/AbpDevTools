@@ -2,14 +2,13 @@
 using System.Text.Json;
 
 namespace AbpDevTools.Configuration;
-public static class ToolsConfiguration
-{
-    public static string FolderPath => Path.Combine(
-       Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-       "abpdev");
-    public static string FilePath => Path.Combine(FolderPath, "tools-configuration.json");
 
-    public static Dictionary<string, string> GetOptions()
+[RegisterTransient]
+public class ToolsConfiguration : ConfigurationBase<Dictionary<string, string>>
+{
+    public override string FilePath => Path.Combine(FolderPath, "tools-configuration.json");
+
+    public override Dictionary<string, string> GetOptions()
     {
         if (!Directory.Exists(FolderPath))
             Directory.CreateDirectory(FolderPath);
@@ -35,7 +34,7 @@ public static class ToolsConfiguration
         return _defaults;
     }
 
-    private static Dictionary<string, string> GetDefaults()
+    protected override Dictionary<string, string> GetDefaults()
     {
         var _defaults = new Dictionary<string, string>
         {

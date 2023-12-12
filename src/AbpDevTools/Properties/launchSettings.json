@@ -2,7 +2,7 @@
   "profiles": {
     "AbpDevTools": {
       "commandName": "Project",
-      "commandLineArgs": ""
+      "commandLineArgs": "config clear"
     }
   }
 }

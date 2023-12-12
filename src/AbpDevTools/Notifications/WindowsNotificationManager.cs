@@ -8,9 +8,18 @@ public class WindowsNotificationManager : INotificationManager
            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
            "abpdev");
 
+    protected readonly ToolsConfiguration toolsConfiguration;
+    protected readonly NotificationConfiguration notificationConfiguration;
+
+    public WindowsNotificationManager(ToolsConfiguration toolsConfiguration, NotificationConfiguration notificationConfiguration)
+    {
+        this.toolsConfiguration = toolsConfiguration;
+        this.notificationConfiguration = notificationConfiguration;
+    }
+
     public async Task SendAsync(string title, string message = null, string icon = null)
     {
-        if (!NotificationConfiguration.GetOptions().Enabled)
+        if (!notificationConfiguration.GetOptions().Enabled)
         {
             return;
         }
@@ -35,7 +44,7 @@ public class WindowsNotificationManager : INotificationManager
 
         await File.WriteAllTextAsync(filePath, command);
 
-        var tools = ToolsConfiguration.GetOptions();
+        var tools = toolsConfiguration.GetOptions();
         var process = Process.Start(tools["powershell"], filePath);
 
         await process.WaitForExitAsync();
