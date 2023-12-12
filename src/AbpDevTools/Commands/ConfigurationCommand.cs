@@ -11,11 +11,12 @@ public class ConfigCommand : ICommand
     public async ValueTask ExecuteAsync(IConsole console)
     {
         await console.Output.WriteLineAsync("Available commands:\n");
-        await console.Output.WriteLineAsync("- replace config");
-        await console.Output.WriteLineAsync("- envapp config");
-        await console.Output.WriteLineAsync("- run config");
-        await console.Output.WriteLineAsync("- clean config");
-        await console.Output.WriteLineAsync("- config clear  | Resets all the configurations to defaults.");
+        await console.Output.WriteLineAsync("-abpdev replace config");
+        await console.Output.WriteLineAsync("-abpdev envapp config");
+        await console.Output.WriteLineAsync("-abpdev run config");
+        await console.Output.WriteLineAsync("-abpdev clean config");
+        await console.Output.WriteLineAsync("-abpdev tools config");
+        await console.Output.WriteLineAsync("-abpdev config clear  | Resets all the configurations to defaults.");
     }
 }
 
@@ -81,6 +82,18 @@ public class CleanConfigurationCommand : ConfigurationBaseCommand
     public override ValueTask ExecuteAsync(IConsole console)
     {
         CleanConfiguration.GetOptions();
+        return base.ExecuteAsync(console);
+    }
+}
+
+[Command("tools config")]
+public class ToolsConfigurationCommand : ConfigurationBaseCommand
+{
+    protected override string FilePath => ToolsConfiguration.FilePath;
+
+    public override ValueTask ExecuteAsync(IConsole console)
+    {
+        ToolsConfiguration.GetOptions();
         return base.ExecuteAsync(console);
     }
 }
