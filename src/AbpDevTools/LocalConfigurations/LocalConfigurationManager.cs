@@ -28,12 +28,22 @@ public class LocalConfigurationManager
             return false;
         }
 
-        var ymlPath = direction == FileSearchDirection.Ascendants ?
-            fileExplorer.FindAscendants(directory, "abpdev.yml").FirstOrDefault() :
-            fileExplorer.FindDescendants(directory, "abpdev.yml").FirstOrDefault()
-            ;
+        string? fileName = "abpdev.yml";
 
-        if (string.IsNullOrEmpty(ymlPath))
+        if (path.EndsWith(".yml"))
+        {
+            fileName = Path.GetFileName(path);
+        }
+
+        var ymlPath = direction switch
+        {
+            FileSearchDirection.Ascendants => fileExplorer.FindAscendants(directory, fileName).FirstOrDefault(),
+            FileSearchDirection.Descendants => fileExplorer.FindDescendants(directory, fileName).FirstOrDefault(),
+            FileSearchDirection.OnlyCurrent => Path.Combine(directory, fileName),
+            _ => throw new NotImplementedException()
+        };
+
+        if (string.IsNullOrEmpty(ymlPath) || !File.Exists(ymlPath))
         {
             return false;
         }
@@ -67,5 +77,6 @@ public class LocalConfigurationManager
 public enum FileSearchDirection : byte
 {
     Ascendants,
-    Descendants
+    Descendants,
+    OnlyCurrent
 }

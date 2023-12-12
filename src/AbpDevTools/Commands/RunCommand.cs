@@ -44,6 +44,9 @@ public partial class RunCommand : ICommand
     [CommandOption("retry", 'r', Description = "Retries running again when application exits.")]
     public bool Retry { get; set; }
 
+    [CommandOption("yml", Description = "Path to the yml file to be used for running the project.")]
+    public string? YmlPath { get; set; }
+
     protected IConsole? console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -84,11 +87,17 @@ public partial class RunCommand : ICommand
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
+
+        if (string.IsNullOrEmpty(YmlPath))
+        {
+            YmlPath = Path.Combine(WorkingDirectory, "abpdev.yml");
+        }
+
         var cancellationToken = console.RegisterCancellationHandler();
 
         var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
 
-        localConfigurationManager.TryLoad(WorkingDirectory!, out var localRootConfig, FileSearchDirection.Descendants);
+        localConfigurationManager.TryLoad(YmlPath!, out var localRootConfig, FileSearchDirection.OnlyCurrent);
 
         FileInfo[] csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects", async ctx =>
