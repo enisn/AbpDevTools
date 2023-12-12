@@ -12,7 +12,7 @@ namespace AbpDevTools.Commands;
 public partial class RunCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     [CommandOption("watch", 'w', Description = "Watch mode")]
     public bool Watch { get; set; }
@@ -33,18 +33,18 @@ public partial class RunCommand : ICommand
     public bool GraphBuild { get; set; }
 
     [CommandOption("projects", 'p', Description = "(Array) Names or part of names of projects will be ran.")]
-    public string[] Projects { get; set; }
+    public string[] Projects { get; set; } = Array.Empty<string>();
 
     [CommandOption("configuration", 'c')]
-    public string Configuration { get; set; }
+    public string? Configuration { get; set; }
 
     [CommandOption("env", 'e', Description = "Uses the virtual environment for this process. Use 'abpdev env config' command to see/manage environments.")]
-    public string EnvironmentName { get; set; }
+    public string? EnvironmentName { get; set; }
 
     [CommandOption("retry", 'r', Description = "Retries running again when application exits.")]
     public bool Retry { get; set; }
 
-    protected IConsole console;
+    protected IConsole? console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
 
@@ -92,6 +92,9 @@ public partial class RunCommand : ICommand
             .StartAsync("Looking for projects", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+
+                await Task.Yield();
+
                 return Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
                     .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
                     .Select(x => new FileInfo(x))
@@ -186,7 +189,7 @@ public partial class RunCommand : ICommand
                         WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
-                    })
+                    })!
                 );
 
                 runningProjects.Add(installLibsRunninItem);
@@ -211,7 +214,7 @@ public partial class RunCommand : ICommand
 
               foreach (var project in runningProjects)
               {
-                  table.AddRow(project.Name, project.Status);
+                  table.AddRow(project.Name!, project.Status!);
               }
               ctx.Refresh();
 
@@ -228,11 +231,11 @@ public partial class RunCommand : ICommand
                   {
                       if (project.IsCompleted)
                       {
-                          table.AddRow(project.Name, $"[green]*[/] {project.Status}");
+                          table.AddRow(project.Name!, $"[green]*[/] {project.Status}");
                       }
                       else
                       {
-                          if (project.Process.HasExited && !project.Queued)
+                          if (project.Process!.HasExited && !project.Queued)
                           {
                               project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
 
@@ -243,7 +246,7 @@ public partial class RunCommand : ICommand
                                   _ = RestartProject(project, cancellationToken); // fire and forget
                               }
                           }
-                          table.AddRow(project.Name, project.Status);
+                          table.AddRow(project.Name!, project.Status!);
                       }
                   }
 
@@ -262,19 +265,19 @@ public partial class RunCommand : ICommand
             return;
         }
 
-        project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode}) (Retrying...)";
-        project.Process = Process.Start(project.Process.StartInfo);
+        project.Status = $"[orange1]*[/] Exited({project.Process!.ExitCode}) (Retrying...)";
+        project.Process = Process.Start(project.Process!.StartInfo)!;
         project.StartReadingOutput();
     }
 
     protected void KillRunningProcesses()
     {
-        console.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
+        console!.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
         foreach (var project in runningProjects)
         {
-            project.Process.Kill(entireProcessTree: true);
+            project.Process?.Kill(entireProcessTree: true);
 
-            project.Process.WaitForExit();
+            project.Process?.WaitForExit();
         }
     }
 }

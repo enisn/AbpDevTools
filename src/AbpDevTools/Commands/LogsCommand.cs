@@ -8,10 +8,10 @@ namespace AbpDevTools.Commands;
 public class LogsCommand : ICommand
 {
     [CommandParameter(0, Description = "Determines the project to open logs of it.", IsRequired = false)]
-    public string ProjectName { get; set; }
+    public string? ProjectName { get; set; }
 
     [CommandOption("path", 'p', Description = "Working directory of the command. Probably solution directory. Default: . (CurrentDirectory) ")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     [CommandOption("interactive", 'i', Description = "Options will be asked as prompt when this option used.")]
     public bool Interactive { get; set; }
@@ -37,6 +37,9 @@ public class LogsCommand : ICommand
             .StartAsync("Looking for projects...", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+
+                await Task.Yield();
+
                 var projects = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
                     .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
                     .Select(x => new FileInfo(x))
@@ -78,7 +81,7 @@ public class LogsCommand : ICommand
             return;
         }
 
-        var dir = Path.GetDirectoryName(selectedCsproj.FullName);
+        var dir = Path.GetDirectoryName(selectedCsproj.FullName)!;
         var logsDir = Path.Combine(dir, "Logs");
         if (Directory.Exists(logsDir))
         {

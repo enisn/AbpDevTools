@@ -3,7 +3,6 @@ using System.Text.Json;
 
 namespace AbpDevTools.Configuration;
 
-
 [RegisterTransient]
 public class ToolsConfiguration : ConfigurationBase<ToolOption>
 {
@@ -12,14 +11,16 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
     public override ToolOption GetOptions()
     {
         if (!Directory.Exists(FolderPath))
+        {
             Directory.CreateDirectory(FolderPath);
+        }
 
         var _defaults = GetDefaults();
         var shouldSave = true;
 
         if (File.Exists(FilePath))
         {
-            var options = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(FilePath));
+            var options = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(FilePath))!;
 
             shouldSave = Merge(options, _defaults);
         }

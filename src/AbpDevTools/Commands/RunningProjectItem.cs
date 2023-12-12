@@ -4,21 +4,20 @@ namespace AbpDevTools.Commands;
 
 public class RunningProjectItem
 {
-    public string Name { get; set; }
-    public Process Process { get; set; }
-    public virtual string Status { get; set; }
+    public string? Name { get; set; }
+    public Process? Process { get; set; }
+    public virtual string? Status { get; set; }
     public virtual bool IsCompleted { get; set; }
     public virtual bool Queued { get; set; }
 
     public virtual void StartReadingOutput()
     {
     }
-
 }
 
 public class RunningCsProjItem : RunningProjectItem
 {
-    public RunningCsProjItem(string name, Process process, string status = null)
+    public RunningCsProjItem(string name, Process process, string? status = null)
     {
         this.Name = name;
         this.Process = process;
@@ -29,9 +28,9 @@ public class RunningCsProjItem : RunningProjectItem
     public override void StartReadingOutput()
     {
         Queued = false;
-        Process.OutputDataReceived -= OutputReceived;
-        Process.OutputDataReceived += OutputReceived;
-        Process.BeginOutputReadLine();
+        Process!.OutputDataReceived -= OutputReceived;
+        Process!.OutputDataReceived += OutputReceived;
+        Process!.BeginOutputReadLine();
     }
 
     protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)
@@ -46,14 +45,14 @@ public class RunningCsProjItem : RunningProjectItem
         if (args.Data != null && args.Data.Contains("Now listening on: "))
         {
             Status = args.Data[args.Data.IndexOf("Now listening on: ")..];
-            Process.CancelOutputRead();
+            Process?.CancelOutputRead();
             IsCompleted = true;
         }
 
-        if (DateTime.Now - Process.StartTime > TimeSpan.FromMinutes(5))
+        if (DateTime.Now - Process?.StartTime > TimeSpan.FromMinutes(5))
         {
             Status = "Stale";
-            Process.OutputDataReceived -= OutputReceived;
+            Process!.OutputDataReceived -= OutputReceived;
             Process.CancelOutputRead();
         }
     }
@@ -61,7 +60,7 @@ public class RunningCsProjItem : RunningProjectItem
 
 public class RunningInstallLibsItem : RunningProjectItem
 {
-    public RunningInstallLibsItem(string name, Process process, string status = null)
+    public RunningInstallLibsItem(string name, Process process, string? status = null)
     {
         this.Name = name;
         this.Process = process;
@@ -71,9 +70,9 @@ public class RunningInstallLibsItem : RunningProjectItem
 
     public override void StartReadingOutput()
     {
-        Process.OutputDataReceived -= OutputReceived;
-        Process.OutputDataReceived += OutputReceived;
-        Process.BeginOutputReadLine();
+        Process!.OutputDataReceived -= OutputReceived;
+        Process!.OutputDataReceived += OutputReceived;
+        Process!.BeginOutputReadLine();
     }
 
     protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)
@@ -81,15 +80,15 @@ public class RunningInstallLibsItem : RunningProjectItem
         if (args.Data != null && args.Data.Contains("Done in"))
         {
             Status = "Completed.";
-            Process.CancelOutputRead();
+            Process!.CancelOutputRead();
             IsCompleted = true;
         }
 
-        if (DateTime.Now - Process.StartTime > TimeSpan.FromMinutes(5))
+        if (DateTime.Now - Process!.StartTime > TimeSpan.FromMinutes(5))
         {
             Status = "Stale";
-            Process.OutputDataReceived -= OutputReceived;
-            Process.CancelOutputRead();
+            Process!.OutputDataReceived -= OutputReceived;
+            Process!.CancelOutputRead();
         }
     }
 }

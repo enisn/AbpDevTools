@@ -1,11 +1,7 @@
 ﻿using CliFx.Infrastructure;
 using Spectre.Console;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace AbpDevTools.Commands;
 
@@ -13,9 +9,9 @@ namespace AbpDevTools.Commands;
 public class AbpBundleCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
-    protected IConsole console;
+    protected IConsole? console;
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
@@ -35,6 +31,9 @@ public class AbpBundleCommand : ICommand
             .StartAsync("Looking for projects", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+
+                await Task.Yield();
+
                 return Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
                     .Where(IsCsprojBlazorWasm)
                     .Select(x => new FileInfo(x))
@@ -58,7 +57,7 @@ public class AbpBundleCommand : ICommand
 
                 var startInfo = new ProcessStartInfo("abp", $"bundle -wd {Path.GetDirectoryName(csproj.FullName)}");
                 startInfo.RedirectStandardOutput = true;
-                using var process = Process.Start(startInfo);
+                using var process = Process.Start(startInfo)!;
                 process.BeginOutputReadLine();
                 await process.WaitForExitAsync();
 

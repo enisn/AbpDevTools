@@ -8,12 +8,12 @@ namespace AbpDevTools.Commands;
 public class EnvironmentAppStartCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Name of the app.")]
-    public string[] AppNames { get; set; }
+    public string[] AppNames { get; set; } = Array.Empty<string>();
 
     [CommandOption("password", 'p', Description = "Default password for sql images when applicable. Default: 12345678Aa")]
-    public string DefaultPassword { get; set; }
+    public string DefaultPassword { get; set; } = "12345678Aa";
 
-    protected IConsole console;
+    protected IConsole? console;
     protected Dictionary<string,EnvironmentToolOption> configurations;
 
     public EnvironmentAppStartCommand(EnvironmentAppConfiguration environmentAppConfiguration)
@@ -44,7 +44,7 @@ public class EnvironmentAppStartCommand : ICommand
     {
         if (string.IsNullOrEmpty(appName))
         {
-            await console.Output.WriteAsync("App Name can't be null or empty.");
+            await console!.Output.WriteAsync("App Name can't be null or empty.");
             return;
         }
 

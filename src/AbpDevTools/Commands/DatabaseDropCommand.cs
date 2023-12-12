@@ -10,7 +10,7 @@ namespace AbpDevTools.Commands;
 public class DatabaseDropCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to search for EntityFramework projects. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
     
     [CommandOption("force", 'f')]
     public bool Force { get; set; }
@@ -88,7 +88,7 @@ public class DatabaseDropCommand : ICommand
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
                 
-                var efCoreProjects = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
+                var efCoreProjects = Directory.EnumerateFiles(WorkingDirectory!, "*.csproj", SearchOption.AllDirectories)
                     .Where(x => x.EndsWith("EntityFrameworkCore.csproj"))
                     .Select(x => new FileInfo(x))
                     .ToArray();

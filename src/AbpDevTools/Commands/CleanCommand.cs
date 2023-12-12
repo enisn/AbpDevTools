@@ -8,7 +8,7 @@ namespace AbpDevTools.Commands;
 public class CleanCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     private readonly CleanConfiguration cleanConfiguration;
 
@@ -35,7 +35,7 @@ public class CleanCommand : ICommand
 
                 await Task.Yield();
 
-                var directories = Directory.EnumerateDirectories(WorkingDirectory, string.Empty, SearchOption.AllDirectories)
+                var directories = Directory.EnumerateDirectories(WorkingDirectory!, string.Empty, SearchOption.AllDirectories)
                     .Where(x => foldersToDelete.Any(a => x.EndsWith(a)));
 
                 foreach (var directory in directories)

@@ -118,7 +118,7 @@ public class MigrateCommand : ICommand
 
                 foreach (var runningProject in runningProjects)
                 {
-                    runningProject.Process.OutputDataReceived += (sender, args) =>
+                    runningProject.Process!.OutputDataReceived += (sender, args) =>
                     {
                         if (args?.Data != null && args.Data.Length < 90)
                         {
@@ -130,7 +130,7 @@ public class MigrateCommand : ICommand
                     runningProject.Process.BeginOutputReadLine();
                 }
 
-                await Task.WhenAll(runningProjects.Select(x => x.Process.WaitForExitAsync()));
+                await Task.WhenAll(runningProjects.Select(x => x.Process!.WaitForExitAsync()));
             });
     }
 
@@ -140,8 +140,8 @@ public class MigrateCommand : ICommand
         foreach (var runningProject in runningProjects)
         {
             table.AddRow(
-                runningProject.Name,
-                runningProject.Status);
+                runningProject.Name!,
+                runningProject.Status!);
         }
     }
 
@@ -150,9 +150,9 @@ public class MigrateCommand : ICommand
         console!.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
         foreach (var project in runningProjects)
         {
-            project.Process.Kill(entireProcessTree: true);
+            project.Process?.Kill(entireProcessTree: true);
 
-            project.Process.WaitForExit();
+            project.Process?.WaitForExit();
         }
     }
 }

@@ -34,7 +34,7 @@ public abstract class ConfigurationClearCommandBase<TConfiguration> : Configurat
                 .WriteAsync($"Are you sure to remove existing configuration at path {configuration.FilePath}?\nY/N?");
 
             var confirm = await console.Input.ReadLineAsync();
-            if (!confirm.Equals("Y", StringComparison.InvariantCultureIgnoreCase))
+            if (!confirm!.Equals("Y", StringComparison.InvariantCultureIgnoreCase))
             {
                 return;
             }

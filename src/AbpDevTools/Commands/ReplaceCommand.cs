@@ -9,15 +9,14 @@ namespace AbpDevTools.Commands;
 public class ReplaceCommand : ICommand
 {
     [CommandOption("path", 'p', Description = "Working directory of the command. Probably solution directory. Default: . (CurrentDirectory) ")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     [CommandParameter(0, IsRequired = false, Description = "If you execute single option from config, you can pass the name or pass 'all' to execute all of them")]
-    public string ReplacementConfigName { get; set; }
+    public string? ReplacementConfigName { get; set; }
 
     [CommandOption("interactive", 'i', Description = "Interactive Mode. It'll ask prompt to pick one config.")]
     public bool InteractiveMode { get; set; }
 
-    private IConsole console;
     private readonly ReplacementConfiguration replacementConfiguration;
 
     public ReplaceCommand(ReplacementConfiguration replacementConfiguration)
@@ -27,7 +26,6 @@ public class ReplaceCommand : ICommand
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
-        this.console = console;
         WorkingDirectory ??= Directory.GetCurrentDirectory();
 
         var options = replacementConfiguration.GetOptions();
@@ -90,8 +88,10 @@ public class ReplaceCommand : ICommand
         {
             AnsiConsole.MarkupLine($"Executing [blue]'{configurationName}'[/] replacement configuration...");
 
+            await Task.Yield();
+
             ctx.Status($"[blue]{option.FilePattern}[/] file pattern executing.");
-            var files = Directory.EnumerateFiles(WorkingDirectory, "*.*", SearchOption.AllDirectories)
+            var files = Directory.EnumerateFiles(WorkingDirectory!, "*.*", SearchOption.AllDirectories)
                 .Where(x => Regex.IsMatch(x, option.FilePattern))
                 .ToList();
 

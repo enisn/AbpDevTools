@@ -11,7 +11,7 @@ public class EnvironmentAppStopCommand : ICommand
     private readonly EnvironmentAppConfiguration environmentAppConfiguration;
 
     [CommandParameter(0, IsRequired = false , Description = "Name of the app.")]
-    public string AppName { get; set; }
+    public string? AppName { get; set; }
 
     public EnvironmentAppStopCommand(EnvironmentAppConfiguration environmentAppConfiguration)
     {

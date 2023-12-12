@@ -103,6 +103,6 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
             return value;
         }
 
-        return value.Substring(value.Length - maximumLength);
+        return value[^maximumLength..];
     }
 }

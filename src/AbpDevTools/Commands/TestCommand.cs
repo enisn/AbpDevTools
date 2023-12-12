@@ -9,22 +9,22 @@ namespace AbpDevTools.Commands;
 public class TestCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run test. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     [CommandOption("files", 'f', Description = "(Array) Names or part of names of solutions will be tested.")]
-    public string[] TestFiles { get; set; }
+    public string[]? TestFiles { get; set; }
 
     [CommandOption("interactive", 'i', Description = "Interactive test solution selection.")]
     public bool Interactive { get; set; }
 
     [CommandOption("configuration", 'c')]
-    public string Configuration { get; set; }
+    public string? Configuration { get; set; }
 
     [CommandOption("no-build", Description = "Skips build before running. Passes '--no-build' parameter to dotnet test.")]
     public bool NoBuild { get; set; }
 
-    protected IConsole console;
-    protected Process runningProcess;
+    protected IConsole? console;
+    protected Process? runningProcess;
     protected readonly ToolsConfiguration toolsConfiguration;
 
     public TestCommand(ToolsConfiguration toolsConfiguration)
@@ -44,8 +44,8 @@ public class TestCommand : ICommand
         cancellationToken.Register(() =>
         {
             AnsiConsole.MarkupLine("[red]AbpDev Test cancelled by the user.[/]");
-            console.Output.WriteLine("Killing process with id " + runningProcess.Id);
-            runningProcess.Kill(true);
+            console.Output.WriteLine("Killing process with id " + runningProcess?.Id);
+            runningProcess?.Kill(true);
         });
 
         var buildFiles = await FindBuildFilesAsync("*.sln", "solution");
@@ -76,14 +76,14 @@ public class TestCommand : ICommand
 
                 runningProcess = Process.Start(startInfo);
                 ctx.Status($"Running tests for {buildFile.Name}.");
-                runningProcess.OutputDataReceived += (s, e) =>
+                runningProcess!.OutputDataReceived += (s, e) =>
                 {
                     if (e.Data != null)
                     {
                         AnsiConsole.MarkupLine($"[grey]{e.Data}[/]");
                     }
                 };
-                runningProcess.BeginOutputReadLine();
+                runningProcess!.BeginOutputReadLine();
 
                 await runningProcess.WaitForExitAsync(cancellationToken);
 
@@ -97,7 +97,7 @@ public class TestCommand : ICommand
         });
     }
 
-    private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string nameOfPattern = null)
+    private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string? nameOfPattern = null)
     {
         nameOfPattern ??= "solution";
 
@@ -105,7 +105,10 @@ public class TestCommand : ICommand
                 .StartAsync($"Looking for {nameOfPattern} files ({pattern})", async ctx =>
                 {
                     ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
-                    var query = Directory.EnumerateFiles(WorkingDirectory, pattern, SearchOption.AllDirectories);
+
+                    await Task.Yield();
+
+                    var query = Directory.EnumerateFiles(WorkingDirectory!, pattern, SearchOption.AllDirectories);
 
                     if (TestFiles?.Length > 0)
                     {

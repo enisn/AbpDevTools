@@ -11,18 +11,18 @@ namespace AbpDevTools.Commands;
 public class BuildCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     [CommandOption("build-files", 'f', Description = "(Array) Names or part of names of projects or solutions will be built.")]
-    public string[] BuildFiles { get; set; }
+    public string[]? BuildFiles { get; set; }
 
     [CommandOption("interactive", 'i', Description = "Interactive build file selection.")]
     public bool Interactive { get; set; }
 
     [CommandOption("configuration", 'c')]
-    public string Configuration { get; set; }
+    public string? Configuration { get; set; }
 
-    Process runningProcess;
+    Process? runningProcess;
     protected readonly INotificationManager notificationManager;
     protected readonly ToolsConfiguration toolsConfiguration;
 
@@ -79,7 +79,7 @@ public class BuildCommand : ICommand
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                });
+                })!;
 
                 // equivalent of WaitForExit
                 var _output = await runningProcess.StandardOutput.ReadToEndAsync();
@@ -119,7 +119,7 @@ public class BuildCommand : ICommand
         cancellationToken.Register(KillRunningProcesses);
     }
 
-    private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string nameOfPattern = null)
+    private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string? nameOfPattern = null)
     {
         nameOfPattern ??= "build";
 
@@ -127,7 +127,10 @@ public class BuildCommand : ICommand
                 .StartAsync($"Looking for {nameOfPattern} files ({pattern})", async ctx =>
                 {
                     ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
-                    var query = Directory.EnumerateFiles(WorkingDirectory, pattern, SearchOption.AllDirectories);
+
+                    await Task.Yield();
+
+                    var query = Directory.EnumerateFiles(WorkingDirectory!, pattern, SearchOption.AllDirectories);
 
                     if (BuildFiles?.Length > 0)
                     {
@@ -165,8 +168,8 @@ public class BuildCommand : ICommand
 
     protected void KillRunningProcesses()
     {
-        runningProcess.Kill(entireProcessTree: true);
+        runningProcess?.Kill(entireProcessTree: true);
 
-        runningProcess.WaitForExit();
+        runningProcess?.WaitForExit();
     }
 }

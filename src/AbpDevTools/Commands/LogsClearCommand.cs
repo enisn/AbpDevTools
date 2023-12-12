@@ -9,10 +9,10 @@ namespace AbpDevTools.Commands;
 public class LogsClearCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     [CommandOption("project", 'p', Description = "Determines the project to open logs of it.")]
-    public string ProjectName { get; set; }
+    public string? ProjectName { get; set; }
 
     [CommandOption("interactive", 'i', Description = "Options will be asked as prompt when this option used.")]
     public bool Interactive { get; set; }
@@ -20,7 +20,7 @@ public class LogsClearCommand : ICommand
     [CommandOption("force", 'f')]
     public bool Force { get; set; }
 
-    protected IConsole console;
+    protected IConsole? console;
     protected readonly RunConfiguration runConfiguration;
 
     public LogsClearCommand(RunConfiguration runConfiguration)
@@ -89,7 +89,7 @@ public class LogsClearCommand : ICommand
 
     protected async Task DeleteCsprojLogsAsync(FileInfo csproj)
     {
-        var dir = Path.GetDirectoryName(csproj.FullName);
+        var dir = Path.GetDirectoryName(csproj.FullName)!;
         var logsDir = Path.Combine(dir, "Logs");
         if (Directory.Exists(logsDir))
         {
@@ -102,11 +102,11 @@ public class LogsClearCommand : ICommand
                 }
 
                 File.Delete(filePath);
-                await console.Output.WriteLineAsync($"{filePath} deleted.");
+                await console!.Output.WriteLineAsync($"{filePath} deleted.");
                 return;
             }
         }
 
-        await console.Output.WriteLineAsync($"No logs found for {csproj.Name}");
+        await console!.Output.WriteLineAsync($"No logs found for {csproj.Name}");
     }
 }
