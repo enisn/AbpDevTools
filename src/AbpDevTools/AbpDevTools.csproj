@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <Version>1.3.6</Version>
+    <Version>1.4.0-pre.1</Version>
     <IsPackable>true</IsPackable>
     <PackageIcon>logo_128.png</PackageIcon>
     <RepositoryUrl>https://github.com/enisn/AbpDevTools</RepositoryUrl>
@@ -29,7 +29,7 @@
 
   <ItemGroup>
     <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="" />
-    <None Include="..\..\art\logo_128.png" Pack="true" PackagePath=""/>
+    <None Include="..\..\art\logo_128.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>
