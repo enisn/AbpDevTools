@@ -12,17 +12,17 @@ namespace AbpDevTools.Commands;
 public class MigrateCommand : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     [CommandOption("no-build", Description = "Skipts build before running. Passes '--no-build' parameter to dotnet run.")]
     public bool NoBuild { get; set; }
 
     [CommandOption("env", 'e', Description = "Uses the virtual environment for this process. Use 'abpdev env config' command to see/manage environments.")]
-    public string EnvironmentName { get; set; }
+    public string? EnvironmentName { get; set; }
 
     protected readonly List<RunningProjectItem> runningProjects = new();
 
-    protected IConsole console;
+    protected IConsole? console;
 
     protected readonly INotificationManager notificationManager;
     protected readonly IProcessEnvironmentManager environmentManager;
@@ -78,7 +78,7 @@ public class MigrateCommand : ICommand
                 environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
             }
 
-            var process = Process.Start(startInfo);
+            var process = Process.Start(startInfo)!;
 
             runningProjects.Add(new RunningProjectItem
             {
@@ -147,7 +147,7 @@ public class MigrateCommand : ICommand
 
     protected void KillRunningProcesses()
     {
-        console.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
+        console!.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
         foreach (var project in runningProjects)
         {
             project.Process.Kill(entireProcessTree: true);

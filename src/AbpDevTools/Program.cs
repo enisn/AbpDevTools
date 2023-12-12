@@ -57,7 +57,8 @@ public static class Startup
             typeof(TestCommand),
             typeof(UpdateCheckCommand),
             typeof(CleanCommand),
-            typeof(DatabaseDropCommand)
+            typeof(DatabaseDropCommand),
+            typeof(SwitchToEnvironmentCommand),
         };
 
         foreach (var commandType in commands)

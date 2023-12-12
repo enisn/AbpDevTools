@@ -46,6 +46,7 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             _defaults["open"] = "explorer";
+            _defaults["terminal"] = "wt";
         }
         else
         {
@@ -53,6 +54,7 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 _defaults["osascript"] = "osascript";
+                _defaults["terminal"] = "terminal";
             }
         }
 

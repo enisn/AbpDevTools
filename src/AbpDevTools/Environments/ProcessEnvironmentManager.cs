@@ -10,7 +10,7 @@ namespace AbpDevTools.Environments;
 [RegisterTransient]
 public class ProcessEnvironmentManager : IProcessEnvironmentManager
 {
-    private static Dictionary<string, Func<string, string>> replacements = new Dictionary<string, Func<string, string>>()
+    private static Dictionary<string, Func<string?, string>> replacements = new Dictionary<string, Func<string?, string>>()
     {
         { "{Today}", (_) => DateTime.Today.ToString("yyyyMMdd") },
         { "{AppName}", FindAppName }
@@ -56,11 +56,12 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
     {
         foreach (var variable in variables)
         {
+
             process.EnvironmentVariables[variable.Key] = PrepareValue(variable.Value, process.WorkingDirectory);
         }
     }
 
-    protected virtual string PrepareValue(string value, string directory = null)
+    protected virtual string PrepareValue(string value, string? directory = null)
     {
         var finalResult = value;
         foreach (var item in replacements)
@@ -71,9 +72,14 @@ public class ProcessEnvironmentManager : IProcessEnvironmentManager
         return finalResult;
     }
 
-    private static string FindAppName(string directory)
+    private static string FindAppName(string? directory)
     {
-        var dir = directory ?? Directory.GetCurrentDirectory();
+        var dir = directory;
+
+        if (string.IsNullOrEmpty(dir))
+        {
+            dir = Directory.GetCurrentDirectory();
+        }
 
         var folderName = new DirectoryInfo(dir).Name;
         if (folderName.Contains("."))
