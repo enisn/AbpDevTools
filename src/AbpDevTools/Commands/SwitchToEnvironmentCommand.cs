@@ -1,13 +1,8 @@
 ﻿using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
 using CliFx.Infrastructure;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AbpDevTools.Commands;
 
@@ -54,7 +49,7 @@ public class SwitchToEnvironmentCommand : ICommand
         }
         else
         {
-            return new ProcessStartInfo("open", $"-a {terminal}");
+            return new ProcessStartInfo("open", $". -a {terminal}");
         }
     }
 }
