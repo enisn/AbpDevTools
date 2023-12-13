@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -32,9 +33,7 @@ public class SwitchToEnvironmentCommand : ICommand
             throw new ArgumentException("Environment name can not be null or empty.");
         }
 
-        var terminal = toolsConfiguration.GetOptions()["terminal"];
-
-        var startInfo = new ProcessStartInfo(terminal);
+        var startInfo = GetStartInfo();
 
         processEnvironmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
 
@@ -43,5 +42,19 @@ public class SwitchToEnvironmentCommand : ICommand
         process.WaitForExit();
 
         return default;
+    }
+
+    private ProcessStartInfo GetStartInfo()
+    {
+        var terminal = toolsConfiguration.GetOptions()["terminal"];
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return new ProcessStartInfo(terminal);
+        }
+        else
+        {
+            return new ProcessStartInfo("open", $"-a {terminal}");
+        }
     }
 }
