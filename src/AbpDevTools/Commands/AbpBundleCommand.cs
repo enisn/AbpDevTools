@@ -11,6 +11,9 @@ public class AbpBundleCommand : ICommand
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string? WorkingDirectory { get; set; }
 
+    [CommandOption("graphBuild", 'g', Description = "Graph builds project before running 'abp bundle'.")]
+    public bool GraphBuild { get; set; }
+
     protected IConsole? console;
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -51,6 +54,35 @@ public class AbpBundleCommand : ICommand
 
         foreach (var csproj in wasmCsprojs)
         {
+            if (GraphBuild)
+            {
+                var compiled = await AnsiConsole.Status().StartAsync($"[grey]Building {csproj.Name}...[/]", async (ctx) =>
+                {
+                    ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+
+                    var startInfo = new ProcessStartInfo("abp", $"bundle -wd {Path.GetDirectoryName(csproj.FullName)}");
+                    startInfo.RedirectStandardOutput = true;
+                    using var process = Process.Start(startInfo)!;
+                    await process.WaitForExitAsync();
+
+                    if (process.ExitCode == 0)
+                    {
+                        AnsiConsole.MarkupLine($"[green]Compiled[/] {csproj.Name}");
+                        return true;
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine($"[red]Couldn't compile[/] {csproj.Name}");
+                        return false;
+                    }
+                });
+
+                if (!compiled)
+                {
+                    continue;
+                }
+            }
+
             await AnsiConsole.Status().StartAsync($"Running 'abp bundle' for {csproj.Name}...", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
