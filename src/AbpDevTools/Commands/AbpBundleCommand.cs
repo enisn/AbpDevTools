@@ -60,14 +60,17 @@ public class AbpBundleCommand : ICommand
                 {
                     ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
 
-                    var startInfo = new ProcessStartInfo("abp", $"bundle -wd {Path.GetDirectoryName(csproj.FullName)}");
+                    var startInfo = new ProcessStartInfo("dotnet", $"build /graphBuild")
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(csproj.FullName)!,
+                    };
                     startInfo.RedirectStandardOutput = true;
                     using var process = Process.Start(startInfo)!;
                     await process.WaitForExitAsync();
 
                     if (process.ExitCode == 0)
                     {
-                        AnsiConsole.MarkupLine($"[green]Compiled[/] {csproj.Name}");
+                        AnsiConsole.MarkupLine($"[green]Completed[/][grey] Building {csproj.Name}[/]");
                         return true;
                     }
                     else
