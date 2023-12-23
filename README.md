@@ -21,6 +21,8 @@ dotnet tool install -g AbpDevTools
     dotnet tool install -g AbpDevTools --framework net6.0
     ```
 
+> This package is compiled for .NET 6.0, 7.0 and 8.0. So you can install it for a specific runtime. If you don't specify a runtime, it'll install the latest version.
+
 ## Local Installation
 If you don't have access to the package source. You can install it from the source code by the following code:
 
