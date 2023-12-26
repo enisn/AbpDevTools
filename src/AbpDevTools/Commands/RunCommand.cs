@@ -166,7 +166,7 @@ public partial class RunCommand : ICommand
                 localConfiguration?.Run?.Configuration);
 
             var tools = toolsConfiguration.GetOptions();
-            var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project {csproj.FullName}" + commandSuffix)
+            var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
             {
                 WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                 UseShellExecute = false,
