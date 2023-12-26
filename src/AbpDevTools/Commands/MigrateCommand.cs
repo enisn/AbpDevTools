@@ -65,7 +65,7 @@ public class MigrateCommand : ICommand
         foreach (var dbMigrator in dbMigrators)
         {
             var tools = toolsConfiguration.GetOptions();
-            var startInfo = new ProcessStartInfo(tools["dotnet"], $"run --project {dbMigrator.FullName}" + commandPostFix)
+            var startInfo = new ProcessStartInfo(tools["dotnet"], $"run --project \"{dbMigrator.FullName}\"" + commandPostFix)
             {
                 WorkingDirectory = Path.GetDirectoryName(dbMigrator.FullName),
                 RedirectStandardOutput = true,
