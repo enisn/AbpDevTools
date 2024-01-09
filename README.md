@@ -7,8 +7,11 @@ A set of tools to make development with ABP easier. It's a dotnet tool and acces
 
 It helps the developer, build, run, replace, and manage logs of the projects. It makes running **multiple** solutions and projects easier.
 
+<a href="https://www.nuget.org/packages/AbpDevTools"><img src="https://img.shields.io/nuget/v/AbpDevTools?logo=nuget" alt="AbpDevTools on Nuget" /></a>
+
 # Installation
 
+- Install [AbpDevTools from NuGet](https://www.nuget.org/packages/AbpDevTools) as dotnet tool:
 ```bash
 dotnet tool install -g AbpDevTools
 ```
