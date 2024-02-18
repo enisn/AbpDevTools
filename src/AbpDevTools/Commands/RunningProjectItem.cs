@@ -49,6 +49,15 @@ public class RunningCsProjItem : RunningProjectItem
             IsCompleted = true;
         }
 
+        if (args.Data != null && 
+            args.Data.Contains("dotnet watch ") &&
+            args.Data.Contains(" Started"))
+        {
+            Status = args.Data;
+            Process?.CancelOutputRead();
+            IsCompleted = true;
+        }
+
         if (DateTime.Now - Process?.StartTime > TimeSpan.FromMinutes(5))
         {
             Status = "Stale";
