@@ -2,7 +2,6 @@
 using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
-using System;
 using System.Diagnostics;
 
 namespace AbpDevTools.Commands;
@@ -49,9 +48,11 @@ public class BuildCommand : ICommand
             buildFiles = await FindBuildFilesAsync("*.csproj", "csproj");
         }
 
+        buildFiles = (buildFiles ?? Array.Empty<FileInfo>()).Union(await FindBuildFilesAsync("angular.json", "angular")).ToArray();
+
         if (buildFiles.Length == 0)
         {
-            await console.Output.WriteLineAsync("No .csproj files found. No files to build.");
+            await console.Output.WriteLineAsync("No .csproj or angular.json files found. No files to build.");
 
             return;
         }
@@ -67,19 +68,37 @@ public class BuildCommand : ICommand
 
                 var commandSuffix = string.Empty;
 
-                if (!string.IsNullOrEmpty(Configuration))
-                {
-                    commandSuffix += $" --configuration {Configuration}";
-                }
-
                 var tools = toolsConfiguration.GetOptions();
-                runningProcess = Process.Start(new ProcessStartInfo(tools["dotnet"], "build /graphBuild" + commandSuffix)
+                if (buildFile.Name == "angular.json")
                 {
-                    WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                })!;
+                    if (!string.IsNullOrEmpty(Configuration))
+                    {
+                        commandSuffix += $" --env={Configuration.Replace("debug", "development").Replace("release", "production")}";
+                    }
+
+                    runningProcess = Process.Start(new ProcessStartInfo(tools["powershell"], "-Command yarn" + commandSuffix)
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                    })!;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(Configuration))
+                    {
+                        commandSuffix += $" --configuration {Configuration}";
+                    }
+
+                    runningProcess = Process.Start(new ProcessStartInfo(tools["dotnet"], "build /graphBuild" + commandSuffix)
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                    })!;
+                }
 
                 // equivalent of WaitForExit
                 var _output = await runningProcess.StandardOutput.ReadToEndAsync();
@@ -109,7 +128,7 @@ public class BuildCommand : ICommand
 
         if (buildFiles.Length == 1)
         {
-            await notificationManager.SendAsync("Build "+ (successfulCount > 0 ? "Completed!" : "Failed!"), $"{buildFiles[0].Name} has been built.");
+            await notificationManager.SendAsync("Build " + (successfulCount > 0 ? "Completed!" : "Failed!"), $"{buildFiles[0].Name} has been built.");
         }
         else
         {
