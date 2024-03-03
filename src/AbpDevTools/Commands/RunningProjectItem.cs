@@ -58,6 +58,16 @@ public class RunningCsProjItem : RunningProjectItem
             IsCompleted = true;
         }
 
+        if (args.Data != null && args.Data.Contains("** Angular Live Development Server is listening on "))
+        {
+            Status = args.Data
+                [args.Data.IndexOf(", open your browser on ")..]
+                .Replace(", open your browser on ", string.Empty)
+                .Replace(" **", string.Empty);
+            Process?.CancelOutputRead();
+            IsCompleted = true;
+        }
+
         if (DateTime.Now - Process?.StartTime > TimeSpan.FromMinutes(5))
         {
             Status = "Stale";

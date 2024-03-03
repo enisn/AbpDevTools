@@ -106,13 +106,13 @@ public partial class RunCommand : ICommand
 
                 await Task.Yield();
 
-                return Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-                    .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
+                return MultiEnumerateFiles(WorkingDirectory, "*.csproj|*.json")
+                    .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj") || x.EndsWith(y + ".json")))
                     .Select(x => new FileInfo(x))
                     .ToArray();
             });
 
-        await console.Output.WriteLineAsync($"{csprojs.Length} csproj file(s) found.");
+        await console.Output.WriteLineAsync($"{csprojs.Length} file(s) found.");
 
         if (!SkipMigration && localRootConfig?.Run?.SkipMigrate != true)
         {
@@ -159,20 +159,40 @@ public partial class RunCommand : ICommand
         {
             localConfigurationManager.TryLoad(csproj.FullName, out var localConfiguration);
 
-            var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
-            var commandSuffix = BuildCommandSuffix(
-                localConfiguration?.Run?.NoBuild,
-                localConfiguration?.Run?.GraphBuild,
-                localConfiguration?.Run?.Configuration);
-
+            bool isCsProj = csproj.FullName.EndsWith(".csproj");
             var tools = toolsConfiguration.GetOptions();
-            var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
+            ProcessStartInfo startInfo;
+            if (isCsProj)
             {
-                WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
+                var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
+                var commandSuffix = BuildCommandSuffix(
+                    localConfiguration?.Run?.NoBuild,
+                    localConfiguration?.Run?.GraphBuild,
+                    localConfiguration?.Run?.Configuration);
+
+
+                startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
+                {
+                    WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+            }
+            else
+            {
+                var command = BuildAngularCommand(
+                    localConfiguration?.Run?.NoBuild,
+                    localConfiguration?.Run?.Configuration);
+
+                startInfo = new ProcessStartInfo(tools["powershell"], command)
+                {
+                    WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+            }
 
             localConfigurationManager.ApplyLocalEnvironmentForProcess(csproj.FullName, startInfo, localConfiguration);
 
@@ -191,7 +211,7 @@ public partial class RunCommand : ICommand
             if (InstallLibs)
             {
                 var installLibsRunninItem = new RunningInstallLibsItem(
-                    csproj.Name.Replace(".csproj", " install-libs"),
+                    csproj.Name.Replace(".csproj", " install-libs").Replace(".json", " install-libs"),
                     Process.Start(new ProcessStartInfo("abp", "install-libs")
                     {
                         WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
@@ -213,7 +233,7 @@ public partial class RunCommand : ICommand
 
     private void ApplyLocalProjects(LocalConfiguration? localConfiguration)
     {
-        if(localConfiguration is not null)
+        if (localConfiguration is not null)
         {
             if (Projects.Length == 0 && localConfiguration?.Run?.Projects.Length > 0)
             {
@@ -250,6 +270,25 @@ public partial class RunCommand : ICommand
             return watchOverride.Value ? "watch " : string.Empty;
         }
         return Watch ? "watch " : string.Empty;
+    }
+
+    private string BuildAngularCommand(bool? noBuild = null, string? configuration = null)
+    {
+        var angularConfSuffix = string.Empty;
+        if (configuration != null)
+        {
+            angularConfSuffix += $" --env={configuration.Replace("debug", "development").Replace("release", "production")}";
+        }
+        else if (!string.IsNullOrEmpty(Configuration))
+        {
+            angularConfSuffix += $" --env={Configuration.Replace("debug", "development").Replace("release", "production")}";
+        }
+
+        var angularSuffix = (NoBuild || noBuild == true)
+            ? "-Command yarn start" + angularConfSuffix
+            : $"-Command yarn{angularConfSuffix} && yarn start" + angularConfSuffix;
+
+        return angularSuffix;
     }
 
     private async Task RenderProcesses(CancellationToken cancellationToken)
@@ -328,5 +367,12 @@ public partial class RunCommand : ICommand
 
             project.Process?.WaitForExit();
         }
+    }
+
+    private static IEnumerable<string> MultiEnumerateFiles(string path, string patterns)
+    {
+        foreach (var pattern in patterns.Split('|'))
+            foreach (var file in Directory.EnumerateFiles(path, pattern, SearchOption.AllDirectories))
+                yield return file;
     }
 }
