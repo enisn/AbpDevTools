@@ -54,6 +54,7 @@ public static class Startup
             typeof(EnvironmentCommand),
             typeof(EnvironmentConfigurationCommand),
             typeof(AbpBundleCommand),
+            typeof(AbpBundleListCommand),
             typeof(TestCommand),
             typeof(UpdateCheckCommand),
             typeof(CleanCommand),
