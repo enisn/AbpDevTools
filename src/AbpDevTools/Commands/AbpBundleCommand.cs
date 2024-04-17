@@ -15,6 +15,12 @@ public class AbpBundleCommand : ICommand
     public bool GraphBuild { get; set; }
 
     protected IConsole? console;
+    protected AbpBundleListCommand listCommand;
+
+    public AbpBundleCommand(AbpBundleListCommand listCommand)
+    {
+        this.listCommand = listCommand;
+    }
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
@@ -37,10 +43,7 @@ public class AbpBundleCommand : ICommand
 
                 await Task.Yield();
 
-                return Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-                    .Where(IsCsprojBlazorWasm)
-                    .Select(x => new FileInfo(x))
-                    .ToArray();
+                return listCommand.GetWasmProjects();
             });
 
         if (wasmCsprojs.Length == 0)
@@ -56,7 +59,8 @@ public class AbpBundleCommand : ICommand
         {
             if (GraphBuild)
             {
-                var compiled = await AnsiConsole.Status().StartAsync($"[grey]Building {csproj.Name}...[/]", async (ctx) =>
+                var index = Array.IndexOf(wasmCsprojs, csproj) + 1;
+                var compiled = await AnsiConsole.Status().StartAsync($"[grey]{index/wasmCsprojs.Length} Building {csproj.Name}...[/]", async (ctx) =>
                 {
                     ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
 
@@ -106,28 +110,5 @@ public class AbpBundleCommand : ICommand
                 }
             });
         }
-    }
-
-    static bool IsCsprojBlazorWasm(string file)
-    {
-        using var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read);
-        using var streamReader = new StreamReader(fileStream, Encoding.UTF8, true);
-
-        for (int i = 0; i < 4; i++)
-        {
-            var line = streamReader.ReadLine();
-
-            if (string.IsNullOrEmpty(line))
-            {
-                continue;
-            }
-
-            if (line.Contains("Sdk=\"Microsoft.NET.Sdk.BlazorWebAssembly\""))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
