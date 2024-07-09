@@ -44,6 +44,9 @@ public partial class RunCommand : ICommand
     [CommandOption("retry", 'r', Description = "Retries running again when application exits.")]
     public bool Retry { get; set; }
 
+    [CommandOption("no-launch", 'l', Description = "Skips launching URLs on the browser.")]
+    public bool NoLaunch { get; set; }
+
     [CommandOption("yml", Description = "Path to the yml file to be used for running the project.")]
     public string? YmlPath { get; set; }
 
@@ -184,7 +187,14 @@ public partial class RunCommand : ICommand
             runningProjects.Add(
                 new RunningCsProjItem(
                     csproj.Name,
-                    Process.Start(startInfo)!
+                    Process.Start(startInfo)!,
+                    launchAction: url =>
+                    {
+                        if (!NoLaunch)
+                        {
+                            Process.Start(tools["open"], url);
+                        }
+                    }
                 )
             );
 
