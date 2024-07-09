@@ -13,15 +13,15 @@ It helps the developer, build, run, replace, and manage logs of the projects. It
 
 - Install [AbpDevTools from NuGet](https://www.nuget.org/packages/AbpDevTools) as dotnet tool:
 ```bash
-dotnet tool install -g AbpDevTools
+dotnet tool update -g AbpDevTools
 ```
 
 - Installation for a specific runtime other than the latest:
     
     ```bash
-    dotnet tool install -g AbpDevTools --framework net7.0
+    dotnet tool update -g AbpDevTools --framework net7.0
     # or
-    dotnet tool install -g AbpDevTools --framework net6.0
+    dotnet tool update -g AbpDevTools --framework net6.0
     ```
 
 > This package is compiled for .NET 6.0, 7.0 and 8.0. So you can install it for a specific runtime. If you don't specify a runtime, it'll install the latest version.
