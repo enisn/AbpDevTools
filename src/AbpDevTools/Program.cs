@@ -25,7 +25,7 @@ public static class Startup
     {
         var services = new ServiceCollection();
 
-        var commands = new Type[]
+        var commands = new Type[] // Keep this over reflection for performance
         {
             typeof(BuildCommand),
             typeof(ConfigurationClearCommand),
