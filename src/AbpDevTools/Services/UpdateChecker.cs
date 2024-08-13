@@ -23,6 +23,7 @@ public class UpdateChecker
             using var httpClient = new HttpClient();
 
             var nugetResponse = await httpClient
+                .GetFromJsonAsync<Dictionary<string, string[]>>("https://api.nuget.org/v3-flatcontainer/abpdevtools/index.json");
 
             var latestVersion = nugetResponse["versions"].Where(x => !x.Contains("-")).Last();
 
