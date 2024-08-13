@@ -17,14 +17,12 @@ public class UpdateChecker
     {
         var data = await GetDataAsync();
 
-        var currentVersion = typeof(UpdateCheckCommand).Assembly.GetName().Version;
 
         if (force || DateTime.Now >= data.NextCheck)
         {
             using var httpClient = new HttpClient();
 
             var nugetResponse = await httpClient
-                .GetFromJsonAsync<Dictionary<string, string[]>>("https://api.nuget.org/v3-flatcontainer/abpdevtools/index.json");
 
             var latestVersion = nugetResponse["versions"].Where(x => !x.Contains("-")).Last();
 
@@ -60,6 +58,10 @@ public class UpdateChecker
 
     private async Task SaveDataAsync(UpdatesData data)
     {
+        if (!Directory.Exists(FolderPath))
+        {
+            Directory.CreateDirectory(FolderPath);
+        }
         await File.WriteAllTextAsync(FilePath, JsonSerializer.Serialize(data));
     }
 
