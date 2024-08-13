@@ -17,6 +17,7 @@ public class UpdateChecker
     {
         var data = await GetDataAsync();
 
+        var currentVersion = typeof(UpdateCheckCommand).Assembly.GetName().Version;
 
         if (force || DateTime.Now >= data.NextCheck)
         {
