@@ -39,7 +39,7 @@ public class UpdateCheckCommand : ICommand
         }
 
         var result = await updateChecker.CheckAsync(force: Force);
-        
+
         if (Force)
         {
             console.Output.WriteLine($"Current version: {result.CurrentVersion}");
@@ -50,12 +50,10 @@ public class UpdateCheckCommand : ICommand
             await notificationManager.SendAsync(
                 "AbpDevTools Update available!",
                 $"Run '{command}' to update. A newer version {result.LatestVersion} available for AbpDevTools");
+
             AnsiConsole.Markup($"[yellow]A newer version {result.LatestVersion} available.[/]\n");
 
-            if (!Silent)
-            {
-                AnsiConsole.Markup($"Run '[black on yellow]{command}[/]' to update.");
-            }
+            AnsiConsole.Markup($"Run '[black on yellow]{command}[/]' to update.");
         }
         else
         {
