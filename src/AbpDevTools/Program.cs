@@ -60,6 +60,7 @@ public static class Startup
             typeof(CleanCommand),
             typeof(DatabaseDropCommand),
             typeof(SwitchToEnvironmentCommand),
+            typeof(FindFileCommand),
         };
 
         foreach (var commandType in commands)
