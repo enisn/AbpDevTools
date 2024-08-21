@@ -5,6 +5,7 @@ using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
+using System.Text;
 
 namespace AbpDevTools.Commands;
 
@@ -46,7 +47,7 @@ public class MigrateCommand : ICommand
         }
 
         var dbMigrators = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-           .Where(x => x.EndsWith("DbMigrator.csproj"))
+           .Where(IsDbMigrator)
            .Select(x => new FileInfo(x))
            .ToList();
 
@@ -100,6 +101,39 @@ public class MigrateCommand : ICommand
         }
 
         KillRunningProcesses();
+    }
+
+    private bool IsDbMigrator(string file)
+    {
+        if (!file.EndsWith("Migrator.csproj", StringComparison.InvariantCultureIgnoreCase))
+        {
+            return false;
+        }
+
+        using var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read);
+        using var streamReader = new StreamReader(fileStream, Encoding.UTF8, true);
+
+        while (!streamReader.EndOfStream)
+        {
+            var line = streamReader.ReadLine();
+            
+            if (line == null)
+            {
+                continue;
+            }
+
+            if (line.Contains("<OutputType>Exe</OutputType>"))
+            {
+                return true;
+            }
+
+            if (line.Contains("</PropertyGroup>"))
+            {
+                break;
+            }
+        }
+
+        return false;
     }
 
     private async Task RenderStatusAsync()
