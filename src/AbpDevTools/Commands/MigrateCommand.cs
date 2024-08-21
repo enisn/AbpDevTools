@@ -122,14 +122,14 @@ public class MigrateCommand : ICommand
                 continue;
             }
 
-            if (line.Contains("</PropertyGroup>"))
-            {
-                break;
-            }
-
             if (line.Contains("<OutputType>Exe</OutputType>"))
             {
                 return true;
+            }
+
+            if (line.Contains("</PropertyGroup>"))
+            {
+                break;
             }
         }
 
