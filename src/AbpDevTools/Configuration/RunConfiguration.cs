@@ -28,7 +28,8 @@ public class RunConfiguration : ConfigurationBase<RunOptions>
                 ".Unified",
                 ".PublicWeb",
                 ".PublicWebGateway",
-                ".WebGateway"
+                ".WebGateway",
+                "angular"
             }
         };
     }
