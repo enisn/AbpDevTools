@@ -5,6 +5,7 @@ public class RunConfiguration : ConfigurationBase<RunOptions>
 {
     public override string FilePath => Path.Combine(FolderPath, "run-configuration.json");
 
+    [Obsolete]
     protected override RunOptions GetDefaults()
     {
         return new RunOptions
@@ -32,8 +33,23 @@ public class RunConfiguration : ConfigurationBase<RunOptions>
             }
         };
     }
+
+    [Obsolete]
+    public override RunOptions GetOptions()
+    {
+        return base.GetOptions();
+    }
+
+    public void CleanObsolete()
+    {
+        if(File.Exists(FilePath))
+        {
+            File.Delete(FilePath);
+        }
+    }
 }
 
+[Obsolete]
 public class RunOptions
 {
     public string[] RunnableProjects { get; set; } = Array.Empty<string>();

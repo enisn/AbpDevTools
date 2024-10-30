@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Configuration;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System;
@@ -21,11 +22,11 @@ public class LogsClearCommand : ICommand
     public bool Force { get; set; }
 
     protected IConsole? console;
-    protected readonly RunConfiguration runConfiguration;
+    protected readonly RunnableProjectsProvider runnableProjectsProvider;
 
-    public LogsClearCommand(RunConfiguration runConfiguration)
+    public LogsClearCommand(RunnableProjectsProvider runnableProjectsProvider)
     {
-        this.runConfiguration = runConfiguration;
+        this.runnableProjectsProvider = runnableProjectsProvider;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -36,11 +37,7 @@ public class LogsClearCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
-        var csprojs = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-                .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
-                .Select(x => new FileInfo(x))
-                .ToList();
+        var csprojs = runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
 
         if (string.IsNullOrEmpty(ProjectName))
         {
@@ -60,8 +57,8 @@ public class LogsClearCommand : ICommand
                 await console.Output.WriteLineAsync("You have to pass a project name.\n");
                 await console.Output.WriteLineAsync("\n\tUsage:");
                 await console.Output.WriteLineAsync("\tlogs -p <project-name>");
-                await console.Output.WriteLineAsync("\nAvailable project names:\n\n\t" +
-                    string.Join("\n\t - ", _runnableProjects.Select(x => x.Split(Path.DirectorySeparatorChar).Last())));
+                await console.Output.WriteLineAsync("\nExample:\n\n\t" +
+                    "abpdev logs Web.csproj");
                 return;
             }
         }
