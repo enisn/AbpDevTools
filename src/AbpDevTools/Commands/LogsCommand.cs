@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Configuration;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 
@@ -16,12 +17,12 @@ public class LogsCommand : ICommand
     [CommandOption("interactive", 'i', Description = "Options will be asked as prompt when this option used.")]
     public bool Interactive { get; set; }
 
-    protected readonly RunConfiguration runConfiguration;
+    protected readonly RunnableProjectsProvider runnableProjectsProvider;
     protected readonly Platform platform;
 
-    public LogsCommand(RunConfiguration runConfiguration, Platform platform)
+    public LogsCommand(RunnableProjectsProvider runnableProjectsProvider, Platform platform)
     {
-        this.runConfiguration = runConfiguration;
+        this.runnableProjectsProvider = runnableProjectsProvider;
         this.platform = platform;
     }
 
@@ -32,7 +33,6 @@ public class LogsCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
         var csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects...", async ctx =>
             {
@@ -40,11 +40,9 @@ public class LogsCommand : ICommand
 
                 await Task.Yield();
 
-                var projects = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-                    .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
-                    .Select(x => new FileInfo(x))
-                    .ToArray();
-                AnsiConsole.MarkupLine($"[green]{projects.Length}[/] .sln files found.");
+                var projects = runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
+
+                AnsiConsole.MarkupLine($"[green]{projects.Length}[/] project files found.");
 
                 return projects;
             });

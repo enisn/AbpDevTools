@@ -2,6 +2,7 @@
 using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -55,7 +56,7 @@ public partial class RunCommand : ICommand
     protected readonly MigrateCommand migrateCommand;
     protected readonly IProcessEnvironmentManager environmentManager;
     protected readonly UpdateCheckCommand updateCheckCommand;
-    protected readonly RunConfiguration runConfiguration;
+    protected readonly RunnableProjectsProvider runnableProjectsProvider;
     protected readonly ToolsConfiguration toolsConfiguration;
     protected readonly FileExplorer fileExplorer;
     private readonly LocalConfigurationManager localConfigurationManager;
@@ -65,7 +66,7 @@ public partial class RunCommand : ICommand
         MigrateCommand migrateCommand,
         IProcessEnvironmentManager environmentManager,
         UpdateCheckCommand updateCheckCommand,
-        RunConfiguration runConfiguration,
+        RunnableProjectsProvider runnableProjectsProvider,
         ToolsConfiguration toolsConfiguration,
         FileExplorer fileExplorer,
         LocalConfigurationManager localConfigurationManager)
@@ -74,7 +75,7 @@ public partial class RunCommand : ICommand
         this.migrateCommand = migrateCommand;
         this.environmentManager = environmentManager;
         this.updateCheckCommand = updateCheckCommand;
-        this.runConfiguration = runConfiguration;
+        this.runnableProjectsProvider = runnableProjectsProvider;
         this.toolsConfiguration = toolsConfiguration;
         this.fileExplorer = fileExplorer;
         this.localConfigurationManager = localConfigurationManager;
@@ -95,8 +96,6 @@ public partial class RunCommand : ICommand
 
         var cancellationToken = console.RegisterCancellationHandler();
 
-        var _runnableProjects = runConfiguration.GetOptions().RunnableProjects;
-
         localConfigurationManager.TryLoad(YmlPath!, out var localRootConfig, FileSearchDirection.OnlyCurrent);
 
         FileInfo[] csprojs = await AnsiConsole.Status()
@@ -106,10 +105,7 @@ public partial class RunCommand : ICommand
 
                 await Task.Yield();
 
-                return Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-                    .Where(x => _runnableProjects.Any(y => x.EndsWith(y + ".csproj")))
-                    .Select(x => new FileInfo(x))
-                    .ToArray();
+                return runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
             });
 
         await console.Output.WriteLineAsync($"{csprojs.Length} csproj file(s) found.");
