@@ -2,6 +2,7 @@
 using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -29,13 +30,19 @@ public class MigrateCommand : ICommand
     protected readonly IProcessEnvironmentManager environmentManager;
     protected readonly ToolsConfiguration toolsConfiguration;
     protected readonly LocalConfigurationManager localConfigurationManager;
+    protected readonly RunnableProjectsProvider runnableProjectsProvider;
 
-    public MigrateCommand(INotificationManager notificationManager, IProcessEnvironmentManager environmentManager, ToolsConfiguration toolsConfiguration, LocalConfigurationManager localConfigurationManager)
+    public MigrateCommand(INotificationManager notificationManager,
+    IProcessEnvironmentManager environmentManager,
+    ToolsConfiguration toolsConfiguration,
+    LocalConfigurationManager localConfigurationManager,
+    RunnableProjectsProvider runnableProjectsProvider)
     {
         this.notificationManager = notificationManager;
         this.environmentManager = environmentManager;
         this.toolsConfiguration = toolsConfiguration;
         this.localConfigurationManager = localConfigurationManager;
+        this.runnableProjectsProvider = runnableProjectsProvider;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -56,6 +63,7 @@ public class MigrateCommand : ICommand
         if (dbMigrators.Count == 0)
         {
             await console.Output.WriteLineAsync($"No migrator(s) found in this folder. Migration not applied.");
+            await RunParameterMigrationFallbackAsync();
             return;
         }
 
@@ -101,6 +109,77 @@ public class MigrateCommand : ICommand
         }
 
         KillRunningProcesses();
+    }
+
+    protected async Task RunParameterMigrationFallbackAsync()
+    {
+        if (!AnsiConsole.Confirm("Do you want to run any of projects in this folder with '--migrate-database' parameter?"))
+        {
+            return;
+        }
+
+        FileInfo[] csprojs = await AnsiConsole.Status()
+            .StartAsync("Looking for projects", async ctx =>
+            {
+                ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
+
+                await Task.Yield();
+
+                return runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
+            });
+
+        if (csprojs.Length <= 0)
+        {
+            await console.Output.WriteLineAsync("No project found to run.");
+            return;
+        }
+
+        if(csprojs.Length == 1)
+        {
+            await console.Output.WriteLineAsync("Only one project found. Running it with '--migrate-database' parameter.");
+            await RunProjectWithMigrateDatabaseAsync(csprojs[0]);
+        }
+        else{
+
+            var selectedProject = AnsiConsole.Prompt(
+                new SelectionPrompt<FileInfo>()
+                    .Title("Select a project to run with '--migrate-database' parameter")
+                    .PageSize(10)
+                    .AddChoices(csprojs)
+            );
+
+            await RunProjectWithMigrateDatabaseAsync(selectedProject);
+        }
+
+        await RenderStatusAsync();
+    }
+
+    protected Task RunProjectWithMigrateDatabaseAsync(FileInfo project)
+    {
+        var tools = toolsConfiguration.GetOptions();
+        var startInfo = new ProcessStartInfo(tools["dotnet"], $"run --project \"{project.FullName}\" -- --migrate-database")
+        {
+            WorkingDirectory = Path.GetDirectoryName(project.FullName),
+            RedirectStandardOutput = true,
+        };
+
+        localConfigurationManager.ApplyLocalEnvironmentForProcess(project.FullName, startInfo);
+
+        if (!string.IsNullOrEmpty(EnvironmentName))
+        {
+            environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
+        }
+
+        var process = Process.Start(startInfo)!;
+
+        runningProjects.Add(new RunningProjectItem
+        {
+            Name = project.Name,
+            Process = process,
+            Status = "Running..."
+        });
+
+        return Task.CompletedTask;
     }
 
     private bool IsDbMigrator(string file)
