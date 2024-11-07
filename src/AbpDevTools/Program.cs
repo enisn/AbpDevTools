@@ -61,6 +61,7 @@ public static class Startup
             typeof(DatabaseDropCommand),
             typeof(SwitchToEnvironmentCommand),
             typeof(FindFileCommand),
+            typeof(AddMigrationCommand),
         };
 
         foreach (var commandType in commands)
