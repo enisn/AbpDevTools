@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Commands;
+using AbpDevTools.Commands.Migrations;
 using AbpDevTools.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
@@ -61,6 +62,8 @@ public static class Startup
             typeof(DatabaseDropCommand),
             typeof(SwitchToEnvironmentCommand),
             typeof(FindFileCommand),
+            typeof(AddMigrationCommand),
+            typeof(ClearMigrationsCommand),
         };
 
         foreach (var commandType in commands)
