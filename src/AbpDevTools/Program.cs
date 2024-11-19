@@ -62,6 +62,7 @@ public static class Startup
             typeof(DatabaseDropCommand),
             typeof(SwitchToEnvironmentCommand),
             typeof(FindFileCommand),
+            typeof(MigrationsCommand),
             typeof(AddMigrationCommand),
             typeof(ClearMigrationsCommand),
         };
