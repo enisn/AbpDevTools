@@ -186,6 +186,17 @@ public partial class RunCommand : ICommand
 
             if (InstallLibs)
             {
+                var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+                if (!Directory.Exists(wwwRootLibs))
+                {
+                    Directory.CreateDirectory(wwwRootLibs);
+                }
+
+                if (!Directory.EnumerateFiles(wwwRootLibs).Any())
+                {
+                    File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
+                }
+
                 var installLibsRunninItem = new RunningInstallLibsItem(
                     csproj.Name.Replace(".csproj", " install-libs"),
                     Process.Start(new ProcessStartInfo("abp", "install-libs")
