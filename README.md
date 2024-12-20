@@ -7,6 +7,8 @@ A set of tools to make development with ABP easier. It's a dotnet tool and acces
 
 It helps the developer, build, run, replace, and manage logs of the projects. It makes running **multiple** solutions and projects easier.
 
+> Done with [Enisn.Templates.CLI](https://github.com/enisn/Enisn.Templates.CLI). You can build similar CLI tools with this template.
+
 <a href="https://www.nuget.org/packages/AbpDevTools"><img src="https://img.shields.io/nuget/v/AbpDevTools?logo=nuget" alt="AbpDevTools on Nuget" /></a>
 
 # Installation
