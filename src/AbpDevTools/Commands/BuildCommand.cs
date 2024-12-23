@@ -158,7 +158,7 @@ public class BuildCommand : ICommand
                     .InstructionsText(
                         "[grey](Press [mediumpurple2]<space>[/] to toggle a file, " +
                         "[green]<enter>[/] to accept)[/]")
-                    .AddChoices(files.Select(s => s.FullName)));
+                    .AddChoices(files.Select(s => s.DirectoryName!.Replace(WorkingDirectory!, "."))));
 
             files = files.Where(x => choosed.Contains(x.FullName)).ToArray();
         }
