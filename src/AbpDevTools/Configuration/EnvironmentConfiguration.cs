@@ -1,11 +1,14 @@
 ﻿using System.Text.Json;
+using YamlDotNet.Serialization;
 
 namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
-public class EnvironmentConfiguration : ConfigurationBase<Dictionary<string, EnvironmentOption>>
+public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentOption>
 {
-    public override string FilePath => Path.Combine(FolderPath, "environments.json");
+    public EnvironmentConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
+    {
+    }
 
     protected override Dictionary<string, EnvironmentOption> GetDefaults()
     {
@@ -28,6 +31,15 @@ public class EnvironmentConfiguration : ConfigurationBase<Dictionary<string, Env
                             { "ConnectionStrings__Default", "mongodb://localhost:27017/{AppName}_{Today}" }
                         }
                     }
+            },
+            {
+                "Postres", new EnvironmentOption
+                {
+                    Variables = new Dictionary<string, string>
+                    {
+                        { "ConnectionStrings__Default", "Server=localhost;Port=5432;Database={AppName}_{Today};User Id=postgres;Password=12345678Aa;" }
+                    }
+                }
             }
         };
     }
@@ -36,5 +48,4 @@ public class EnvironmentConfiguration : ConfigurationBase<Dictionary<string, Env
 public class EnvironmentOption
 {
     public Dictionary<string, string> Variables { get; set; }
-        
 }

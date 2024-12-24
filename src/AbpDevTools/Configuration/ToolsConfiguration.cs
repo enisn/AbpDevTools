@@ -1,12 +1,17 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text.Json;
+using YamlDotNet.Serialization;
 
 namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
 public class ToolsConfiguration : ConfigurationBase<ToolOption>
 {
-    public override string FilePath => Path.Combine(FolderPath, "tools-configuration.json");
+    public ToolsConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
+    {
+    }
+
+    public override string FileName => "tools-configuration";
 
     public override ToolOption GetOptions()
     {
@@ -20,17 +25,14 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
 
         if (File.Exists(FilePath))
         {
-            var options = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(FilePath))!;
+            var options = ReadOptions()!;
 
             shouldSave = Merge(options, _defaults);
         }
 
         if(shouldSave)
         {
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(_defaults, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            }));
+            SaveOptions(_defaults);
         }
 
         return _defaults;

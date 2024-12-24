@@ -29,6 +29,7 @@ public class AbpBundleCommand : ICommand
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
+        listCommand.WorkingDirectory = WorkingDirectory;
 
         console.RegisterCancellationHandler().Register(() =>
         {
@@ -43,10 +44,10 @@ public class AbpBundleCommand : ICommand
 
                 await Task.Yield();
 
-                return listCommand.GetWasmProjects();
+                return listCommand.GetWasmProjects().ToArray();
             });
 
-        if (wasmCsprojs.Length == 0)
+        if (!wasmCsprojs.Any())
         {
             await console.Output.WriteLineAsync("No Blazor WASM projects found. No files to bundle.");
 

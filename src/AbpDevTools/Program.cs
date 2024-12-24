@@ -65,6 +65,7 @@ public static class Startup
             typeof(MigrationsCommand),
             typeof(AddMigrationCommand),
             typeof(ClearMigrationsCommand),
+            typeof(PrepareCommand),
         };
 
         foreach (var commandType in commands)
