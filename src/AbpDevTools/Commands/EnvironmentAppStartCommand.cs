@@ -64,6 +64,13 @@ public class EnvironmentAppStartCommand : ICommand
     protected async Task RunCommandAsync(string command)
     {
         var commands = command.Split(';');
+
+        // Legacy support for old commands:
+        if (commands.Length == 1 && commands[0].Contains(" || "))
+        {
+            commands = commands[0].Split(" || ");
+        }
+
         foreach (var c in commands)
         {
             var fileName = c[..c.IndexOf(' ')];
