@@ -3,6 +3,7 @@ using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
 using System.Threading;
+using System.Text.Json;
 
 namespace AbpDevTools.Commands;
 
@@ -17,6 +18,14 @@ public class PrepareCommand : ICommand
     protected EnvironmentAppStartCommand EnvironmentAppStartCommand { get; }
 
     protected AbpBundleCommand AbpBundleCommand { get; }
+
+    private readonly Dictionary<string, string> _packageToAppMapping = new()
+    {
+        ["Volo.Abp.EntityFrameworkCore.SqlServer"] = "sqlserver-edge",
+        ["Volo.Abp.EntityFrameworkCore.MySQL"] = "mysql",
+        ["Volo.Abp.EntityFrameworkCore.PostgreSql"] = "postgreSql",
+        ["Volo.Abp.Caching.StackExchangeRedis"] = "redis"
+    };
 
     public PrepareCommand(EnvironmentAppStartCommand environmentAppStartCommand, AbpBundleCommand abpBundleCommand)
     {
@@ -40,9 +49,7 @@ public class PrepareCommand : ICommand
 
         foreach (var csproj in GetProjects())
         {
-            var csprojContent = await File.ReadAllTextAsync(csproj.FullName);
-
-            environmentApps.AddRange(CheckEnvironmentApps(csprojContent));
+            environmentApps.AddRange(CheckEnvironmentApps(csproj.FullName));
         }
 
         if (environmentApps.Count > 0)
@@ -84,27 +91,89 @@ public class PrepareCommand : ICommand
         await AbpBundleCommand.ExecuteAsync(console);
     }
 
-    private IEnumerable<string> CheckEnvironmentApps(string csprojContent)
+    private IEnumerable<string> CheckEnvironmentApps(string projectPath)
     {
-        if (csprojContent.Contains("PackageReference Include=\"Volo.Abp.EntityFrameworkCore.SqlServer\""))
+        var results = new List<string>();
+        
+        try
         {
-            yield return "sqlserver-edge";
+            var dependencies = GetProjectDependencies(projectPath);
+            
+            foreach (var package in dependencies)
+            {
+                if (_packageToAppMapping.TryGetValue(package, out var appName))
+                {
+                    results.Add(appName);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new CommandException($"Failed to analyze project dependencies: {ex.Message}");
         }
 
-        if (csprojContent.Contains("PackageReference Include=\"Volo.Abp.EntityFrameworkCore.MySQL\""))
+        return results;
+    }
+
+    private HashSet<string> GetProjectDependencies(string projectPath)
+    {
+        var _packages = new HashSet<string>();
+        
+        var startInfo = new ProcessStartInfo
         {
-            yield return "mysql";
+            FileName = "dotnet",
+            Arguments = $"list {projectPath} package --format json",
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(startInfo);
+        if (process == null)
+        {
+            throw new CommandException("Failed to start dotnet process");
         }
 
-        if (csprojContent.Contains("PackageReference Include=\"Volo.Abp.EntityFrameworkCore.PostgreSql\""))
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
         {
-            yield return "postgreSql";
+            throw new CommandException($"dotnet list package failed with exit code {process.ExitCode}");
         }
 
-        if (csprojContent.Contains("PackageReference Include=\"Volo.Abp.Caching.StackExchangeRedis\""))
+        try
         {
-            yield return "redis";
+            using var doc = JsonDocument.Parse(output);
+            var projects = doc.RootElement.GetProperty("projects");
+            
+            foreach (var project in projects.EnumerateArray())
+            {
+                if (project.TryGetProperty("frameworks", out var frameworks))
+                {
+                    foreach (var framework in frameworks.EnumerateArray())
+                    {
+                        if (framework.TryGetProperty("topLevelPackages", out var packages))
+                        {
+                            foreach (var package in packages.EnumerateArray())
+                            {
+                                var id = package.GetProperty("id").GetString();
+                                if (!string.IsNullOrEmpty(id))
+                                {
+                                    _packages.Add(id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+        catch (JsonException ex)
+        {
+            throw new CommandException($"Failed to parse package list JSON: {ex.Message}");
+        }
+
+        return _packages;
     }
 
     private IEnumerable<FileInfo> GetProjects()
