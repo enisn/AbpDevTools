@@ -1,7 +1,7 @@
 ﻿namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
-public class EnvironmentAppConfiguration : ConfigurationBase<Dictionary<string, EnvironmentToolOption>>
+public class EnvironmentAppConfiguration : DictionaryConfigurationBase<EnvironmentToolOption>
 {
     public override string FilePath => Path.Combine(FolderPath, "environment-tools.json");
 
