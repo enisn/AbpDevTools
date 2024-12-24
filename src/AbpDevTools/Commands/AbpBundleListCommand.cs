@@ -1,5 +1,7 @@
 using System.Text;
 using CliFx.Infrastructure;
+using System.Xml;
+using Spectre.Console;
 
 [Command("bundle list", Description = "List projects that needs to run 'abp bundle'.")]
 public class AbpBundleListCommand : ICommand
@@ -14,49 +16,57 @@ public class AbpBundleListCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var wasmCsprojs = GetWasmProjects();
+        var wasmCsprojs = await AnsiConsole.Status()
+            .StartAsync("Searching for Blazor WASM projects...", async ctx =>
+            {
+                ctx.Spinner(Spinner.Known.Dots);
+                var wasmCsprojs = GetWasmProjects();
+                foreach (var csproj in wasmCsprojs)
+                {
+                    AnsiConsole.MarkupLine($"- .{Path.DirectorySeparatorChar}{Path.GetRelativePath(WorkingDirectory!, csproj.DirectoryName ?? string.Empty)}");
+                }
+                return wasmCsprojs;
+            });
 
-        if (wasmCsprojs.Length == 0)
+        if (!wasmCsprojs.Any())
         {
             await console.Output.WriteLineAsync("No Blazor WASM projects found. No files to bundle.");
-
             return;
         }
-
-        await console.Output.WriteLineAsync("Blazor WASM projects found:");
-        foreach (var csproj in wasmCsprojs)
-        {
-            await console.Output.WriteLineAsync($"- {csproj.FullName}");
-        }
     }
 
-    public FileInfo[] GetWasmProjects(){
+    public IEnumerable<FileInfo> GetWasmProjects(){
         return Directory.EnumerateFiles(WorkingDirectory!, "*.csproj", SearchOption.AllDirectories)
                     .Where(IsCsprojBlazorWasm)
-                    .Select(x => new FileInfo(x))
-                    .ToArray();
+                    .Select(x => new FileInfo(x));
     }
 
-    static bool IsCsprojBlazorWasm(string file)
+    private static bool IsCsprojBlazorWasm(string file)
     {
         using var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read);
-        using var streamReader = new StreamReader(fileStream, Encoding.UTF8, true);
+        using var reader = XmlReader.Create(fileStream, new XmlReaderSettings 
+        { 
+            DtdProcessing = DtdProcessing.Ignore,
+            IgnoreWhitespace = true
+        });
 
-        for (int i = 0; i < 4; i++)
+        try
         {
-            var line = streamReader.ReadLine();
-
-            if (string.IsNullOrEmpty(line))
+            // Look for the Project element
+            while (reader.Read())
             {
-                continue;
+                if (reader.NodeType == XmlNodeType.Element && reader.Name == "Project")
+                {
+                    var sdk = reader.GetAttribute("Sdk");
+                    return sdk == "Microsoft.NET.Sdk.BlazorWebAssembly";
+                }
             }
 
-            if (line.Contains("Sdk=\"Microsoft.NET.Sdk.BlazorWebAssembly\""))
-            {
-                return true;
-            }
+            return false;
         }
-
-        return false;
+        catch (XmlException)
+        {
+            return false;
+        }
     }
 }
