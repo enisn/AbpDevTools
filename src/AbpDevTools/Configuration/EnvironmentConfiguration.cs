@@ -40,6 +40,15 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
                         { "ConnectionStrings__Default", "Server=localhost;Port=5432;Database={AppName}_{Today};User Id=postgres;Password=12345678Aa;" }
                     }
                 }
+            },
+            {
+                "MySql", new EnvironmentOption
+                {
+                    Variables = new Dictionary<string, string>
+                    {
+                        { "ConnectionStrings__Default", "Server=localhost;Port=3306;Database={AppName}_{Today};User Id=root;Password=12345678Aa;" }
+                    }
+                }
             }
         };
     }
