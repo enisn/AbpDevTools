@@ -1,10 +1,15 @@
 using System.Text.Json;
+using YamlDotNet.Serialization;
 
 namespace AbpDevTools.Configuration;
 
 public abstract class DictionaryConfigurationBase<T> : ConfigurationBase<Dictionary<string, T>>
     where T : class
 {
+    protected DictionaryConfigurationBase(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
+    {
+    }
+
     protected virtual bool PreserveExistingValues => true;
 
     public override Dictionary<string, T> GetOptions()
@@ -17,7 +22,7 @@ public abstract class DictionaryConfigurationBase<T> : ConfigurationBase<Diction
 
         if (File.Exists(FilePath))
         {
-            var existingOptions = JsonSerializer.Deserialize<Dictionary<string, T>>(File.ReadAllText(FilePath))!;
+            var existingOptions = base.GetOptions();
             
             if (PreserveExistingValues)
             {
@@ -41,10 +46,7 @@ public abstract class DictionaryConfigurationBase<T> : ConfigurationBase<Diction
 
         if (shouldWrite)
         {
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(options, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            }));
+            SaveOptions(options);
         }
 
         return options;

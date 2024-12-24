@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Configuration;
+using CliFx.Exceptions;
 using CliFx.Infrastructure;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -73,7 +74,7 @@ public class EnvironmentAppConfigurationCommand : ConfigurationBaseCommand<Envir
     }
 }
 
-[Command("run config")]
+[Command("run config")] [Obsolete]
 public class RunConfigurationCommand : ConfigurationBaseCommand<RunConfiguration>
 {
     public RunConfigurationCommand(RunConfiguration configuration) : base(configuration)
@@ -83,7 +84,10 @@ public class RunConfigurationCommand : ConfigurationBaseCommand<RunConfiguration
     public override ValueTask ExecuteAsync(IConsole console)
     {
         Configuration.GetOptions();
-        return base.ExecuteAsync(console);
+
+        // This command is deprecated.
+        // TODO: Remove this command in the future.
+        throw new CommandException("This command is deprecated. Use \"abpdev run\" directly instead.");
     }
 }
 

@@ -1,11 +1,16 @@
 ﻿using System.Text.Json;
+using YamlDotNet.Serialization;
 
 namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
 public class CleanConfiguration : ConfigurationBase<CleanOptions>
 {
-    public override string FilePath => Path.Combine(FolderPath, "clean-configuration.json");
+    public CleanConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
+    {
+    }
+
+    public override string FileName => "clean-configuration";
 
     protected override CleanOptions GetDefaults()
     {

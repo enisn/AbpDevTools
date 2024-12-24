@@ -1,9 +1,17 @@
-﻿namespace AbpDevTools.Configuration;
+﻿using YamlDotNet.Serialization;
+
+namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
 public class ReplacementConfiguration : ConfigurationBase<Dictionary<string, ReplacementOption>>
 {
-    public override string FilePath => Path.Combine(FolderPath, "replacements.json");
+    public ReplacementConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
+    {
+    }
+
+    public override string FileName => "replacements";
+
+    protected override string LegacyJsonFilePath => Path.Combine(FolderPath, "replacements.json");
 
     protected override Dictionary<string, ReplacementOption> GetDefaults()
     {

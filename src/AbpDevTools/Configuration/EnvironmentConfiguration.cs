@@ -1,10 +1,15 @@
 ﻿using System.Text.Json;
+using YamlDotNet.Serialization;
 
 namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
 public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentOption>
 {
+    public EnvironmentConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
+    {
+    }
+
     protected override Dictionary<string, EnvironmentOption> GetDefaults()
     {
         return new Dictionary<string, EnvironmentOption>
