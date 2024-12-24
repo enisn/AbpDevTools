@@ -3,10 +3,8 @@
 namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
-public class EnvironmentConfiguration : ConfigurationBase<Dictionary<string, EnvironmentOption>>
+public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentOption>
 {
-    public override string FilePath => Path.Combine(FolderPath, "environments.json");
-
     protected override Dictionary<string, EnvironmentOption> GetDefaults()
     {
         return new Dictionary<string, EnvironmentOption>
@@ -45,5 +43,4 @@ public class EnvironmentConfiguration : ConfigurationBase<Dictionary<string, Env
 public class EnvironmentOption
 {
     public Dictionary<string, string> Variables { get; set; }
-        
 }
