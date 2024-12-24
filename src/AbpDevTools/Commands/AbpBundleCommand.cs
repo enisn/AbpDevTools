@@ -29,6 +29,7 @@ public class AbpBundleCommand : ICommand
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
+        listCommand.WorkingDirectory = WorkingDirectory;
 
         console.RegisterCancellationHandler().Register(() =>
         {
