@@ -2,7 +2,6 @@
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
-using System.Threading;
 using System.Text.Json;
 
 namespace AbpDevTools.Commands;
@@ -23,7 +22,7 @@ public class PrepareCommand : ICommand
     {
         ["Volo.Abp.EntityFrameworkCore.SqlServer"] = "sqlserver-edge",
         ["Volo.Abp.EntityFrameworkCore.MySQL"] = "mysql",
-        ["Volo.Abp.EntityFrameworkCore.PostgreSql"] = "postgreSql",
+        ["Volo.Abp.EntityFrameworkCore.PostgreSql"] = "postgresql",
         ["Volo.Abp.Caching.StackExchangeRedis"] = "redis"
     };
 
@@ -55,7 +54,14 @@ public class PrepareCommand : ICommand
         if (environmentApps.Count > 0)
         {
             EnvironmentAppStartCommand.AppNames = environmentApps.Distinct().ToArray();
+
+            await console.Output.WriteLineAsync("Starting required environment apps...");
+            await console.Output.WriteLineAsync($"Apps to start: {string.Join(", ", environmentApps.Distinct())}");
+            await console.Output.WriteLineAsync("-----------------------------------------------------------");
+
             await EnvironmentAppStartCommand.ExecuteAsync(console);
+
+            await console.Output.WriteLineAsync("Environment apps started successfully!");
         }
 
         var process = Process.Start(new ProcessStartInfo
@@ -89,6 +95,15 @@ public class PrepareCommand : ICommand
         }
 
         await AbpBundleCommand.ExecuteAsync(console);
+
+        await console.Output.WriteLineAsync("-----------------------------------------------------------");
+        await console.Output.WriteLineAsync("✅ All done!");
+        await console.Output.WriteLineAsync("-----------------------------------------------------------");
+        await console.Output.WriteLineAsync("You can now run your application with 'abpdev run --env <env>'");
+        await console.Output.WriteLineAsync("\n\tExample: 'abpdev run --env sqlserver'");
+        await console.Output.WriteLineAsync("\n\n-----------------------------------------------------------");
+        await console.Output.WriteLineAsync("You can check your current virtual environment with 'abpdev env' command.");
+        await console.Output.WriteLineAsync("-----------------------------------------------------------");
     }
 
     private IEnumerable<string> CheckEnvironmentApps(string projectPath)
@@ -119,6 +134,8 @@ public class PrepareCommand : ICommand
     {
         var _packages = new HashSet<string>();
         
+        RestoreProject(projectPath);
+
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
@@ -139,7 +156,7 @@ public class PrepareCommand : ICommand
 
         if (process.ExitCode != 0)
         {
-            throw new CommandException($"dotnet list package failed with exit code {process.ExitCode}");
+            throw new CommandException($"dotnet list package failed with exit code {process.ExitCode}{(process.ExitCode == 1 ? ". Make sure the project is restored" : string.Empty)}");
         }
 
         try
@@ -187,6 +204,31 @@ public class PrepareCommand : ICommand
         catch (Exception ex) when (ex is DirectoryNotFoundException || ex is UnauthorizedAccessException)
         {
             throw new CommandException($"Failed to enumerate project files: {ex.Message}");
+        }
+    }
+    
+
+    private void RestoreProject(string projectPath)
+    {
+        var restoreStartInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = $"restore {projectPath}",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var restoreProcess = Process.Start(restoreStartInfo) 
+            ?? throw new CommandException("Failed to start dotnet restore process");
+
+        restoreProcess.WaitForExit();
+
+        if (restoreProcess.ExitCode != 0)
+        {
+            var error = restoreProcess.StandardError.ReadToEnd();
+            throw new CommandException($"dotnet restore failed with exit code {restoreProcess.ExitCode}. Error: {error}");
         }
     }
 }
