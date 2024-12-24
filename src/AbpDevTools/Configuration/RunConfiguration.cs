@@ -1,9 +1,16 @@
-﻿namespace AbpDevTools.Configuration;
+﻿using YamlDotNet.Serialization;
+
+namespace AbpDevTools.Configuration;
 
 [RegisterTransient]
+[Obsolete]
 public class RunConfiguration : ConfigurationBase<RunOptions>
 {
-    public override string FilePath => Path.Combine(FolderPath, "run-configuration.json");
+    public RunConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
+    {
+    }
+
+    public override string FileName => "run-configuration";
 
     [Obsolete]
     protected override RunOptions GetDefaults()
