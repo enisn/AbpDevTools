@@ -50,7 +50,7 @@ public class EnvironmentAppStartCommand : ICommand
 
         if (!configurations.TryGetValue(appName, out var option))
         {
-            throw new CommandException("ToolName couldn't be recognized. Try one of them: \n - " + string.Join("\n - ", configurations.Keys));
+            throw new CommandException($"ToolName '{appName}' couldn't be recognized. Try one of them: \n - " + string.Join("\n - ", configurations.Keys));
         }
 
         if (string.IsNullOrEmpty(DefaultPassword))
