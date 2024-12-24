@@ -33,7 +33,7 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
                     }
             },
             {
-                "Postres", new EnvironmentOption
+                "Postgres", new EnvironmentOption
                 {
                     Variables = new Dictionary<string, string>
                     {
