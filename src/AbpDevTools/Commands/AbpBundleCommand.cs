@@ -1,4 +1,5 @@
-﻿using CliFx.Infrastructure;
+﻿using AbpDevTools.Configuration;
+using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
 using System.Text;
@@ -17,9 +18,12 @@ public class AbpBundleCommand : ICommand
     protected IConsole? console;
     protected AbpBundleListCommand listCommand;
 
-    public AbpBundleCommand(AbpBundleListCommand listCommand)
+    protected ToolOption Tools { get; }
+
+    public AbpBundleCommand(AbpBundleListCommand listCommand, ToolsConfiguration toolsConfiguration)
     {
         this.listCommand = listCommand;
+        Tools = toolsConfiguration.GetOptions();
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -95,7 +99,7 @@ public class AbpBundleCommand : ICommand
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
 
-                var startInfo = new ProcessStartInfo("abp", $"bundle -wd {Path.GetDirectoryName(csproj.FullName)}");
+                var startInfo = new ProcessStartInfo(Tools["abp"], $"bundle -wd {Path.GetDirectoryName(csproj.FullName)}");
                 startInfo.RedirectStandardOutput = true;
                 using var process = Process.Start(startInfo)!;
                 process.BeginOutputReadLine();
