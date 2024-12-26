@@ -199,7 +199,7 @@ public partial class RunCommand : ICommand
 
                 var installLibsRunninItem = new RunningInstallLibsItem(
                     csproj.Name.Replace(".csproj", " install-libs"),
-                    Process.Start(new ProcessStartInfo("abp", "install-libs")
+                    Process.Start(new ProcessStartInfo(tools["abp"], "install-libs")
                     {
                         WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                         UseShellExecute = false,

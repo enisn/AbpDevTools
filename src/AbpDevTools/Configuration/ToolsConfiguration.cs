@@ -44,6 +44,7 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
         {
             { "powershell", "pwsh"},
             { "dotnet", "dotnet" },
+            { "abp", "abp" },
         };
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -82,5 +83,4 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
 
 public class ToolOption : Dictionary<string, string>
 {
-
 }
