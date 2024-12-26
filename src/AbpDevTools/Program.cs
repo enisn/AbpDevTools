@@ -3,6 +3,7 @@ using AbpDevTools.Commands.Migrations;
 using AbpDevTools.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
+using System.Text;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -24,6 +25,8 @@ public static class Startup
 {
     public static CliApplicationBuilder BuildServices(this CliApplicationBuilder builder)
     {
+        Console.OutputEncoding = Encoding.UTF8;
+
         var services = new ServiceCollection();
 
         var commands = new Type[] // Keep this instead reflection for performance
