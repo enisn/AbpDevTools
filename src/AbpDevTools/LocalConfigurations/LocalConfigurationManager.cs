@@ -8,14 +8,41 @@ namespace AbpDevTools.LocalConfigurations;
 public class LocalConfigurationManager
 {
     protected readonly IDeserializer _deserializer;
+    protected readonly ISerializer _serializer;
     protected readonly FileExplorer fileExplorer;
     protected readonly IProcessEnvironmentManager environmentManager;
 
-    public LocalConfigurationManager(IDeserializer deserializer, FileExplorer fileExplorer, IProcessEnvironmentManager environmentManager)
+    public LocalConfigurationManager(IDeserializer deserializer, ISerializer serializer, FileExplorer fileExplorer, IProcessEnvironmentManager environmentManager)
     {
         _deserializer = deserializer;
+        _serializer = serializer;
         this.fileExplorer = fileExplorer;
         this.environmentManager = environmentManager;
+    }
+
+    public string Save(string path, LocalConfiguration configuration)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (directory == null)
+        {
+            throw new ArgumentException("Invalid path", nameof(path));
+        }
+
+        if (!Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var yaml = _serializer.Serialize(configuration);
+        
+        var filePath = path;
+        if (!path.EndsWith(".yml"))
+        {
+            filePath = Path.Combine(path, "abpdev.yml");
+        }
+
+        File.WriteAllText(filePath, yaml);
+        return filePath;
     }
 
     public bool TryLoad(string path, out LocalConfiguration? localConfiguration, FileSearchDirection direction = FileSearchDirection.Ascendants)

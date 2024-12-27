@@ -6,6 +6,11 @@ namespace AbpDevTools.Configuration;
 [RegisterTransient]
 public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentOption>
 {
+    public const string SqlServer = "SqlServer";
+    public const string PostgreSql = "PostgreSql";
+    public const string MySql = "MySql";
+    public const string MongoDb = "MongoDb";
+    
     public EnvironmentConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
     {
     }
@@ -15,7 +20,7 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
         return new Dictionary<string, EnvironmentOption>
         {
             {
-                "SqlServer", new EnvironmentOption
+                SqlServer, new EnvironmentOption
                 {
                     Variables = new Dictionary<string, string>
                     {
@@ -24,16 +29,16 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
                 }
             },
             {
-                 "MongoDB", new EnvironmentOption
+                MongoDb, new EnvironmentOption
+                {
+                    Variables = new Dictionary<string, string>
                     {
-                        Variables = new Dictionary<string, string>
-                        {
                             { "ConnectionStrings__Default", "mongodb://localhost:27017/{AppName}_{Today}" }
                         }
                     }
             },
             {
-                "Postgres", new EnvironmentOption
+                PostgreSql, new EnvironmentOption
                 {
                     Variables = new Dictionary<string, string>
                     {
@@ -42,7 +47,7 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
                 }
             },
             {
-                "MySql", new EnvironmentOption
+                MySql, new EnvironmentOption
                 {
                     Variables = new Dictionary<string, string>
                     {

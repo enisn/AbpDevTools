@@ -1,4 +1,6 @@
 ﻿using AbpDevTools.Configuration;
+using AbpDevTools.Environments;
+using AbpDevTools.LocalConfigurations;
 using CliFx.Exceptions;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -11,37 +13,33 @@ namespace AbpDevTools.Commands;
 [Command("prepare", Description = "Prepare the project for the first running on this machine. Creates database, redis, event bus containers.")]
 public class PrepareCommand : ICommand
 {
+    [CommandOption("no-config", Description = "Do not create local configuration file. (abpdev.yml)")]
+    public bool NoConfiguration {get; set;} = false;
+
     protected IConsole? console;
     protected ToolsConfiguration ToolsConfiguration { get; }
     protected DotnetDependencyResolver DependencyResolver { get; }
+    protected LocalConfigurationManager LocalConfigurationManager { get; }
 
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string? WorkingDirectory { get; set; }
-
     protected EnvironmentAppStartCommand EnvironmentAppStartCommand { get; }
-
     protected AbpBundleCommand AbpBundleCommand { get; }
-
     protected ToolOption Tools { get; }
-
-    private readonly Dictionary<string, string> _packageToAppMapping = new()
-    {
-        ["Volo.Abp.EntityFrameworkCore.SqlServer"] = "sqlserver-edge",
-        ["Volo.Abp.EntityFrameworkCore.MySQL"] = "mysql",
-        ["Volo.Abp.EntityFrameworkCore.PostgreSql"] = "postgresql",
-        ["Volo.Abp.Caching.StackExchangeRedis"] = "redis"
-    };
+    private readonly Dictionary<string, AppEnvironmentMapping> appEnvironmentMapping = AppEnvironmentMapping.Default;
 
     public PrepareCommand(
         EnvironmentAppStartCommand environmentAppStartCommand, 
         AbpBundleCommand abpBundleCommand,
         ToolsConfiguration toolsConfiguration,
-        DotnetDependencyResolver dependencyResolver)
+        DotnetDependencyResolver dependencyResolver,
+        LocalConfigurationManager localConfigurationManager)
     {
         EnvironmentAppStartCommand = environmentAppStartCommand;
         AbpBundleCommand = abpBundleCommand;
         ToolsConfiguration = toolsConfiguration;
         DependencyResolver = dependencyResolver;
+        LocalConfigurationManager = localConfigurationManager;
 
         Tools = toolsConfiguration.GetOptions();
     }
@@ -56,7 +54,7 @@ public class PrepareCommand : ICommand
 
         AbpBundleCommand.WorkingDirectory = WorkingDirectory;
 
-        var environmentApps = new List<string>();
+        var environmentApps = new List<AppEnvironmentMapping>();
         var installLibsFolders = new List<string>();
         var bundleFolders = new List<string>();
 
@@ -66,9 +64,11 @@ public class PrepareCommand : ICommand
                 foreach (var csproj in GetProjects())
                 {
                     ctx.Status($"Checking {csproj.Name} for dependencies...");
-                    foreach (var dependency in CheckEnvironmentApps(csproj.FullName))
+                    var projectDependencies = CheckEnvironmentApps(csproj.FullName);
+                    
+                    foreach (var dependency in projectDependencies)
                     {       
-                        AnsiConsole.WriteLine($"{Emoji.Known.Package} '{dependency}' dependency found in {csproj.Name}");
+                        AnsiConsole.WriteLine($"{Emoji.Known.Package} '{dependency.AppName}' dependency found in {csproj.Name}");
                         environmentApps.Add(dependency);
                     }
                 }
@@ -80,7 +80,31 @@ public class PrepareCommand : ICommand
         }
         else
         {
-            EnvironmentAppStartCommand.AppNames = environmentApps.Distinct().ToArray();
+            if (!NoConfiguration)
+            {
+                var environmentNames = environmentApps.Where(x => !string.IsNullOrEmpty(x.EnvironmentName)).Select(x => x.EnvironmentName).Distinct().ToArray();
+                if (environmentNames.Length > 1)
+                {
+                    AnsiConsole.WriteLine($"{Emoji.Known.CrossMark} [red]Multiple environments detected: {string.Join(", ", environmentNames)}[/] \n You can now run your application with 'abpdev run --env <env>'\n or run this command ('abpdev prepare') separately for each solution.");
+                    AnsiConsole.WriteLine($"{Emoji.Known.Memo} You can skip creating local configuration file with '--no-config' option.");
+                }
+                else
+                {
+                    var environmentName = environmentNames.First();
+                    var localConfig = new LocalConfiguration
+                    {
+                        Environment = new LocalConfiguration.LocalEnvironmentOption
+                        {
+                            Name = environmentName,
+                        }
+                    };
+
+                    var filePath = LocalConfigurationManager.Save(WorkingDirectory, localConfig);
+                    AnsiConsole.WriteLine($"{Emoji.Known.Memo} Created local configuration for environment {environmentName}: {Path.GetRelativePath(WorkingDirectory, filePath)}");
+                }
+            }
+
+            EnvironmentAppStartCommand.AppNames = environmentApps.Select(x => x.AppName).Distinct().ToArray();
 
             await console.Output.WriteLineAsync("Starting required environment apps...");
             await console.Output.WriteLineAsync($"Apps to start: {string.Join(", ", environmentApps.Distinct())}");
@@ -138,16 +162,13 @@ public class PrepareCommand : ICommand
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
         await console.Output.WriteLineAsync($"{Emoji.Known.CheckBoxWithCheck} All done!");
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
-        await console.Output.WriteLineAsync("You can now run your application with 'abpdev run --env <env>'");
-        await console.Output.WriteLineAsync("\n\tExample: 'abpdev run --env sqlserver'");
-        await console.Output.WriteLineAsync("\n\n-----------------------------------------------------------");
-        await console.Output.WriteLineAsync("You can check your current virtual environment with 'abpdev env' command.");
+        await console.Output.WriteLineAsync("You can now run your application with 'abpdev run' without any environment specified.");
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
     }
 
-    private HashSet<string> CheckEnvironmentApps(string projectPath)
+    private List<AppEnvironmentMapping> CheckEnvironmentApps(string projectPath)
     {
-        var results = new HashSet<string>();
+        var results = new List<AppEnvironmentMapping>();
         
         try
         {
@@ -155,9 +176,9 @@ public class PrepareCommand : ICommand
             
             foreach (var package in dependencies)
             {
-                if (_packageToAppMapping.TryGetValue(package, out var appName))
+                if (appEnvironmentMapping.TryGetValue(package, out var mapping))
                 {
-                    results.Add(appName);
+                    results.Add(mapping);
                 }
             }
         }

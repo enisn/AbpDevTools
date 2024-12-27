@@ -9,6 +9,7 @@ public class RunningProjectItem
     public virtual string? Status { get; set; }
     public virtual bool IsCompleted { get; set; }
     public virtual bool Queued { get; set; }
+    public bool Verbose { get; set; }
 
     public virtual void StartReadingOutput()
     {
@@ -17,11 +18,12 @@ public class RunningProjectItem
 
 public class RunningCsProjItem : RunningProjectItem
 {
-    public RunningCsProjItem(string name, Process process, string? status = null)
+    public RunningCsProjItem(string name, Process process, string? status = null, bool verbose = false)
     {
         this.Name = name;
         this.Process = process;
         this.Status = status ?? "Building...";
+        this.Verbose = verbose;
         StartReadingOutput();
     }
 
@@ -35,12 +37,10 @@ public class RunningCsProjItem : RunningProjectItem
 
     protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)
     {
-#if DEBUG
-        if (!IsCompleted)
+        if (!IsCompleted && Verbose)
         {
             Status = args.Data?.Replace("[", string.Empty).Replace("]", string.Empty) ?? string.Empty;
         }
-#endif
 
         if (args.Data != null && args.Data.Contains("Now listening on: "))
         {

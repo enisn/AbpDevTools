@@ -45,6 +45,9 @@ public partial class RunCommand : ICommand
     [CommandOption("retry", 'r', Description = "Retries running again when application exits.")]
     public bool Retry { get; set; }
 
+    [CommandOption("verbose", 'v', Description = "Shows verbose output from the projects.")]
+    public bool Verbose { get; set; }
+
     [CommandOption("yml", Description = "Path to the yml file to be used for running the project.")]
     public string? YmlPath { get; set; }
 
@@ -180,7 +183,8 @@ public partial class RunCommand : ICommand
             runningProjects.Add(
                 new RunningCsProjItem(
                     csproj.Name,
-                    Process.Start(startInfo)!
+                    Process.Start(startInfo)!,
+                    verbose: Verbose
                 )
             );
 
