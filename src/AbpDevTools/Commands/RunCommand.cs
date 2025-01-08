@@ -99,7 +99,10 @@ public partial class RunCommand : ICommand
 
         var cancellationToken = console.RegisterCancellationHandler();
 
-        localConfigurationManager.TryLoad(YmlPath!, out var localRootConfig, FileSearchDirection.OnlyCurrent);
+        if (localConfigurationManager.TryLoad(YmlPath!, out var localRootConfig, FileSearchDirection.OnlyCurrent))
+        {
+            console.Output.WriteLine($"Loaded YAML configuration from '{YmlPath}' with environment '{localRootConfig?.Environment?.Name ?? "Default"}'.");
+        }
 
         FileInfo[] csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects", async ctx =>
