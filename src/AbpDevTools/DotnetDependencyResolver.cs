@@ -18,6 +18,7 @@ public class DotnetDependencyResolver
 
     public async Task<bool> CheckSingleDependencyAsync(string projectPath, string assemblyName, CancellationToken cancellationToken)
     {
+        await RestoreProjectAsync(projectPath);
         return await IsPackageDependencyAsync(projectPath, assemblyName, cancellationToken);
     }
 
@@ -252,7 +253,6 @@ public class DotnetDependencyResolver
         var friendlyProjectName = Path.GetFileNameWithoutExtension(projectPath);
         if(!ShouldRestoreProject(projectPath))
         {
-            AnsiConsole.WriteLine($"{Emoji.Known.CheckMark}  Skipping restore for {friendlyProjectName} because it's already restored.");
             return;
         }
 
