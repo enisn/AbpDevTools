@@ -1,6 +1,7 @@
 ﻿using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
+using AbpDevTools.Services;
 using CliFx.Exceptions;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -20,6 +21,7 @@ public class PrepareCommand : ICommand
     protected ToolsConfiguration ToolsConfiguration { get; }
     protected DotnetDependencyResolver DependencyResolver { get; }
     protected LocalConfigurationManager LocalConfigurationManager { get; }
+    protected RunnableProjectsProvider RunnableProjectsProvider { get; }
 
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string? WorkingDirectory { get; set; }
@@ -33,12 +35,14 @@ public class PrepareCommand : ICommand
         AbpBundleCommand abpBundleCommand,
         ToolsConfiguration toolsConfiguration,
         DotnetDependencyResolver dependencyResolver,
+        RunnableProjectsProvider runnableProjectsProvider,
         LocalConfigurationManager localConfigurationManager)
     {
         EnvironmentAppStartCommand = environmentAppStartCommand;
         AbpBundleCommand = abpBundleCommand;
         ToolsConfiguration = toolsConfiguration;
         DependencyResolver = dependencyResolver;
+        RunnableProjectsProvider = runnableProjectsProvider;
         LocalConfigurationManager = localConfigurationManager;
 
         Tools = toolsConfiguration.GetOptions();
@@ -54,39 +58,89 @@ public class PrepareCommand : ICommand
 
         AbpBundleCommand.WorkingDirectory = WorkingDirectory;
 
-        var environmentApps = new List<AppEnvironmentMapping>();
+        var cancellationToken = console.RegisterCancellationHandler();
+
+        var environmentAppsPerProject = new Dictionary<string, List<AppEnvironmentMapping>>();
         var installLibsFolders = new List<string>();
         var bundleFolders = new List<string>();
 
         await AnsiConsole.Status()
             .StartAsync("Checking projects for dependencies...", async ctx =>
             {
-                foreach (var csproj in GetProjects())
+                var runnableProjects = RunnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
+                foreach (var csproj in runnableProjects)
                 {
                     ctx.Status($"Checking {csproj.Name} for dependencies...");
-                    var projectDependencies = CheckEnvironmentApps(csproj.FullName);
+                    var projectDependencies = await CheckEnvironmentAppsAsync(csproj.FullName, cancellationToken);
                     
+                    var dependencies = new List<AppEnvironmentMapping>();
                     foreach (var dependency in projectDependencies)
                     {       
-                        AnsiConsole.WriteLine($"{Emoji.Known.Package} '{dependency.AppName}' dependency found in {csproj.Name}");
-                        environmentApps.Add(dependency);
+                        dependencies.Add(dependency);
+                    }
+
+                    if (dependencies.Count > 0)
+                    {
+                        AnsiConsole.WriteLine($"{Emoji.Known.Package} {string.Join(", ", dependencies.Select(x => x.AppName))} (total: {dependencies.Count}) dependencies found for {csproj.Name}");
+                        environmentAppsPerProject[csproj.FullName] = dependencies;
                     }
                 }
             });
 
-        if (environmentApps.Count == 0)
+        if (environmentAppsPerProject.Count(x => x.Value.Count > 0) == 0)
         {
             await console.Output.WriteLineAsync($"{Emoji.Known.Information} No environment apps required.");
         }
         else
         {
+            var environmentApps = environmentAppsPerProject.Values.SelectMany(x => x).Distinct().ToArray();
             if (!NoConfiguration)
             {
                 var environmentNames = environmentApps.Where(x => !string.IsNullOrEmpty(x.EnvironmentName)).Select(x => x.EnvironmentName).Distinct().ToArray();
                 if (environmentNames.Length > 1)
                 {
-                    AnsiConsole.WriteLine($"{Emoji.Known.CrossMark} [red]Multiple environments detected: {string.Join(", ", environmentNames)}[/] \n You can now run your application with 'abpdev run --env <env>'\n or run this command ('abpdev prepare') separately for each solution.");
-                    AnsiConsole.WriteLine($"{Emoji.Known.Memo} You can skip creating local configuration file with '--no-config' option.");
+                   
+                    foreach (var projectEnvironmentApps in environmentAppsPerProject)
+                    {
+                        var projectEnvironmentNames = projectEnvironmentApps.Value
+                            .Where(x => !string.IsNullOrEmpty(x.EnvironmentName))
+                            .Select(x => x.EnvironmentName)
+                            .ToArray();
+
+                        var projectEnvironmentName = projectEnvironmentNames.FirstOrDefault();
+
+                        if (!string.IsNullOrEmpty(projectEnvironmentName))
+                        {
+                            var localConfig = new LocalConfiguration
+                            {
+                                Environment = new LocalConfiguration.LocalEnvironmentOption
+                                {
+                                    Name = environmentApps.Length == 1 ? projectEnvironmentName : null
+                                }
+                            };
+
+                            var projectDirectory = Path.GetDirectoryName(projectEnvironmentApps.Key)!;
+                            var filePath = LocalConfigurationManager.Save(projectDirectory, localConfig);
+                            AnsiConsole.WriteLine($"{Emoji.Known.Memo} Created local configuration for environment {projectEnvironmentName} in {Path.GetRelativePath(WorkingDirectory, filePath)}");
+                            if (projectEnvironmentNames.Length > 1)
+                            {
+                                AnsiConsole.WriteLine($"{Emoji.Known.CrossMark} [red]Multiple environments detected: {string.Join(", ", projectEnvironmentNames)}[/] for {projectEnvironmentApps.Key} \n You can manually modify local configuration file to define connection strings in {filePath} file.");
+                                AnsiConsole.WriteLine($"Example: (abpdev.yml)\n");
+                                AnsiConsole.WriteLine($"------------------------------------------------------");
+                                AnsiConsole.WriteLine($"environment:\n");
+                                AnsiConsole.WriteLine($"  variables:\n");
+                                AnsiConsole.WriteLine($"    ConnectionStrings__Default: \"Server=localhost;Database=YourDatabaseName;User ID=YourUserId;Password=YourPassword;\"\n");
+                                AnsiConsole.WriteLine($"    ConnectionStrings__Identity: \"mongodb://localhost:27017/YourDatabaseName\"\n");
+                                AnsiConsole.WriteLine($"------------------------------------------------------\n");
+                            }
+                        }
+                    }
+
+                    AnsiConsole.WriteLine($"{Emoji.Known.Information} Here is the list of running commands for each environment:");
+                    foreach (var env in environmentNames)
+                    {
+                        AnsiConsole.WriteLine($"\tabpdev run --env {env}");
+                    }
                 }
                 else
                 {
@@ -102,12 +156,13 @@ public class PrepareCommand : ICommand
                     var filePath = LocalConfigurationManager.Save(WorkingDirectory, localConfig);
                     AnsiConsole.WriteLine($"{Emoji.Known.Memo} Created local configuration for environment {environmentName}: {Path.GetRelativePath(WorkingDirectory, filePath)}");
                 }
+                AnsiConsole.WriteLine($"{Emoji.Known.Memo} You can skip creating local configuration file with '--no-config' option.");
             }
 
-            EnvironmentAppStartCommand.AppNames = environmentApps.Select(x => x.AppName).Distinct().ToArray();
+            EnvironmentAppStartCommand.AppNames = environmentApps.Select(x => x.AppName).ToArray();
 
             await console.Output.WriteLineAsync("Starting required environment apps...");
-            await console.Output.WriteLineAsync($"Apps to start: {string.Join(", ", environmentApps.Distinct())}");
+            await console.Output.WriteLineAsync($"Apps to start: {string.Join(", ", environmentApps.Select(x => x.AppName))}");
             await console.Output.WriteLineAsync("-----------------------------------------------------------");
 
             await AnsiConsole.Status().StartAsync("Starting environment apps...", async ctx =>
@@ -122,41 +177,66 @@ public class PrepareCommand : ICommand
 
         await AnsiConsole.Status().StartAsync("Installing libraries... (abp install-libs)", async ctx =>
         {
-            var process = Process.Start(new ProcessStartInfo
+            var process = new ProcessStartInfo
             {
                 FileName = Tools["abp"],
                 Arguments = "install-libs",
                 WorkingDirectory = WorkingDirectory,
-                RedirectStandardOutput = true
-            }) ?? throw new CommandException("Failed to start 'abp install-libs' process");
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-            console.RegisterCancellationHandler().Register(() =>
-            {
-                console.Output.WriteLine("Abp install-libs cancelled.");
-                process.Kill();
-                cts.Cancel();
-            });
+            using var installLibsProcess = new Process { StartInfo = process };
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromMinutes(5));
 
-            try 
+            try
             {
-                await process.WaitForExitAsync(cts.Token);
-                
-                if (process.ExitCode != 0)
+                installLibsProcess.Start();
+
+                var outputTask = installLibsProcess.StandardOutput.ReadToEndAsync();
+                var errorTask = installLibsProcess.StandardError.ReadToEndAsync();
+
+                // Wait for the process to exit or for the cancellation token to be triggered
+                var waitTask = installLibsProcess.WaitForExitAsync(cts.Token);
+
+                if (await Task.WhenAny(waitTask, Task.Delay(Timeout.Infinite, cts.Token)) != waitTask)
                 {
-                    throw new CommandException($"'abp install-libs' failed with exit code: {process.ExitCode}");
+                    installLibsProcess.Kill(entireProcessTree: true);
+                    throw new TimeoutException("'abp install-libs' command timed out.");
+                }
+
+                var exitCode = installLibsProcess.ExitCode;
+                var output = await outputTask;
+                var error = await errorTask;
+
+                if (exitCode != 0)
+                {
+                    AnsiConsole.WriteLine($"Error executing 'abp install-libs': {error}");
+                    throw new CommandException($"'abp install-libs' failed with exit code: {exitCode}");
                 }
             }
             catch (OperationCanceledException)
             {
-                throw new CommandException("'abp install-libs' operation timed out or was cancelled.");
+                if (!installLibsProcess.HasExited)
+                {
+                    installLibsProcess.Kill(entireProcessTree: true);
+                }
+                AnsiConsole.WriteLine("'abp install-libs' command was cancelled.");
+                throw new CommandException("'abp install-libs' operation was cancelled.");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.WriteLine($"Unexpected error executing 'abp install-libs': {ex.Message}");
+                throw;
             }
         });
 
-
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
         await console.Output.WriteLineAsync("Bundling Blazor WASM projects...");
-        
+
         await AbpBundleCommand.ExecuteAsync(console);
 
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
@@ -166,41 +246,27 @@ public class PrepareCommand : ICommand
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
     }
 
-    private List<AppEnvironmentMapping> CheckEnvironmentApps(string projectPath)
+    private async Task<List<AppEnvironmentMapping>> CheckEnvironmentAppsAsync(string projectPath, CancellationToken cancellationToken)
     {
         var results = new List<AppEnvironmentMapping>();
-        
-        try
+        var tasks = appEnvironmentMapping.Keys.Select(async package =>
         {
-            var dependencies = DependencyResolver.GetProjectDependencies(projectPath);
-            
-            foreach (var package in dependencies)
+            try
             {
-                if (appEnvironmentMapping.TryGetValue(package, out var mapping))
+                bool hasDependency = await DependencyResolver.CheckSingleDependencyAsync(projectPath, package, cancellationToken);
+                if (hasDependency && appEnvironmentMapping.TryGetValue(package, out var mapping))
                 {
                     results.Add(mapping);
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            throw new CommandException($"Failed to analyze project dependencies: {ex.Message}");
-        }
+            catch (Exception ex)
+            {
+                AnsiConsole.WriteLine($"Error checking dependency '{package}' in project '{Path.GetFileName(projectPath)}': {ex.Message}");
+                // Optionally log the exception or handle it as needed
+            }
+        });
 
+        await Task.WhenAll(tasks);
         return results;
-    }
-
-    private IEnumerable<FileInfo> GetProjects()
-    {
-        try 
-        {
-            return Directory.EnumerateFiles(WorkingDirectory!, "*.csproj", SearchOption.AllDirectories)
-                        .Select(x => new FileInfo(x))
-                        .ToArray();
-        }
-        catch (Exception ex) when (ex is DirectoryNotFoundException || ex is UnauthorizedAccessException)
-        {
-            throw new CommandException($"Failed to enumerate project files: {ex.Message}");
-        }
     }
 }
