@@ -47,6 +47,13 @@ public class AppEnvironmentMapping
             {
                 AppName = EnvironmentAppConfiguration.RabbitMq
             }
+        },
+        {
+            "Volo.Abp.MongoDB",
+            new AppEnvironmentMapping
+            {
+                AppName = EnvironmentAppConfiguration.MongoDb
+            }
         }
     };
 }
