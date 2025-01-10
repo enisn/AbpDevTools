@@ -99,7 +99,43 @@ public class PrepareCommand : ICommand
                 var environmentNames = environmentApps.Where(x => !string.IsNullOrEmpty(x.EnvironmentName)).Select(x => x.EnvironmentName).Distinct().ToArray();
                 if (environmentNames.Length > 1)
                 {
-                    AnsiConsole.WriteLine($"{Emoji.Known.CrossMark} [red]Multiple environments detected: {string.Join(", ", environmentNames)}[/] \n You can now run your application with 'abpdev run --env <env>'\n or run this command ('abpdev prepare') separately for each solution.");
+                   
+                    foreach (var projectEnvironmentApps in environmentAppsPerProject)
+                    {
+                        var projectEnvironmentNames = projectEnvironmentApps.Value
+                            .Where(x => !string.IsNullOrEmpty(x.EnvironmentName))
+                            .Select(x => x.EnvironmentName)
+                            .ToArray();
+
+                        var projectEnvironmentName = projectEnvironmentNames.FirstOrDefault();
+
+                        if (!string.IsNullOrEmpty(projectEnvironmentName))
+                        {
+                            var localConfig = new LocalConfiguration
+                            {
+                                Environment = new LocalConfiguration.LocalEnvironmentOption
+                                {
+                                    Name = environmentApps.Length == 1 ? projectEnvironmentName : null
+                                }
+                            };
+
+                            var projectDirectory = Path.GetDirectoryName(projectEnvironmentApps.Key)!;
+                            var filePath = LocalConfigurationManager.Save(projectDirectory, localConfig);
+                            AnsiConsole.WriteLine($"{Emoji.Known.Memo} Created local configuration for environment {projectEnvironmentName} in {Path.GetRelativePath(WorkingDirectory, filePath)}");
+                            if (projectEnvironmentNames.Length > 1)
+                            {
+                                AnsiConsole.WriteLine($"{Emoji.Known.CrossMark} [red]Multiple environments detected: {string.Join(", ", projectEnvironmentNames)}[/] for {projectEnvironmentApps.Key} \n You can manually modify local configuration file to define connection strings in {filePath} file.");
+                                AnsiConsole.WriteLine($"Example: (abpdev.yml)\n");
+                                AnsiConsole.WriteLine($"------------------------------------------------------");
+                                AnsiConsole.WriteLine($"environment:\n");
+                                AnsiConsole.WriteLine($"  variables:\n");
+                                AnsiConsole.WriteLine($"    ConnectionStrings__Default: \"Server=localhost;Database=YourDatabaseName;User ID=YourUserId;Password=YourPassword;\"\n");
+                                AnsiConsole.WriteLine($"    ConnectionStrings__Identity: \"mongodb://localhost:27017/YourDatabaseName\"\n");
+                                AnsiConsole.WriteLine($"------------------------------------------------------\n");
+                            }
+                        }
+                    }
+
                     AnsiConsole.WriteLine($"{Emoji.Known.Information} Here is the list of running commands for each environment:");
                     foreach (var env in environmentNames)
                     {
