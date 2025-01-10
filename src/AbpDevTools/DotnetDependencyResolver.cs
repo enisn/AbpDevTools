@@ -16,26 +16,91 @@ public class DotnetDependencyResolver
         Tools = toolsConfiguration.GetOptions();
     }
 
-    public HashSet<string> GetProjectDependencies(string projectPath)
+    public async Task<bool> CheckSingleDependencyAsync(string projectPath, string assemblyName, CancellationToken cancellationToken)
+    {
+        return await IsPackageDependencyAsync(projectPath, assemblyName, cancellationToken);
+    }
+
+    private async Task<bool> IsPackageDependencyAsync(string projectPath, string assemblyName, CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = Tools["dotnet"],
+            Arguments = $"nuget why \"{projectPath}\" \"{assemblyName}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = new Process { StartInfo = startInfo };
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(30)); // 30-second timeout
+
+        try
+        {
+            process.Start();
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
+            // Wait for the process to exit or for the cancellation token to be triggered
+            await Task.WhenAny(process.WaitForExitAsync(cts.Token), Task.Delay(Timeout.Infinite, cts.Token));
+
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                throw new TimeoutException($"'dotnet nuget why' command timed out for assembly '{assemblyName}' in project '{projectPath}'.");
+            }
+
+            var exitCode = process.ExitCode;
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (exitCode != 0)
+            {
+                AnsiConsole.WriteLine($"Error executing 'dotnet nuget why': {error}");
+                return false;
+            }
+
+            return !string.IsNullOrWhiteSpace(output);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            AnsiConsole.WriteLine($"'dotnet nuget why' command was cancelled for assembly '{assemblyName}' in project '{projectPath}'.");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.WriteLine($"Unexpected error executing 'dotnet nuget why': {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<HashSet<string>> GetProjectDependenciesAsync(string projectPath)
     {
         var packages = new HashSet<string>();
         
-        RestoreProject(projectPath);
+        await RestoreProjectAsync(projectPath);
         
         // Get NuGet package references
-        var listPackagesResult = ExecuteDotnetListPackages(projectPath);
+        var listPackagesResult = await ExecuteDotnetListPackagesAsync(projectPath);
         var packageReferences = ParsePackageList(listPackagesResult);
         packages.UnionWith(packageReferences);
 
         // Get project references
-        var listReferencesResult = ExecuteDotnetListReference(projectPath);
+        var listReferencesResult = await ExecuteDotnetListReferenceAsync(projectPath);
         var projectReferences = ParseProjectReferences(listReferencesResult);
         packages.UnionWith(projectReferences);
 
         return packages;
     }
 
-    private string ExecuteDotnetListPackages(string projectPath)
+    private async Task<string> ExecuteDotnetListPackagesAsync(string projectPath)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -48,17 +113,37 @@ public class DotnetDependencyResolver
         };
 
         using var process = Process.Start(startInfo) 
-            ?? throw new CommandException("Failed to start dotnet list package process");
+            ?? throw new CommandException("Failed to start 'dotnet list package' process.");
 
-        process.WaitForExit();
+        // Asynchronously read output and error
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
 
-        if (process.ExitCode != 0)
+        // Wait for exit with timeout
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
         {
-            var error = process.StandardError.ReadToEnd();
-            throw new CommandException($"dotnet list package failed with exit code {process.ExitCode}. Error: {error}");
-        }
+            process.WaitForExit(30000); // 30 seconds
 
-        return process.StandardOutput.ReadToEnd();
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                throw new TimeoutException($"'dotnet list package' command timed out for project '{projectPath}'.");
+            }
+
+            if (process.ExitCode != 0)
+            {
+                var error = await errorTask;
+                throw new CommandException($"'dotnet list package' failed with exit code {process.ExitCode}. Error: {error}");
+            }
+
+            return await outputTask;
+        }
+        catch (Exception ex) when (!(ex is CommandException))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new CommandException($"Error executing 'dotnet list package': {ex.Message}");
+        }
     }
 
     private HashSet<string> ParsePackageList(string jsonOutput)
@@ -99,7 +184,7 @@ public class DotnetDependencyResolver
         return packages;
     }
 
-    private string ExecuteDotnetListReference(string projectPath)
+    private async Task<string> ExecuteDotnetListReferenceAsync(string projectPath)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -112,17 +197,37 @@ public class DotnetDependencyResolver
         };
 
         using var process = Process.Start(startInfo) 
-            ?? throw new CommandException("Failed to start dotnet list reference process");
+            ?? throw new CommandException("Failed to start 'dotnet list reference' process.");
 
-        process.WaitForExit();
+        // Asynchronously read output and error
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
 
-        if (process.ExitCode != 0)
+        // Wait for exit with timeout
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
         {
-            var error = process.StandardError.ReadToEnd();
-            throw new CommandException($"dotnet list reference failed with exit code {process.ExitCode}. Error: {error}");
-        }
+            process.WaitForExit(30000); // 30 seconds
 
-        return process.StandardOutput.ReadToEnd();
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                throw new TimeoutException($"'dotnet list reference' command timed out for project '{projectPath}'.");
+            }
+
+            if (process.ExitCode != 0)
+            {
+                var error = await errorTask;
+                throw new CommandException($"'dotnet list reference' failed with exit code {process.ExitCode}. Error: {error}");
+            }
+
+            return await outputTask;
+        }
+        catch (Exception ex) when (!(ex is CommandException))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new CommandException($"Error executing 'dotnet list reference': {ex.Message}");
+        }
     }
 
     private HashSet<string> ParseProjectReferences(string output)
@@ -142,7 +247,7 @@ public class DotnetDependencyResolver
         return references;
     }
 
-    private void RestoreProject(string projectPath)
+    private async Task RestoreProjectAsync(string projectPath)
     {
         var friendlyProjectName = Path.GetFileNameWithoutExtension(projectPath);
         if(!ShouldRestoreProject(projectPath))
@@ -156,7 +261,7 @@ public class DotnetDependencyResolver
         var restoreStartInfo = new ProcessStartInfo
         {
             FileName = Tools["dotnet"],
-            Arguments = $"restore {projectPath}",
+            Arguments = $"restore \"{projectPath}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -164,21 +269,34 @@ public class DotnetDependencyResolver
         };
 
         using var restoreProcess = Process.Start(restoreStartInfo) 
-            ?? throw new CommandException("Failed to start dotnet restore process");
+            ?? throw new CommandException("Failed to start 'dotnet restore' process.");
 
+        // Asynchronously read output and error
         var outputTask = restoreProcess.StandardOutput.ReadToEndAsync();
         var errorTask = restoreProcess.StandardError.ReadToEndAsync();
 
-        if (!restoreProcess.WaitForExit(120 * 1000))
+        // Wait for exit with timeout
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120)); // 2-minute timeout
+        try
         {
-            restoreProcess.Kill();
-            throw new CommandException($"Restore operation timed out for {friendlyProjectName}");
-        }
+            restoreProcess.WaitForExit(120000); // 120 seconds
 
-        var error = errorTask.Result;
-        if (restoreProcess.ExitCode != 0)
+            if (!restoreProcess.HasExited)
+            {
+                restoreProcess.Kill(entireProcessTree: true);
+                throw new TimeoutException($"'dotnet restore' command timed out for project '{friendlyProjectName}'.");
+            }
+
+            if (restoreProcess.ExitCode != 0)
+            {
+                var error = await errorTask;
+                throw new CommandException($"'dotnet restore' failed with exit code {restoreProcess.ExitCode}. Error: {error}");
+            }
+        }
+        catch (Exception ex) when (!(ex is CommandException))
         {
-            throw new CommandException($"dotnet restore failed with exit code {restoreProcess.ExitCode}. Error: {error}");
+            restoreProcess.Kill(entireProcessTree: true);
+            throw new CommandException($"Error executing 'dotnet restore': {ex.Message}");
         }
     }
 
