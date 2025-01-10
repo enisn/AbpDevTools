@@ -236,7 +236,7 @@ public class PrepareCommand : ICommand
 
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
         await console.Output.WriteLineAsync("Bundling Blazor WASM projects...");
-        
+
         await AbpBundleCommand.ExecuteAsync(console);
 
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
