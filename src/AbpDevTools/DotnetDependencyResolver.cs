@@ -64,6 +64,13 @@ public class DotnetDependencyResolver
                 return false;
             }
 
+            // Return false if the output indicates no dependency
+            if (output.Contains("does not have a dependency on", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Only return true if there's actual dependency information
             return !string.IsNullOrWhiteSpace(output);
         }
         catch (OperationCanceledException)
