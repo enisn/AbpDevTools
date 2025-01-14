@@ -2,6 +2,7 @@
 using AbpDevTools.Commands.Migrations;
 using AbpDevTools.Notifications;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using YamlDotNet.Serialization;
@@ -11,19 +12,20 @@ namespace AbpDevTools;
 
 public class Program
 {
-    public static async Task<int> Main() =>
+    public static async Task<int> Main(string[] args) =>
         await new CliApplicationBuilder()
             .SetExecutableName("abpdev")
             .SetDescription("A set of tools to make development with ABP easier.")
             .SetTitle("Abp Dev Tools")
-            .BuildServices()
+            .BuildServices(args)
             .Build()
             .RunAsync();
 }
 
 public static class Startup
 {
-    public static CliApplicationBuilder BuildServices(this CliApplicationBuilder builder)
+    internal static string SentryDsn { get; set; } = "{{SENTRY_DSN}}";
+    public static CliApplicationBuilder BuildServices(this CliApplicationBuilder builder, string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
 
@@ -105,6 +107,26 @@ public static class Startup
         {
             services.AddTransient<INotificationManager, DefaultNotificationManager>();
         }
+
+        if (!string.IsNullOrEmpty(SentryDsn) && Uri.TryCreate(SentryDsn, UriKind.Absolute, out var sentryUri))
+        {
+            SentrySdk.Init(options =>
+            {
+                options.Dsn = SentryDsn;
+                options.DefaultTags["os"] = RuntimeInformation.OSDescription;
+                options.DefaultTags["runtime"] = RuntimeInformation.FrameworkDescription;
+                options.DefaultTags["version"] = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+                options.DefaultTags["command"] = args.FirstOrDefault() ?? string.Empty;
+
+                options.SetBeforeSend((@event, hint) =>
+                {
+                    @event.Contexts["args"] = args;
+                    return @event;
+                });
+            });
+        }
+
+        throw new Exception("Hello world!");
 
         var serviceProvider = services.BuildServiceProvider();
 

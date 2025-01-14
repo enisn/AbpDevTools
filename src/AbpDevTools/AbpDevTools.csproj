@@ -28,6 +28,7 @@
     <PackageReference Include="Unidecode.NET" Version="2.1.0" />
     <PackageReference Include="AutoRegisterInject" Version="1.2.1" />
     <PackageReference Include="YamlDotNet" Version="13.4.0" />
+    <PackageReference Include="Sentry" Version="5.0.1" />
   </ItemGroup>
 
   <ItemGroup>
