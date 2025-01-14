@@ -15,6 +15,12 @@ jobs:
         dotnet-version: 9.0.100
     - name: Restore
       run: dotnet restore
+    - name: Replace single file
+      uses: richardrigutins/replace-in-files@v2
+      with:
+        files: 'src/AbpDevTools/Program.cs'
+        search-text: '{{SENTRY_DSN}}'
+        replacement-text: '${{secrets.SENTRY_DSN}}'
     - name: Pack
       run: dotnet pack ./src/AbpDevTools/AbpDevTools.csproj -c Release --include-symbols --include-source -o ./nupkg
     - name: Push
