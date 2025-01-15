@@ -21,12 +21,12 @@ dotnet tool update -g AbpDevTools
 - Installation for a specific runtime other than the latest:
     
     ```bash
-    dotnet tool update -g AbpDevTools --framework net7.0
+    dotnet tool update -g AbpDevTools --framework net8.0
     # or
     dotnet tool update -g AbpDevTools --framework net6.0
     ```
 
-> This package is compiled for .NET 6.0, 7.0 and 8.0. So you can install it for a specific runtime. If you don't specify a runtime, it'll install the latest version.
+> This package is compiled for .NET 6.0, 7.0, 8.0 and 9.0. So you can install it for a specific runtime. If you don't specify a runtime, it'll install the latest version.
 
 ## Local Installation
 If you don't have access to the package source. You can install it from the source code by the following code:
