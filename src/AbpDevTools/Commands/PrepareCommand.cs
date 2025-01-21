@@ -144,19 +144,26 @@ public class PrepareCommand : ICommand
                 }
                 else
                 {
-                    var environmentName = environmentNames.First();
-                    var localConfig = new LocalConfiguration
+                    var environmentName = environmentNames.FirstOrDefault();
+                    if (!string.IsNullOrEmpty(environmentName))
                     {
-                        Environment = new LocalConfiguration.LocalEnvironmentOption
-                        {
-                            Name = environmentName,
-                        }
-                    };
+                        var localConfig = new LocalConfiguration
+                            {
+                            Environment = new LocalConfiguration.LocalEnvironmentOption
+                            {
+                                Name = environmentName,
+                            }
+                        };
 
-                    var filePath = LocalConfigurationManager.Save(WorkingDirectory, localConfig);
-                    AnsiConsole.WriteLine($"{Emoji.Known.Memo} Created local configuration for environment {environmentName}: {Path.GetRelativePath(WorkingDirectory, filePath)}");
+                        var filePath = LocalConfigurationManager.Save(WorkingDirectory, localConfig);
+                        AnsiConsole.WriteLine($"{Emoji.Known.Memo} Created local configuration for environment {environmentName}: {Path.GetRelativePath(WorkingDirectory, filePath)}");
+                        AnsiConsole.WriteLine($"{Emoji.Known.Memo} You can skip creating local configuration file with '--no-config' option.");
+                    }
+                    else
+                    {
+                        AnsiConsole.WriteLine($"{Emoji.Known.Information } No environment name found for the project. Skipping creating local configuration file (abpdev.yml).");
+                    }
                 }
-                AnsiConsole.WriteLine($"{Emoji.Known.Memo} You can skip creating local configuration file with '--no-config' option.");
             }
 
             EnvironmentAppStartCommand.AppNames = environmentApps.Select(x => x.AppName).ToArray();
