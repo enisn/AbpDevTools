@@ -201,6 +201,54 @@ abpdev env config
     ```
 
 
+
+
+## abpdev prepare
+Prepares the project for the first running on this machine. Automatically detects project dependencies, starts required environment apps (databases, message brokers), installs ABP libraries, and creates local configuration files. You can use the `abpdev.yml` configuration file to run the project with different environments without changing the `appsettings.json` files. You can modify the created `abpdev.yml` file to change or add new environment variables to run profile.
+
+```
+abpdev prepare <workingdirectory> [options]
+```
+
+```bash
+abpdev prepare -h
+
+PARAMETERS
+  workingdirectory  Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)
+
+OPTIONS
+  --no-config       Do not create local configuration file. (abpdev.yml) Default: "False".
+  -h|--help         Shows help text.
+```
+
+Convention: The command analyzes project dependencies to determine which environment apps are needed (SQL Server, MongoDB, Redis, etc.) and automatically configures the environment accordingly.
+
+![abpdev prepare](images/abpdevprepare.gif)
+
+### Example commands
+
+- Prepare project in current directory
+    ```bash
+    abpdev prepare
+    ```
+
+- Prepare project in a specific path
+    ```bash
+    abpdev prepare C:\Path\To\Projects
+    ```
+
+- Prepare without creating local configuration files
+    ```bash
+    abpdev prepare --no-config
+    ```
+
+This command performs the following operations:
+- **Dependency Analysis**: Scans projects for database and messaging dependencies
+- **Environment Apps**: Starts required Docker containers (SQL Server, MongoDB, Redis, etc.)
+- **Library Installation**: Runs `abp install-libs` to install client-side libraries
+- **Blazor Bundling**: Bundles Blazor WASM projects
+- **Configuration**: Creates `abpdev.yml` files with appropriate environment settings
+
 ## abpdev logs
 Finds given project under the current directory and shows logs of it.
 
