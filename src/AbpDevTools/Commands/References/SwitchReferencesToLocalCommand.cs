@@ -12,12 +12,25 @@ using Spectre.Console;
 namespace AbpDevTools.Commands.References;
 
 [Command("references to-local", Description = "Switch csproj project references to local source")]
-public class SwitchReferencesToLocalCommand(
-    LocalSourcesConfiguration localSourcesConfiguration,
-    FileExplorer fileExplorer,
-    CsprojManipulationService csprojService,
-    GitService gitService) : ICommand
+public class SwitchReferencesToLocalCommand : ICommand
 {
+    private readonly LocalSourcesConfiguration localSourcesConfiguration;
+    private readonly FileExplorer fileExplorer;
+    private readonly CsprojManipulationService csprojService;
+    private readonly GitService gitService;
+
+    public SwitchReferencesToLocalCommand(
+        LocalSourcesConfiguration localSourcesConfiguration,
+        FileExplorer fileExplorer,
+        CsprojManipulationService csprojService,
+        GitService gitService)
+    {
+        this.localSourcesConfiguration = localSourcesConfiguration ?? throw new ArgumentNullException(nameof(localSourcesConfiguration));
+        this.fileExplorer = fileExplorer ?? throw new ArgumentNullException(nameof(fileExplorer));
+        this.csprojService = csprojService ?? throw new ArgumentNullException(nameof(csprojService));
+        this.gitService = gitService ?? throw new ArgumentNullException(nameof(gitService));
+    }
+
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string? WorkingDirectory { get; set; }
 

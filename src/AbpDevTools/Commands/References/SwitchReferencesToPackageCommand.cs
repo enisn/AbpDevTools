@@ -19,12 +19,25 @@ public enum SourceAction
 }
 
 [Command("references to-package", Description = "Switch csproj local project references back to package references")]
-public class SwitchReferencesToPackageCommand(
-    LocalSourcesConfiguration localSourcesConfiguration,
-    FileExplorer fileExplorer,
-    CsprojManipulationService csprojService,
-    GitService gitService) : ICommand
+public class SwitchReferencesToPackageCommand : ICommand
 {
+    private readonly LocalSourcesConfiguration localSourcesConfiguration;
+    private readonly FileExplorer fileExplorer;
+    private readonly CsprojManipulationService csprojService;
+    private readonly GitService gitService;
+
+    public SwitchReferencesToPackageCommand(
+        LocalSourcesConfiguration localSourcesConfiguration,
+        FileExplorer fileExplorer,
+        CsprojManipulationService csprojService,
+        GitService gitService)
+    {
+        this.localSourcesConfiguration = localSourcesConfiguration;
+        this.fileExplorer = fileExplorer;
+        this.csprojService = csprojService;
+        this.gitService = gitService;
+    }
+    
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string? WorkingDirectory { get; set; }
 
