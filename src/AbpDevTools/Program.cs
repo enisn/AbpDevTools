@@ -1,5 +1,6 @@
 ﻿using AbpDevTools.Commands;
 using AbpDevTools.Commands.Migrations;
+using AbpDevTools.Commands.References;
 using AbpDevTools.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
@@ -45,6 +46,7 @@ public static class Startup
             typeof(ToolsConfigurationCommand),
             typeof(ToolsCommand),
             typeof(ConfigCommand),
+            typeof(LocalSourcesConfigurationCommand),
             typeof(DisableNotificationsCommand),
             typeof(EnableNotificationsCommand),
             typeof(EnvironmentAppCommand),
@@ -69,6 +71,9 @@ public static class Startup
             typeof(AddMigrationCommand),
             typeof(ClearMigrationsCommand),
             typeof(PrepareCommand),
+            typeof(SwitchReferencesToLocalCommand),
+            typeof(SwitchReferencesToPackageCommand),
+            typeof(LocalSourcesCommand),
         };
 
         foreach (var commandType in commands)
