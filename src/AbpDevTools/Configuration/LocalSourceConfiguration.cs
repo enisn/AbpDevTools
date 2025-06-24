@@ -20,11 +20,13 @@ public class LocalSourcesConfiguration : ConfigurationBase<LocalSourceMapping>
         return new LocalSourceMapping(){
             { "abp", new LocalSourceMappingItem
                 {
+                    // TODO: Add cloning logic if not exists
                     RemotePath = "https://github.com/abpframework/abp.git",
+                    // TODO: Add branch property, switch to branch if exists
                     Path = "C:\\github\\abp",
                     Packages = new HashSet<string>
                     {
-                        "Volo.Abp.*"
+                        "Volo.*"
                     }
                 }
             }
