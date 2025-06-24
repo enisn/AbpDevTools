@@ -20,9 +20,8 @@ public class LocalSourcesConfiguration : ConfigurationBase<LocalSourceMapping>
         return new LocalSourceMapping(){
             { "abp", new LocalSourceMappingItem
                 {
-                    // TODO: Add cloning logic if not exists
                     RemotePath = "https://github.com/abpframework/abp.git",
-                    // TODO: Add branch property, switch to branch if exists
+                    Branch = "dev",
                     Path = "C:\\github\\abp",
                     Packages = new HashSet<string>
                     {
@@ -42,5 +41,6 @@ public class LocalSourceMappingItem
 {
     public string Path { get; set; } = string.Empty;
     public string? RemotePath { get; set; }
+    public string? Branch { get; set; }
     public HashSet<string> Packages { get; set; } = new();
 }
