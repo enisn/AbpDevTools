@@ -118,3 +118,17 @@ public class ToolsConfigurationCommand : ConfigurationBaseCommand<ToolsConfigura
         return base.ExecuteAsync(console);
     }
 }
+
+[Command("local-sources config", Description = "Allows managing local sources configuration.")]
+public class LocalSourcesConfigurationCommand : ConfigurationBaseCommand<LocalSourcesConfiguration>
+{
+    public LocalSourcesConfigurationCommand(LocalSourcesConfiguration configuration) : base(configuration)
+    {
+    }
+
+    public override ValueTask ExecuteAsync(IConsole console)
+    {
+        Configuration.GetOptions();
+        return base.ExecuteAsync(console);
+    }
+}
