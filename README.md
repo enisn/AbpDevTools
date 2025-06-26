@@ -364,7 +364,7 @@ other-lib:
 ```
 
 **Configuration Properties:**
-- **RemotePath**: The remote repository URL (optional, _for cloning if not exists in the future versions_)
+- **RemotePath**: The remote repository URL _(optional)_, for cloning if not exists)
 - **Path**: Local path where the source code is located. It'll be used to find the project files. Descendants of this path will be scanned for project files.
 - **Packages**: List of package patterns to match (supports wildcards with `*`)
 
