@@ -368,7 +368,7 @@ other-lib:
 - **Path**: Local path where the source code is located. It'll be used to find the project files. Descendants of this path will be scanned for project files.
 - **Packages**: List of package patterns to match (supports wildcards with `*`)
 
-> **Important**: The order of sources in the configuration file matters. When switching references, the first matching source will be used.
+> **Important**: The order of sources in the configuration file matters. When switching references, the first matching source will be used for a package. It only matters if the same package exists in different sources. Otherwise, don't worry about it.
 
 ## Reference Management
 Manage project and package references efficiently with local source switching capabilities.
