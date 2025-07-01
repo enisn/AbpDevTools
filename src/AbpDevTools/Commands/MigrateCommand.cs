@@ -22,6 +22,12 @@ public class MigrateCommand : ICommand
     [CommandOption("env", 'e', Description = "Uses the virtual environment for this process. Use 'abpdev env config' command to see/manage environments.")]
     public string? EnvironmentName { get; set; }
 
+    [CommandOption("all", 'a', Description = "Projects to run will not be asked as prompt. All of them will run.")]
+    public bool RunAll { get; set; }
+
+    [CommandOption("projects", 'p', Description = "(Array) Names or part of names of projects will be ran.")]
+    public string[] Projects { get; set; } = Array.Empty<string>();
+
     protected readonly List<RunningProjectItem> runningProjects = new();
 
     protected IConsole? console;
@@ -113,41 +119,55 @@ public class MigrateCommand : ICommand
 
     protected async Task RunParameterMigrationFallbackAsync()
     {
-        if (!AnsiConsole.Confirm("Do you want to run any of projects in this folder with '--migrate-database' parameter?"))
-        {
-            return;
-        }
-
         FileInfo[] csprojs = await AnsiConsole.Status()
-            .StartAsync("Looking for projects", async ctx =>
+            .StartAsync("Looking for projects that support '--migrate-database' parameter...", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
 
                 await Task.Yield();
 
-                return runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
+                return runnableProjectsProvider.GetRunnableProjectsWithMigrateDatabaseParameter(WorkingDirectory!);
             });
 
         if (csprojs.Length <= 0)
         {
-            await console.Output.WriteLineAsync("No project found to run.");
+            await console!.Output.WriteLineAsync("No project found to migrate database.");
             return;
         }
 
-        if(csprojs.Length == 1)
+        
+        if (!AnsiConsole.Confirm("Do you want to run any of projects in this folder with '--migrate-database' parameter?"))
         {
-            await console.Output.WriteLineAsync("Only one project found. Running it with '--migrate-database' parameter.");
-            await RunProjectWithMigrateDatabaseAsync(csprojs[0]);
+            return;
         }
-        else{
 
-            var selectedProject = AnsiConsole.Prompt(
-                new SelectionPrompt<FileInfo>()
-                    .Title("Select a project to run with '--migrate-database' parameter")
-                    .PageSize(10)
-                    .AddChoices(csprojs)
-            );
+        var projectFiles = csprojs;
 
+        if (!RunAll && projectFiles.Length > 1)
+        {
+            if (Projects.Length == 0)
+            {
+                var selectedProjects = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<FileInfo>()
+                        .Title("Select project(s) to run with '--migrate-database' parameter")
+                        .Required(true)
+                        .PageSize(10)
+                        .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
+                        .InstructionsText("[grey](Press [blue]<space>[/] to toggle a project, [green]<enter>[/] to accept)[/]")
+                        .UseConverter(file => Path.GetRelativePath(WorkingDirectory!, file.FullName))
+                        .AddChoices(csprojs)
+                );
+
+                projectFiles = selectedProjects.ToArray();
+            }
+            else
+            {
+                projectFiles = projectFiles.Where(x => Projects.Any(y => x.FullName.Contains(y, StringComparison.InvariantCultureIgnoreCase))).ToArray();
+            }
+        }
+
+        foreach (var selectedProject in projectFiles)
+        {
             await RunProjectWithMigrateDatabaseAsync(selectedProject);
         }
 
