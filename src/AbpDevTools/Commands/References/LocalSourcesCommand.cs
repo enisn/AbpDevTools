@@ -7,16 +7,18 @@ using CliFx.Infrastructure;
 
 namespace AbpDevTools.Commands.References;
 
-[Command("local-sources config", Description = "Allows managing local sources configuration.")]
+[Command("local-sources", Description = "Allows managing local sources configuration.")]
 public class LocalSourcesCommand : ConfigurationBaseCommand<LocalSourcesConfiguration>
 {
     public LocalSourcesCommand(LocalSourcesConfiguration configuration) : base(configuration)
     {
     }
 
-    public override ValueTask ExecuteAsync(IConsole console)
+    public override async ValueTask ExecuteAsync(IConsole console)
     {
+        await console.Output.WriteLineAsync("Local sources are used to add local packages to the project as ProjectReference.");
+        await console.Output.WriteLineAsync("Configure local sources with this file: " + Configuration.FilePath);
         Configuration.GetOptions();
-        return base.ExecuteAsync(console);
+        await base.ExecuteAsync(console);
     }
 }
