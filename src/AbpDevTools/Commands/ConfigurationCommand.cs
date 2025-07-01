@@ -17,6 +17,7 @@ public class ConfigCommand : ICommand
         await console.Output.WriteLineAsync("-abpdev run config");
         await console.Output.WriteLineAsync("-abpdev clean config");
         await console.Output.WriteLineAsync("-abpdev tools config");
+        await console.Output.WriteLineAsync("-abpdev local-sources config");
         await console.Output.WriteLineAsync("-abpdev config clear  | Resets all the configurations to defaults.");
     }
 }

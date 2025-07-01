@@ -121,6 +121,8 @@ public partial class RunCommand : ICommand
             migrateCommand.WorkingDirectory = this.WorkingDirectory;
             migrateCommand.NoBuild = this.NoBuild;
             migrateCommand.EnvironmentName = this.EnvironmentName;
+            migrateCommand.RunAll = this.RunAll;
+            migrateCommand.Projects = this.Projects;
 
             await migrateCommand.ExecuteAsync(console);
         }
