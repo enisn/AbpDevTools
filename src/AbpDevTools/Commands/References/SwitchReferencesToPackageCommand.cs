@@ -11,11 +11,19 @@ using Spectre.Console;
 
 namespace AbpDevTools.Commands.References;
 
+public enum SourceAction
+{
+    Skip,
+    OpenConfiguration,
+    CloneRepository
+}
+
 [Command("references to-package", Description = "Switch csproj local project references back to package references")]
 public class SwitchReferencesToPackageCommand(
     LocalSourcesConfiguration localSourcesConfiguration,
     FileExplorer fileExplorer,
-    CsprojManipulationService csprojService) : ICommand
+    CsprojManipulationService csprojService,
+    GitService gitService) : ICommand
 {
     [CommandParameter(0, IsRequired = false, Description = "Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)")]
     public string? WorkingDirectory { get; set; }
@@ -59,7 +67,7 @@ public class SwitchReferencesToPackageCommand(
         console.Output.WriteLine($"Processing {projects.Count} project(s) with {sourcesToProcess.Count} source(s)...");
 
         // Build project lookup cache for all sources
-        var projectLookupCache = BuildProjectLookupCache(sourcesToProcess, console);
+        var projectLookupCache = await BuildProjectLookupCacheAsync(sourcesToProcess, console, cancellationToken);
 
         // Cache for prompted versions to avoid asking multiple times for the same source
         var promptedVersions = new Dictionary<string, string>();
@@ -72,10 +80,10 @@ public class SwitchReferencesToPackageCommand(
         console.Output.WriteLine("Completed switching references to package sources.");
     }
 
-    private Dictionary<string, Dictionary<string, string>> BuildProjectLookupCache(
-        List<KeyValuePair<string, LocalSourceMappingItem>> sources, IConsole console)
+    private async Task<Dictionary<string, Dictionary<string, string>>> BuildProjectLookupCacheAsync(
+        List<KeyValuePair<string, LocalSourceMappingItem>> sources, IConsole console, CancellationToken cancellationToken)
     {
-        var cache = csprojService.BuildProjectLookupCache(sources);
+        var cache = new Dictionary<string, Dictionary<string, string>>();
 
         foreach (var source in sources)
         {
@@ -84,13 +92,94 @@ public class SwitchReferencesToPackageCommand(
             
             console.Output.WriteLine($"Scanning source '{sourceKey}' at: {sourceConfig.Path}");
             
-            if (!Directory.Exists(sourceConfig.Path))
+            if (!Directory.Exists(sourceConfig.Path) || gitService.IsDirectoryEmpty(sourceConfig.Path))
             {
-                console.Output.WriteLine($"  Warning: Source path does not exist: {sourceConfig.Path}");
-                continue;
+                if (!Directory.Exists(sourceConfig.Path))
+                {
+                    console.Output.WriteLine($"  Warning: Source path does not exist: {sourceConfig.Path}");
+                }
+                else
+                {
+                    console.Output.WriteLine($"  Warning: Source path is empty: {sourceConfig.Path}");
+                }
+
+                // Prompt user for action when source is empty/missing
+                var action = PromptForSourceActionAsync(sourceKey, sourceConfig, console);
+                
+                switch (action)
+                {
+                    case SourceAction.Skip:
+                        console.Output.WriteLine($"  Skipping source '{sourceKey}' and continuing with next source...");
+                        cache[sourceKey] = new Dictionary<string, string>();
+                        continue;
+                        
+                    case SourceAction.OpenConfiguration:
+                        console.Output.WriteLine($"Opening local sources configuration...");
+                        var localSourcesCommand = new LocalSourcesCommand(localSourcesConfiguration);
+                        await localSourcesCommand.ExecuteAsync(console);
+                        return cache; // Exit the entire command
+                        
+                    case SourceAction.CloneRepository:
+                        // Check if we can clone from remote
+                        if (string.IsNullOrEmpty(sourceConfig.RemotePath))
+                        {
+                            AnsiConsole.MarkupLine($"[red]Error for source '{sourceKey}': No remote URL configured for cloning.[/]");
+                            console.Output.WriteLine($"  Skipping source '{sourceKey}' and continuing with next source...");
+                            cache[sourceKey] = new Dictionary<string, string>();
+                            continue;
+                        }
+
+                        if (!gitService.IsGitInstalled())
+                        {
+                            AnsiConsole.MarkupLine($"[red]Error for source '{sourceKey}': Git is not installed or not available in PATH.[/]");
+                            console.Output.WriteLine($"  Skipping source '{sourceKey}' and continuing with next source...");
+                            cache[sourceKey] = new Dictionary<string, string>();
+                            continue;
+                        }
+
+                        try
+                        {
+                            var branchInfo = !string.IsNullOrEmpty(sourceConfig.Branch) ? $" (branch: {sourceConfig.Branch})" : "";
+                            var cloneSuccess = await gitService.CloneRepositoryAsync(sourceConfig.RemotePath, sourceConfig.Path, sourceConfig.Branch, cancellationToken);
+                            
+                            if (!cloneSuccess)
+                            {
+                                AnsiConsole.MarkupLine($"[red]Error for source '{sourceKey}': Failed to clone repository from {sourceConfig.RemotePath}[/]");
+                                console.Output.WriteLine($"  Skipping source '{sourceKey}' and continuing with next source...");
+                                cache[sourceKey] = new Dictionary<string, string>();
+                                continue;
+                            }
+                            
+                            AnsiConsole.MarkupLine($"[green]Successfully cloned source '{sourceKey}' from {sourceConfig.RemotePath}{branchInfo}[/]");
+                        }
+                        catch (Exception ex)
+                        {
+                            AnsiConsole.MarkupLine($"[red]Error cloning source '{sourceKey}': {ex.Message}[/]");
+                            console.Output.WriteLine($"  Skipping source '{sourceKey}' and continuing with next source...");
+                            cache[sourceKey] = new Dictionary<string, string>();
+                            continue;
+                        }
+                        break;
+                        
+                    default:
+                        console.Output.WriteLine($"  Skipping source '{sourceKey}' and continuing with next source...");
+                        cache[sourceKey] = new Dictionary<string, string>();
+                        continue;
+                }
             }
 
-            var projectCount = cache.ContainsKey(sourceKey) ? cache[sourceKey].Count : 0;
+            // Build the cache using the service
+            var sourceCacheResult = csprojService.BuildProjectLookupCache(new List<KeyValuePair<string, LocalSourceMappingItem>> { source });
+            if (sourceCacheResult.TryGetValue(sourceKey, out var sourceProjects))
+            {
+                cache[sourceKey] = sourceProjects;
+            }
+            else
+            {
+                cache[sourceKey] = new Dictionary<string, string>();
+            }
+
+            var projectCount = cache[sourceKey].Count;
             console.Output.WriteLine($"  Found {projectCount} project(s) in source '{sourceKey}'");
         }
 
@@ -231,5 +320,38 @@ public class SwitchReferencesToPackageCommand(
         }
 
         return version;
+    }
+
+    private SourceAction PromptForSourceActionAsync(string sourceKey, LocalSourceMappingItem sourceConfig, IConsole console)
+    {
+        var hasRemoteUrl = !string.IsNullOrEmpty(sourceConfig.RemotePath);
+        var branchInfo = !string.IsNullOrEmpty(sourceConfig.Branch) ? $" (branch: {sourceConfig.Branch})" : "";
+        
+        AnsiConsole.MarkupLine($"[yellow]Source '{sourceKey}' is empty or doesn't exist at:[/] {sourceConfig.Path}");
+        
+        var choices = new List<string>
+        {
+            "Skip this source",
+            "Open configuration to edit settings"
+        };
+
+        if (hasRemoteUrl)
+        {
+            choices.Add($"Clone from remote repository: {sourceConfig.RemotePath}{branchInfo}");
+        }
+
+        var choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title($"[bold]What would you like to do with source '[yellow]{sourceKey}[/]'?[/]")
+                .AddChoices(choices)
+        );
+
+        return choice switch
+        {
+            "Skip this source" => SourceAction.Skip,
+            "Open configuration to edit settings" => SourceAction.OpenConfiguration,
+            var c when c.StartsWith("Clone from remote repository") => SourceAction.CloneRepository,
+            _ => SourceAction.Skip
+        };
     }
 } 
