@@ -340,6 +340,119 @@ COMMANDS
     abpdev replace all
     ```
 
+## Local Source Management
+You can configure and manage local source mappings to easily switch between package references and local project references during development. This is especially useful when working with local forks or development versions of external packages.
+
+### Configure Local Sources
+```bash
+abpdev local-sources config
+```
+
+This command opens a YAML configuration file where you can define your local source mappings:
+
+```yaml
+abp:
+  RemotePath: https://github.com/abpframework/abp.git
+  Path: C:\github\abp
+  Packages:
+    - Volo.Abp.*
+    - Volo.Abp.Core
+other-lib:
+  Path: C:\source\other-lib
+  Packages:
+    - MyOrg.OtherLib.*
+```
+
+**Configuration Properties:**
+- **RemotePath**: The remote repository URL _(optional)_, for cloning if not exists)
+- **Path**: Local path where the source code is located. It'll be used to find the project files. Descendants of this path will be scanned for project files.
+- **Packages**: List of package patterns to match (supports wildcards with `*`)
+
+> **Important**: The order of sources in the configuration file matters. When switching references, the first matching source will be used for a package. It only matters if the same package exists in different sources. Otherwise, don't worry about it.
+
+## Reference Management
+Manage project and package references efficiently with local source switching capabilities.
+
+### Switch to Local References
+Converts package references to local project references for development:
+
+```bash
+abpdev references to-local [workingdirectory] [options]
+```
+
+```bash
+abpdev references to-local -h
+
+PARAMETERS
+  workingdirectory  Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)
+
+OPTIONS
+  -s|--sources      (Array) Sources to switch to local. Default: all sources.
+  -h|--help         Shows help text.
+```
+
+This command:
+- Finds all `.csproj` files in the working directory
+- Matches package references against configured local source patterns
+- Converts matching packages to project references with relative paths
+- Backs up original package versions in PropertyGroup for later restoration
+
+### Switch to Package References
+Converts local project references back to package references:
+
+```bash
+abpdev references to-package [workingdirectory] [options]
+```
+
+```bash
+abpdev references to-package -h
+
+PARAMETERS
+  workingdirectory  Working directory to run build. Probably project or solution directory path goes here. Default: . (Current Directory)
+
+OPTIONS
+  -s|--sources      (Array) Sources to switch to package. Default: all sources.
+  -h|--help         Shows help text.
+```
+
+This command:
+- Finds all `.csproj` files in the working directory
+- Identifies project references pointing to configured local sources
+- Converts them back to package references using backed-up versions
+- Prompts for version input if no backed-up version exists
+
+### Example commands
+
+- Configure local sources
+    ```bash
+    abpdev local-sources config
+    ```
+
+- Switch all package references to local development versions
+    ```bash
+    abpdev references to-local
+    ```
+
+- Switch specific sources to local
+    ```bash
+    abpdev references to-local --sources abp
+    ```
+
+- Switch back to package references
+    ```bash
+    abpdev references to-package
+    ```
+
+- Switch specific sources back to packages
+    ```bash
+    abpdev references to-package --sources abp,other-lib
+    ```
+
+- Work in specific directory
+    ```bash
+    abpdev references to-local C:\Path\To\Projects --sources abp
+    ```
+
 ## Enable Notifications
 You can enable notifications to get notified when a build or run process is completed. You can enable it by using `abpdev enable-notifications` command and disable it by using `abpdev disable-notifications` command.
 
