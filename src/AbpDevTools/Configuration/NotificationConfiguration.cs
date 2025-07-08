@@ -15,10 +15,7 @@ public class NotificationConfiguration : ConfigurationBase<NotificationOption>
 
     public void SetOptions(NotificationOption options)
     {
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(options, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        }));
+        SaveOptions(options);
     }
 
     protected override NotificationOption GetDefaults() => new();
