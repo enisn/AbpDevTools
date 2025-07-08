@@ -267,7 +267,10 @@ public class AbpStudioSwitchCommand : ICommand
             var arch = RuntimeInformation.OSArchitecture;
             return arch == Architecture.Arm64
                 || arch == Architecture.Arm
-                || arch == Architecture.Armv6;
+#if NET7_0_OR_GREATER
+                || arch == Architecture.Armv6
+#endif
+                ;
         }
     }
 } 
