@@ -32,6 +32,7 @@ public static class Startup
 
         var commands = new Type[] // Keep this instead reflection for performance
         {
+            typeof(AbpStudioSwitchCommand),
             typeof(BuildCommand),
             typeof(ConfigurationClearCommand),
             typeof(ReplacementConfigClearCommand),
