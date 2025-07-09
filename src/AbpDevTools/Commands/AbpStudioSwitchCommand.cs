@@ -40,6 +40,11 @@ public class AbpStudioSwitchCommand : ICommand
         var installDir = GetInstallDir();
         var packagesDir = GetPackagesDir();
 
+        if (!Directory.Exists(installDir))
+        {
+            Directory.CreateDirectory(installDir);
+        }
+
         AnsiConsole.MarkupLine("----------------------------------------");
         AnsiConsole.MarkupLine($"[blue]Switching to ABP Studio version {Version} on channel {Channel}...[/]");
         AnsiConsole.MarkupLine("----------------------------------------");
@@ -198,7 +203,19 @@ public class AbpStudioSwitchCommand : ICommand
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return "/Applications/ABP Studio.app";
+            var globalPath = "/Applications/ABP Studio.app";
+
+            if (Directory.Exists(globalPath))
+            {
+                return globalPath;
+            }
+
+            var userProfilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "ABP Studio.app");
+            if (Directory.Exists(userProfilePath))
+            {
+                return userProfilePath;
+            }
+            throw new DirectoryNotFoundException($"ABP Studio installation not found in {globalPath} or {userProfilePath}.");
         }
 
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "abp-studio");
@@ -213,7 +230,7 @@ public class AbpStudioSwitchCommand : ICommand
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "abp-studio", "packages");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "abp-studio", "packages");
         }
 
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "abp-studio", "packages");
@@ -225,7 +242,7 @@ public class AbpStudioSwitchCommand : ICommand
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return Path.Combine(installDir, "Contents", "MacOS", "Update");
+            return Path.Combine(installDir, "Contents", "MacOS", "UpdateMac");
         }
 
         return Path.Combine(installDir, "Update.exe");
