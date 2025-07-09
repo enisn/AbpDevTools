@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <Version>1.11.0</Version>
+    <Version>1.11.1</Version>
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageIcon>logo_128.png</PackageIcon>
