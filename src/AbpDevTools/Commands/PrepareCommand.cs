@@ -17,6 +17,9 @@ public class PrepareCommand : ICommand
     [CommandOption("no-config", Description = "Do not create local configuration file. (abpdev.yml)")]
     public bool NoConfiguration {get; set;} = false;
 
+    [CommandOption("no-bundle", Description = "Skip bundling Blazor WASM projects.")]
+    public bool NoBundle {get; set;} = false;
+
     protected IConsole? console;
     protected ToolsConfiguration ToolsConfiguration { get; }
     protected DotnetDependencyResolver DependencyResolver { get; }
@@ -242,9 +245,16 @@ public class PrepareCommand : ICommand
         });
 
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
-        await console.Output.WriteLineAsync("Bundling Blazor WASM projects...");
+        if (!NoBundle)
+        {
+            await console.Output.WriteLineAsync("Bundling Blazor WASM projects...");
 
-        await AbpBundleCommand.ExecuteAsync(console);
+            await AbpBundleCommand.ExecuteAsync(console);
+        }
+        else
+        {
+            await console.Output.WriteLineAsync("Skipping bundling Blazor WASM projects.");
+        }
 
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
         await console.Output.WriteLineAsync($"{Emoji.Known.CheckBoxWithCheck} All done!");
