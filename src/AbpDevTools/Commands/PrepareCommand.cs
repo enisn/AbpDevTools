@@ -17,6 +17,15 @@ public class PrepareCommand : ICommand
     [CommandOption("no-config", Description = "Do not create local configuration file. (abpdev.yml)")]
     public bool NoConfiguration {get; set;} = false;
 
+    [CommandOption("no-bundle", Description = "Do not bundle Blazor WASM projects.")]
+    public bool NoBundle { get; set; } = false;
+
+    [CommandOption("no-install-libs", Description = "Do not run 'abp install-libs'.")]
+    public bool NoInstallLibs { get; set; } = false;
+
+    [CommandOption("no-env-apps", Description = "Do not start environment apps (containers).")]
+    public bool NoEnvApps { get; set; } = false;
+
     protected IConsole? console;
     protected ToolsConfiguration ToolsConfiguration { get; }
     protected DotnetDependencyResolver DependencyResolver { get; }
@@ -91,7 +100,7 @@ public class PrepareCommand : ICommand
         {
             await console.Output.WriteLineAsync($"{Emoji.Known.Information} No environment apps required.");
         }
-        else
+        else if (!NoEnvApps)
         {
             var environmentApps = environmentAppsPerProject.Values.SelectMany(x => x).Distinct().ToArray();
             if (!NoConfiguration)
@@ -179,72 +188,90 @@ public class PrepareCommand : ICommand
 
             await console.Output.WriteLineAsync("Environment apps started successfully!");
         }
-
-        await console.Output.WriteLineAsync("-----------------------------------------------------------");
-
-        await AnsiConsole.Status().StartAsync("Installing libraries... (abp install-libs)", async ctx =>
+        else if (environmentAppsPerProject.Count(x => x.Value.Count > 0) > 0 && NoEnvApps)
         {
-            var process = new ProcessStartInfo
-            {
-                FileName = Tools["abp"],
-                Arguments = "install-libs",
-                WorkingDirectory = WorkingDirectory,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var installLibsProcess = new Process { StartInfo = process };
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromMinutes(5));
-
-            try
-            {
-                installLibsProcess.Start();
-
-                var outputTask = installLibsProcess.StandardOutput.ReadToEndAsync();
-                var errorTask = installLibsProcess.StandardError.ReadToEndAsync();
-
-                // Wait for the process to exit or for the cancellation token to be triggered
-                var waitTask = installLibsProcess.WaitForExitAsync(cts.Token);
-
-                if (await Task.WhenAny(waitTask, Task.Delay(Timeout.Infinite, cts.Token)) != waitTask)
-                {
-                    installLibsProcess.Kill(entireProcessTree: true);
-                    throw new TimeoutException("'abp install-libs' command timed out.");
-                }
-
-                var exitCode = installLibsProcess.ExitCode;
-                var output = await outputTask;
-                var error = await errorTask;
-
-                if (exitCode != 0)
-                {
-                    AnsiConsole.WriteLine($"Error executing 'abp install-libs': {error}");
-                    throw new CommandException($"'abp install-libs' failed with exit code: {exitCode}");
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                if (!installLibsProcess.HasExited)
-                {
-                    installLibsProcess.Kill(entireProcessTree: true);
-                }
-                AnsiConsole.WriteLine("'abp install-libs' command was cancelled.");
-                throw new CommandException("'abp install-libs' operation was cancelled.");
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.WriteLine($"Unexpected error executing 'abp install-libs': {ex.Message}");
-                throw;
-            }
-        });
+            await console.Output.WriteLineAsync($"{Emoji.Known.Information} Skipping environment app startup due to --no-env-apps option.");
+        }
 
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
-        await console.Output.WriteLineAsync("Bundling Blazor WASM projects...");
 
-        await AbpBundleCommand.ExecuteAsync(console);
+        if (!NoInstallLibs)
+        {
+            await AnsiConsole.Status().StartAsync("Installing libraries... (abp install-libs)", async ctx =>
+            {
+                var process = new ProcessStartInfo
+                {
+                    FileName = Tools["abp"],
+                    Arguments = "install-libs",
+                    WorkingDirectory = WorkingDirectory,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var installLibsProcess = new Process { StartInfo = process };
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromMinutes(5));
+
+                try
+                {
+                    installLibsProcess.Start();
+
+                    var outputTask = installLibsProcess.StandardOutput.ReadToEndAsync();
+                    var errorTask = installLibsProcess.StandardError.ReadToEndAsync();
+
+                    // Wait for the process to exit or for the cancellation token to be triggered
+                    var waitTask = installLibsProcess.WaitForExitAsync(cts.Token);
+
+                    if (await Task.WhenAny(waitTask, Task.Delay(Timeout.Infinite, cts.Token)) != waitTask)
+                    {
+                        installLibsProcess.Kill(entireProcessTree: true);
+                        throw new TimeoutException("'abp install-libs' command timed out.");
+                    }
+
+                    var exitCode = installLibsProcess.ExitCode;
+                    var output = await outputTask;
+                    var error = await errorTask;
+
+                    if (exitCode != 0)
+                    {
+                        AnsiConsole.WriteLine($"Error executing 'abp install-libs': {error}");
+                        throw new CommandException($"'abp install-libs' failed with exit code: {exitCode}");
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    if (!installLibsProcess.HasExited)
+                    {
+                        installLibsProcess.Kill(entireProcessTree: true);
+                    }
+                    AnsiConsole.WriteLine("'abp install-libs' command was cancelled.");
+                    throw new CommandException("'abp install-libs' operation was cancelled.");
+                }
+                catch (Exception ex)
+                {
+                    AnsiConsole.WriteLine($"Unexpected error executing 'abp install-libs': {ex.Message}");
+                    throw;
+                }
+            });
+        }
+        else
+        {
+            await console.Output.WriteLineAsync($"{Emoji.Known.Information} Skipping 'abp install-libs' due to --no-install-libs option.");
+        }
+
+        if (!NoBundle)
+        {
+            await console.Output.WriteLineAsync("-----------------------------------------------------------");
+            await console.Output.WriteLineAsync("Bundling Blazor WASM projects...");
+
+            await AbpBundleCommand.ExecuteAsync(console);
+        }
+        else
+        {
+            await console.Output.WriteLineAsync($"{Emoji.Known.Information} Skipping bundle step due to --no-bundle option.");
+        }
 
         await console.Output.WriteLineAsync("-----------------------------------------------------------");
         await console.Output.WriteLineAsync($"{Emoji.Known.CheckBoxWithCheck} All done!");
