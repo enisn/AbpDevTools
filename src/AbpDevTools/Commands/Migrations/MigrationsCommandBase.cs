@@ -33,7 +33,7 @@ public abstract class MigrationsCommandBase : ICommand
 
     protected async Task<FileInfo[]> ChooseProjectsAsync()
     {
-        var projectFiles = GetEfCoreProjects();
+        var projectFiles = await GetEfCoreProjectsAsync();
 
         if (projectFiles.Length == 0)
         {
@@ -66,8 +66,8 @@ public abstract class MigrationsCommandBase : ICommand
         return projectFiles;
     }
 
-    FileInfo[] GetEfCoreProjects()
+    async Task<FileInfo[]> GetEfCoreProjectsAsync()
     {
-        return entityFrameworkCoreProjectsProvider.GetEfCoreProjects(WorkingDirectory!);
+        return await entityFrameworkCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!);
     }
 }

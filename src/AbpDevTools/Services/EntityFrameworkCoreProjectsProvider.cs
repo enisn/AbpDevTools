@@ -3,12 +3,40 @@
 [RegisterSingleton]
 public class EntityFrameworkCoreProjectsProvider
 {
-    public FileInfo[] GetEfCoreProjects(string path)
+    private readonly DotnetDependencyResolver _dependencyResolver;
+
+    public EntityFrameworkCoreProjectsProvider(DotnetDependencyResolver dependencyResolver)
     {
-        return Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories)
-            .Where(DoesHaveEfCoreReference)
-            .Select(x => new FileInfo(x))
-            .ToArray();
+        _dependencyResolver = dependencyResolver;
+    }
+
+    public async Task<FileInfo[]> GetEfCoreProjectsAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var projects = Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories);
+        var efCoreProjects = new List<FileInfo>();
+
+        foreach (var projectPath in projects)
+        {
+            if (await DoesHaveEfCoreReferenceAsync(projectPath, cancellationToken))
+            {
+                efCoreProjects.Add(new FileInfo(projectPath));
+            }
+        }
+
+        return efCoreProjects.ToArray();
+    }
+
+    private async Task<bool> DoesHaveEfCoreReferenceAsync(string projectPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _dependencyResolver.CheckSingleDependencyAsync(projectPath, "Microsoft.EntityFrameworkCore", cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Fallback to text-based search if dependency resolution fails
+            return DoesHaveEfCoreReference(projectPath);
+        }
     }
 
     private static bool DoesHaveEfCoreReference(string projectPath)

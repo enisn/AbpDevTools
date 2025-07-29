@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AbpDevTools.Configuration;
 using AbpDevTools.Notifications;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 
@@ -17,11 +18,16 @@ public class DatabaseDropCommand : ICommand
     
     protected readonly INotificationManager notificationManager;
     protected readonly ToolsConfiguration toolsConfiguration;
+    protected readonly EntityFrameworkCoreProjectsProvider efCoreProjectsProvider;
 
-    public DatabaseDropCommand(INotificationManager notificationManager, ToolsConfiguration toolsConfiguration)
+    public DatabaseDropCommand(
+        INotificationManager notificationManager, 
+        ToolsConfiguration toolsConfiguration,
+        EntityFrameworkCoreProjectsProvider efCoreProjectsProvider)
     {
         this.notificationManager = notificationManager;
         this.toolsConfiguration = toolsConfiguration;
+        this.efCoreProjectsProvider = efCoreProjectsProvider;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -31,9 +37,8 @@ public class DatabaseDropCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var efCoreProjects = await GetEfCoreProjectsAsync();
-            
         var cancellationToken = console.RegisterCancellationHandler();
+        var efCoreProjects = await GetEfCoreProjectsAsync(cancellationToken);
 
         var projectCount = efCoreProjects.Length;
         if (projectCount == 0)
@@ -81,19 +86,14 @@ public class DatabaseDropCommand : ICommand
         }
     }
     
-    private async Task<FileInfo[]> GetEfCoreProjectsAsync()
+    private async Task<FileInfo[]> GetEfCoreProjectsAsync(CancellationToken cancellationToken)
     {
         return await AnsiConsole.Status()
-            .StartAsync("Searching EntityFrameworkCore projects...", ctx =>
+            .StartAsync("Searching EntityFrameworkCore projects...", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
                 
-                var efCoreProjects = Directory.EnumerateFiles(WorkingDirectory!, "*.csproj", SearchOption.AllDirectories)
-                    .Where(x => x.EndsWith("EntityFrameworkCore.csproj"))
-                    .Select(x => new FileInfo(x))
-                    .ToArray();
-                
-                return Task.FromResult(efCoreProjects);
+                return await efCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!, cancellationToken);
             });
     }
 }
