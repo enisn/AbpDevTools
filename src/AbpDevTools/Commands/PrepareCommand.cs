@@ -17,14 +17,13 @@ public class PrepareCommand : ICommand
     [CommandOption("no-config", Description = "Do not create local configuration file. (abpdev.yml)")]
     public bool NoConfiguration {get; set;} = false;
 
-    [CommandOption("no-bundle", Description = "Do not bundle Blazor WASM projects.")]
-    public bool NoBundle { get; set; } = false;
-
     [CommandOption("no-install-libs", Description = "Do not run 'abp install-libs'.")]
     public bool NoInstallLibs { get; set; } = false;
 
     [CommandOption("no-env-apps", Description = "Do not start environment apps (containers).")]
     public bool NoEnvApps { get; set; } = false;
+    [CommandOption("no-bundle", Description = "Skip bundling Blazor WASM projects.")]
+    public bool NoBundle {get; set;} = false;
 
     protected IConsole? console;
     protected ToolsConfiguration ToolsConfiguration { get; }

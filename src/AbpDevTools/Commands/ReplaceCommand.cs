@@ -17,6 +17,9 @@ public class ReplaceCommand : ICommand
     [CommandOption("interactive", 'i', Description = "Interactive Mode. It'll ask prompt to pick one config.")]
     public bool InteractiveMode { get; set; }
 
+    [CommandOption("files", 'f', Description = "Specific file names to replace. If provided, only these files will be processed. Supports partial match.")]
+    public string[]? Files { get; set; }
+
     private readonly ReplacementConfiguration replacementConfiguration;
 
     public ReplaceCommand(ReplacementConfiguration replacementConfiguration)
@@ -29,6 +32,7 @@ public class ReplaceCommand : ICommand
         WorkingDirectory ??= Directory.GetCurrentDirectory();
 
         var options = replacementConfiguration.GetOptions();
+        List<string>? filesToProcess = null;
 
         if (string.IsNullOrEmpty(ReplacementConfigName))
         {
@@ -54,11 +58,37 @@ public class ReplaceCommand : ICommand
             }
         }
 
+        // If 'all' and interactive, prompt for files once
         if (ReplacementConfigName.Equals("all", StringComparison.InvariantCultureIgnoreCase))
         {
+            if (InteractiveMode && (Files == null || Files.Length == 0))
+            {
+                // Use the union of all files matching any config's pattern
+                var allFiles = options.Values
+                    .SelectMany(opt => Directory.EnumerateFiles(WorkingDirectory!, "*.*", SearchOption.AllDirectories)
+                        .Where(x => Regex.IsMatch(x, opt.FilePattern)))
+                    .Distinct()
+                    .ToList();
+                var relToFull = allFiles.ToDictionary(
+                    f => Path.GetRelativePath(WorkingDirectory!, f),
+                    f => f
+                );
+                var selectedRel = AnsiConsole.Prompt(
+                    new Spectre.Console.MultiSelectionPrompt<string>()
+                        .Title($"Select files to apply [blue]all[/] replacement configurations:")
+                        .NotRequired()
+                        .PageSize(10)
+                        .MoreChoicesText("[grey](Move up and down to reveal more files)[/]")
+                        .InstructionsText("[grey](Press [blue]<space>[/] to toggle a file, [green]<enter>[/] to accept)[/]")
+                        .AddChoices(relToFull.Keys)
+                );
+                filesToProcess = selectedRel.Select(rel => relToFull[rel]).ToList();
+            }
+            // else: filesToProcess remains null (handled in ExecuteConfigAsync)
+
             foreach (var item in options)
             {
-                await ExecuteConfigAsync(item.Key, item.Value);
+                await ExecuteConfigAsync(item.Key, item.Value, filesToProcess);
             }
 
             return;
@@ -76,12 +106,12 @@ public class ReplaceCommand : ICommand
                 await console.Output.WriteLineAsync("Check existing configurations with 'abpdev config' command.");
                 return;
             }
-            await ExecuteConfigAsync(ReplacementConfigName, option);
+            await ExecuteConfigAsync(ReplacementConfigName, option, null);
             return;
         }
     }
 
-    protected virtual async ValueTask ExecuteConfigAsync(string configurationName, ReplacementOption option)
+    protected virtual async ValueTask ExecuteConfigAsync(string configurationName, ReplacementOption option, List<string>? preselectedFiles = null)
     {
         await AnsiConsole.Status()
         .StartAsync($"Executing...", async ctx =>
@@ -91,14 +121,45 @@ public class ReplaceCommand : ICommand
             await Task.Yield();
 
             ctx.Status($"[blue]{option.FilePattern}[/] file pattern executing.");
-            var files = Directory.EnumerateFiles(WorkingDirectory!, "*.*", SearchOption.AllDirectories)
+            var allFiles = Directory.EnumerateFiles(WorkingDirectory!, "*.*", SearchOption.AllDirectories)
                 .Where(x => Regex.IsMatch(x, option.FilePattern))
                 .ToList();
 
-            ctx.Status($"[green]{files.Count}[/] file(s) found with pattern.");
+            List<string> filesToProcess = allFiles;
+
+            // If preselectedFiles is provided, filter to those that match this config's pattern
+            if (preselectedFiles != null)
+            {
+                filesToProcess = preselectedFiles.Where(f => allFiles.Contains(f)).ToList();
+            }
+            else if (Files != null && Files.Length > 0)
+            {
+                filesToProcess = allFiles.Where(f => Files.Any(name => f.Contains(name, StringComparison.OrdinalIgnoreCase))).ToList();
+            }
+            else if (InteractiveMode)
+            {
+                // Show relative paths in prompt, but keep mapping to full paths
+                var relToFull = allFiles.ToDictionary(
+                    f => Path.GetRelativePath(WorkingDirectory!, f),
+                    f => f
+                );
+                var selectedRel = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<string>()
+                        .Title($"Select files to apply [blue]{configurationName}[/] replacement:")
+                        .NotRequired()
+                        .PageSize(10)
+                        .MoreChoicesText("[grey](Move up and down to reveal more files)[/]")
+                        .InstructionsText("[grey](Press [blue]<space>[/] to toggle a file, [green]<enter>[/] to accept)[/]")
+                        .AddChoices(relToFull.Keys)
+                );
+                filesToProcess = selectedRel.Select(rel => relToFull[rel]).ToList();
+            }
+            // else: filesToProcess is allFiles
+
+            ctx.Status($"[green]{filesToProcess.Count}[/] file(s) selected for processing.");
 
             int affectedFileCount = 0;
-            foreach (var file in files)
+            foreach (var file in filesToProcess)
             {
                 var text = File.ReadAllText(file);
 

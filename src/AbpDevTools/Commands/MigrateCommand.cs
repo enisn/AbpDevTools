@@ -255,7 +255,15 @@ public class MigrateCommand : ICommand
                     {
                         if (args?.Data != null && args.Data.Length < 90)
                         {
-                            runningProject.Status = args.Data[args.Data.IndexOf(']')..].Replace('[', '\0').Replace(']', '\0');
+                            var indexOfBracket = args.Data.IndexOf(']');
+                            if (indexOfBracket >= 0 && indexOfBracket < args.Data.Length)
+                            {
+                                runningProject.Status = args.Data[indexOfBracket..].Replace('[', '\0').Replace(']', '\0');
+                            }
+                            else
+                            {
+                                runningProject.Status = args.Data;
+                            }
                             UpdateTable(table);
                             ctx.UpdateTarget(table);
                         }
