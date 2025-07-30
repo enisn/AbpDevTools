@@ -17,7 +17,7 @@ public class ConfigCommand : ICommand
         await console.Output.WriteLineAsync("-abpdev run config");
         await console.Output.WriteLineAsync("-abpdev clean config");
         await console.Output.WriteLineAsync("-abpdev tools config");
-        await console.Output.WriteLineAsync("-abpdev local-sources config");
+        await console.Output.WriteLineAsync("-abpdev references config");
         await console.Output.WriteLineAsync("-abpdev config clear  | Resets all the configurations to defaults.");
     }
 }
@@ -120,7 +120,7 @@ public class ToolsConfigurationCommand : ConfigurationBaseCommand<ToolsConfigura
     }
 }
 
-[Command("local-sources config", Description = "Allows managing local sources configuration.")]
+[Command("references config", Description = "Allows managing local sources configuration.")]
 public class LocalSourcesConfigurationCommand : ConfigurationBaseCommand<LocalSourcesConfiguration>
 {
     public LocalSourcesConfigurationCommand(LocalSourcesConfiguration configuration) : base(configuration)
