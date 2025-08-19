@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using AbpDevTools.Extensions;
 using YamlDotNet.Serialization;
 
 namespace AbpDevTools.Configuration;
@@ -28,9 +29,9 @@ public abstract class ConfigurationBase<T> : IConfigurationBase
 
     public string FilePath => Path.Combine(
                     FolderPath,
-                    FileName + ".yml");
+                    FileName.EnsureEndsWith(".yml"));
 
-    public virtual string FileName => GetType().Name + ".yml"; 
+    public virtual string FileName => GetType().Name + ".yml";
 
     protected virtual string LegacyJsonFilePath => Path.Combine(
                 FolderPath,
