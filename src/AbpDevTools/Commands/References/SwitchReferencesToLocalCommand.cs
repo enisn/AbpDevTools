@@ -43,7 +43,7 @@ public class SwitchReferencesToLocalCommand : ICommand
 
         if (localSources.Count == 0)
         {
-            console.Output.WriteLine("No local sources found. Please add some local sources to the configuration. Use 'abpdev local-sources config' command to manage local sources.");
+            console.Output.WriteLine("No local sources found. Please add some local sources to the configuration. Use 'abpdev references config' command to manage local sources.");
             return;
         }
 
@@ -118,8 +118,7 @@ public class SwitchReferencesToLocalCommand : ICommand
                         
                     case SourceAction.OpenConfiguration:
                         console.Output.WriteLine($"Opening local sources configuration...");
-                        var localSourcesCommand = new LocalSourcesCommand(localSourcesConfiguration);
-                        await localSourcesCommand.ExecuteAsync(console);
+                        await new LocalSourcesConfigurationCommand(localSourcesConfiguration).ExecuteAsync(console);
                         return cache; // Exit the entire command
                         
                     case SourceAction.CloneRepository:

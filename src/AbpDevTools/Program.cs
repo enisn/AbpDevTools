@@ -75,6 +75,7 @@ public static class Startup
             typeof(SwitchReferencesToLocalCommand),
             typeof(SwitchReferencesToPackageCommand),
             typeof(LocalSourcesCommand),
+            typeof(ReferencesCommand),
         };
 
         foreach (var commandType in commands)
