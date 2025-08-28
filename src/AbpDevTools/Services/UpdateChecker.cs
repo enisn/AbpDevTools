@@ -28,7 +28,7 @@ public class UpdateChecker
 
             var latestVersion = nugetResponse["versions"].Where(x => !x.Contains("-")).Last();
 
-            data.LastChechLatestVersion = latestVersion;
+            data.LastCheckLatestVersion = latestVersion;
             data.LastCheck = DateTime.Now;
             data.NextCheck = DateTime.Now.AddDays(1);
             await SaveDataAsync(data);
@@ -41,9 +41,9 @@ public class UpdateChecker
         }
 
         return new UpdateCheckResult(
-            currentVersion < Version.Parse(data.LastChechLatestVersion),
+            currentVersion < Version.Parse(data.LastCheckLatestVersion),
             currentVersion.ToString(),
-            data.LastChechLatestVersion,
+            data.LastCheckLatestVersion,
             data.LastCheck);
     }
 
@@ -71,6 +71,6 @@ public class UpdateChecker
     {
         public DateTime LastCheck { get; set; } = DateTime.Now;
         public DateTime NextCheck { get; set; } = DateTime.Now;
-        public string LastChechLatestVersion { get; set; } = "1.0.0";
+        public string LastCheckLatestVersion { get; set; } = "1.0.0";
     }
 }
