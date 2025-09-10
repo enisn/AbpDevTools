@@ -2,6 +2,7 @@
 using AbpDevTools.Commands.Migrations;
 using AbpDevTools.Commands.References;
 using AbpDevTools.Notifications;
+using AbpDevTools.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -88,6 +89,8 @@ public static class Startup
         }
 
         services.AutoRegisterFromAbpDevTools();
+        
+        services.AddSingleton<IKeyInputManager, KeyInputManager>();
 
         var yamlSerializer = new SerializerBuilder()
             .WithNamingConvention(HyphenatedNamingConvention.Instance)
@@ -103,10 +106,15 @@ public static class Startup
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             services.AddTransient<INotificationManager, WindowsNotificationManager>();
+            services.AddTransient<IRecycleBinManager, WindowsRecycleBinManager>();
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             services.AddTransient<INotificationManager, MacCatalystNotificationManager>();
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            services.AddTransient<INotificationManager, DefaultNotificationManager>();
         }
         else
         {
