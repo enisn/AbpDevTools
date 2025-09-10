@@ -106,7 +106,6 @@ public static class Startup
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             services.AddTransient<INotificationManager, WindowsNotificationManager>();
-            services.AddTransient<IRecycleBinManager, WindowsRecycleBinManager>();
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
