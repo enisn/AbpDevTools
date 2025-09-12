@@ -305,7 +305,7 @@ public partial class RunCommand : ICommand
                   
                   // Add help section
                   table.AddRow("", "");
-                  table.AddRow("[grey]R[/] - Restart All | [grey]Ctrl+R[/] - Restart Specific | [grey]S[/] - Stop All | [grey]K[/] - Kill All | [grey]H[/] - Help | [grey]Q[/] - Quit", "");
+                  table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop | [grey]K[/] - Kill | [grey]H[/] - Help | [grey]Q[/] - Quit", "");
                   
                   ctx.Refresh();
 
