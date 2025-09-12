@@ -72,26 +72,32 @@ public class KeyCommandHandler
 
     private void HandleCtrlR()
     {
-        var runningProjects = _runningProjects.Where(p => p.Process?.HasExited == false).ToList();
-        
-        if (runningProjects.Count == 0)
+        if (_runningProjects.Count == 0)
         {
-            _console.Output.WriteLine("\n[yellow]No running projects to restart.[/]");
+            _console.Output.WriteLine("\n[yellow]No projects to restart.[/]");
             return;
         }
 
-        var projectNames = runningProjects.Select(p => p.Name!).ToList();
+        // Show all projects with their status
+        var projectChoices = _runningProjects.Select(p => 
+        {
+            var status = GetProjectStatus(p);
+            return $"{p.Name} [{status}]";
+        }).ToList();
         
-        var selectedProject = AnsiConsole.Prompt(
+        var selectedProjectWithStatus = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("Choose [mediumpurple2]project[/] to restart:")
                 .HighlightStyle(new Style(foreground: Color.MediumPurple2))
-                .AddChoices(projectNames));
+                .AddChoices(projectChoices));
 
-        var projectToRestart = runningProjects.First(p => p.Name == selectedProject);
+        // Extract project name (remove status part)
+        var selectedProjectName = selectedProjectWithStatus.Split(' ')[0];
+        var projectToRestart = _runningProjects.First(p => p.Name == selectedProjectName);
         
-        _console.Output.WriteLine($"\n[orange1]Restarting {selectedProject}...[/]");
+        _console.Output.WriteLine($"\n[orange1]Restarting {selectedProjectName}...[/]");
         
+        // Kill process if it's still running
         if (projectToRestart.Process?.HasExited == false)
         {
             projectToRestart.Process.Kill(entireProcessTree: true);
@@ -99,7 +105,21 @@ public class KeyCommandHandler
         }
         
         RestartProject(projectToRestart);
-        _console.Output.WriteLine($"[green]{selectedProject} restarted![/]");
+        _console.Output.WriteLine($"[green]{selectedProjectName} restarted![/]");
+    }
+
+    private string GetProjectStatus(RunningProjectItem project)
+    {
+        if (project.Process == null)
+            return "red]Not Started[/";
+        
+        if (project.Process.HasExited)
+            return $"red]Exited({project.Process.ExitCode})[/";
+        
+        if (project.IsCompleted)
+            return "green]Running[/";
+        
+        return "yellow]Starting[/";
     }
 
     private void HandleStopAll()
