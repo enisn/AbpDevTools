@@ -85,11 +85,21 @@ public class KeyCommandHandler
             return $"{p.Name} [{status}]";
         }).ToList();
         
+        // Add cancel option
+        projectChoices.Add("[red]Cancel[/]");
+        
         var selectedProjectWithStatus = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("Choose [mediumpurple2]project[/] to restart:")
                 .HighlightStyle(new Style(foreground: Color.MediumPurple2))
                 .AddChoices(projectChoices));
+
+        // Check if user selected cancel
+        if (selectedProjectWithStatus == "[red]Cancel[/]")
+        {
+            _console.Output.WriteLine("\n[yellow]Operation cancelled.[/]");
+            return;
+        }
 
         // Extract project name (remove status part)
         var selectedProjectName = selectedProjectWithStatus.Split(' ')[0];

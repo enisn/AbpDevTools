@@ -24,7 +24,7 @@ public class KeyInputManager : IKeyInputManager, IDisposable
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         
-        _listeningTask = Task.Run(ListenForKeyPresses, _cancellationTokenSource.Token);
+        _listeningTask = Task.Run(ListenForKeyPressesAsync, _cancellationTokenSource.Token);
     }
 
     public void StopListening()
@@ -33,10 +33,10 @@ public class KeyInputManager : IKeyInputManager, IDisposable
             return;
 
         _cancellationTokenSource.Cancel();
-        _listeningTask?.Wait(TimeSpan.FromSeconds(1));
+        _listeningTask?.Wait(1_000, _cancellationTokenSource.Token);
     }
 
-    private void ListenForKeyPresses()
+    private async Task ListenForKeyPressesAsync()
     {
         try
         {
@@ -58,7 +58,7 @@ public class KeyInputManager : IKeyInputManager, IDisposable
                     KeyPressed?.Invoke(this, keyEventArgs);
                 }
                 
-                Thread.Sleep(50); // Small delay to prevent high CPU usage
+                await Task.Delay(50, _cancellationTokenSource.Token); // Small delay to prevent high CPU usage
             }
         }
         catch (OperationCanceledException)
