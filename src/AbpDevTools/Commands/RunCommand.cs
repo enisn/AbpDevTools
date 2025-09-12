@@ -424,7 +424,6 @@ public partial class RunCommand : ICommand
         {
             AnsiConsole.Clear();
             lastWindowWidth = Console.WindowWidth;
-            Console.Title = "AbpDevTools - Run | Width: " + Console.WindowWidth;
         }
     }
 }
