@@ -237,7 +237,7 @@ public class MigrateCommand : ICommand
 
     private async Task RenderStatusAsync()
     {
-        var table = new Table().Border(TableBorder.Ascii);
+        var table = new Table().Border(TableBorder.HeavyHead);
 
         AnsiConsole.WriteLine(Environment.NewLine);
         await AnsiConsole.Live(table)
