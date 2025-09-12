@@ -307,7 +307,7 @@ public partial class RunCommand : ICommand
                   
                   // Add help section
                   table.AddRow("", "");
-                  table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop | [grey]K[/] - Kill | [grey]H[/] - Help | [grey]Q[/] - Quit", "");
+                  table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop | [grey]K[/] - Kill | [grey]H[/] - Help", "");
                   
                   ctx.Refresh();
 
@@ -331,7 +331,7 @@ public partial class RunCommand : ICommand
                           if (!shouldContinue)
                           {
                               exitRequested = true;
-                              break; // Exit the loop if Q, S, or K was pressed
+                              break; // Exit the loop if S or K was pressed
                           }
                       }
 
@@ -368,7 +368,7 @@ public partial class RunCommand : ICommand
                       
                       // Re-add help section
                       table.AddRow("", "");
-                      table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop | [grey]K[/] - Kill | [grey]H[/] - Help | [grey]Q[/] - Quit", "");
+                      table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop | [grey]K[/] - Kill | [grey]H[/] - Help", "");
 
                       ctx.Refresh();
                   }

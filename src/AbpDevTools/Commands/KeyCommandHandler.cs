@@ -44,9 +44,6 @@ public class KeyCommandHandler
                 ShowHelp();
                 return Task.FromResult(true);
 
-            case ConsoleKey.Q:
-                return Task.FromResult(false); // Signal to quit
-
             default:
                 return Task.FromResult(true); // Continue listening
         }
@@ -178,7 +175,6 @@ public class KeyCommandHandler
         helpTable.AddRow("[bold]S[/]", "Stop All", "Stop all applications gracefully");
         helpTable.AddRow("[bold]K[/]", "Kill All", "Force kill all applications");
         helpTable.AddRow("[bold]H[/]", "Help", "Show this help");
-        helpTable.AddRow("[bold]Q[/]", "Quit", "Exit the application");
 
         AnsiConsole.Write(helpTable);
         _console.Output.WriteLine("\nPress any key to continue...");
