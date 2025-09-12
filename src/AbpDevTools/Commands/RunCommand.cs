@@ -63,6 +63,8 @@ public partial class RunCommand : ICommand
     protected readonly ToolsConfiguration toolsConfiguration;
     protected readonly FileExplorer fileExplorer;
     private readonly LocalConfigurationManager localConfigurationManager;
+    private readonly IKeyInputManager keyInputManager;
+    private int lastWindowWidth = 0;
 
     public RunCommand(
         INotificationManager notificationManager,
@@ -72,7 +74,8 @@ public partial class RunCommand : ICommand
         RunnableProjectsProvider runnableProjectsProvider,
         ToolsConfiguration toolsConfiguration,
         FileExplorer fileExplorer,
-        LocalConfigurationManager localConfigurationManager)
+        LocalConfigurationManager localConfigurationManager,
+        IKeyInputManager keyInputManager)
     {
         this.notificationManager = notificationManager;
         this.migrateCommand = migrateCommand;
@@ -82,11 +85,13 @@ public partial class RunCommand : ICommand
         this.toolsConfiguration = toolsConfiguration;
         this.fileExplorer = fileExplorer;
         this.localConfigurationManager = localConfigurationManager;
+        this.keyInputManager = keyInputManager;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
+
         if (string.IsNullOrEmpty(WorkingDirectory))
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
@@ -189,6 +194,7 @@ public partial class RunCommand : ICommand
                 new RunningCsProjItem(
                     csproj.Name,
                     Process.Start(startInfo)!,
+                    startInfo,
                     verbose: Verbose
                 )
             );
@@ -206,14 +212,17 @@ public partial class RunCommand : ICommand
                     File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
                 }
 
+                var installLibsStartInfo = new ProcessStartInfo(tools["abp"], "install-libs")
+                {
+                    WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                };
+
                 var installLibsRunninItem = new RunningInstallLibsItem(
                     csproj.Name.Replace(".csproj", " install-libs"),
-                    Process.Start(new ProcessStartInfo(tools["abp"], "install-libs")
-                    {
-                        WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                    })!
+                    Process.Start(installLibsStartInfo)!,
+                    installLibsStartInfo
                 );
 
                 runningProjects.Add(installLibsRunninItem);
@@ -270,54 +279,117 @@ public partial class RunCommand : ICommand
 
     private async Task RenderProcesses(CancellationToken cancellationToken)
     {
-        var table = new Table().Ascii2Border();
+        var keyCommandHandler = new KeyCommandHandler(runningProjects, console!, cancellationToken);
 
-        await AnsiConsole.Live(table)
-          .StartAsync(async ctx =>
-          {
-              table.AddColumn("Project").AddColumn("Status");
+        // Start key input listening
+        keyInputManager.StartListening();
 
-              foreach (var project in runningProjects)
+        var restartLive = false;
+        KeyPressEventArgs? pendingAction = null;
+        var exitRequested = false;
+
+        do
+        {
+            restartLive = false;
+            ClearConsoleIfNeeded();
+
+            var table = new Table().Border(TableBorder.HeavyHead);
+
+            await AnsiConsole.Live(table)
+              .StartAsync(async ctx =>
               {
-                  table.AddRow(project.Name!, project.Status!);
-              }
-              ctx.Refresh();
-
-              while (!cancellationToken.IsCancellationRequested)
-              {
-#if DEBUG
-                  await Task.Delay(100);
-#else
-                  await Task.Delay(500);
-#endif
-                  table.Rows.Clear();
+                  table.AddColumn("Project").AddColumn("Status");
 
                   foreach (var project in runningProjects)
                   {
-                      if (project.IsCompleted)
-                      {
-                          table.AddRow(project.Name!, $"[green]*[/] {project.Status}");
-                      }
-                      else
-                      {
-                          if (project.Process!.HasExited && !project.Queued)
-                          {
-                              project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
-
-                              if (Retry)
-                              {
-                                  project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
-
-                                  _ = RestartProject(project, cancellationToken); // fire and forget
-                              }
-                          }
-                          table.AddRow(project.Name!, project.Status!);
-                      }
+                      table.AddRow(project.Name!, project.Status!);
                   }
-
+                  
+                  // Add help section
+                  table.AddRow("", "");
+                  table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop | [grey]K[/] - Kill | [grey]H[/] - Help | [grey]Q[/] - Quit", "");
+                  
                   ctx.Refresh();
-              }
-          });
+
+                  while (!cancellationToken.IsCancellationRequested)
+                  {
+                      // Check for key input
+                      var keyEvent = keyInputManager.TryGetNextKey();
+                      if (keyEvent != null)
+                      {
+                          var requiresLiveRestart = keyEvent.Key == ConsoleKey.H || keyEvent.Key == ConsoleKey.R;
+
+                          if (requiresLiveRestart)
+                          {
+                              // Defer handling until after Live ends to avoid interleaving
+                              pendingAction = keyEvent;
+                              restartLive = true;
+                              break;
+                          }
+
+                          var shouldContinue = await keyCommandHandler.HandleKeyPress(keyEvent);
+                          if (!shouldContinue)
+                          {
+                              exitRequested = true;
+                              break; // Exit the loop if Q, S, or K was pressed
+                          }
+                      }
+
+#if DEBUG
+                      await Task.Delay(100);
+#else
+                      await Task.Delay(500);
+#endif
+                      table.Rows.Clear();
+                      ClearConsoleIfNeeded();
+
+                      foreach (var project in runningProjects)
+                      {
+                          if (project.IsCompleted)
+                          {
+                              table.AddRow(project.Name!, $"[green]*[/] {project.Status}");
+                          }
+                          else
+                          {
+                              if (project.Process!.HasExited && !project.Queued)
+                              {
+                                  project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
+
+                                  if (Retry)
+                                  {
+                                      project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
+
+                                      _ = RestartProject(project, cancellationToken); // fire and forget
+                                  }
+                              }
+                              table.AddRow(project.Name!, project.Status!);
+                          }
+                      }
+                      
+                      // Re-add help section
+                      table.AddRow("", "");
+                      table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop | [grey]K[/] - Kill | [grey]H[/] - Help | [grey]Q[/] - Quit", "");
+
+                      ctx.Refresh();
+                  }
+              });
+
+            if (exitRequested)
+            {
+                break;
+            }
+
+            if (restartLive && pendingAction is not null)
+            {
+                AnsiConsole.Clear();
+                await keyCommandHandler.HandleKeyPress(pendingAction);
+                pendingAction = null;
+            }
+
+        } while (restartLive && !cancellationToken.IsCancellationRequested);
+
+        // Stop key input listening
+        keyInputManager.StopListening();
     }
 
     private static async Task RestartProject(RunningProjectItem project, CancellationToken cancellationToken = default)
@@ -343,6 +415,16 @@ public partial class RunCommand : ICommand
             project.Process?.Kill(entireProcessTree: true);
 
             project.Process?.WaitForExit();
+        }
+    }
+
+    protected virtual void ClearConsoleIfNeeded()
+    {
+        if (lastWindowWidth != Console.WindowWidth)
+        {
+            AnsiConsole.Clear();
+            lastWindowWidth = Console.WindowWidth;
+            Console.Title = "AbpDevTools - Run | Width: " + Console.WindowWidth;
         }
     }
 }

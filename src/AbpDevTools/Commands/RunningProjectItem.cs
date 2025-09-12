@@ -10,18 +10,37 @@ public class RunningProjectItem
     public virtual bool IsCompleted { get; set; }
     public virtual bool Queued { get; set; }
     public bool Verbose { get; set; }
+    public ProcessStartInfo? OriginalStartInfo { get; set; }
 
     public virtual void StartReadingOutput()
     {
+    }
+
+    public virtual Process? Restart()
+    {
+        if (OriginalStartInfo == null)
+            return null;
+
+        try
+        {
+            Process = Process.Start(OriginalStartInfo);
+            StartReadingOutput();
+            return Process;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
 
 public class RunningCsProjItem : RunningProjectItem
 {
-    public RunningCsProjItem(string name, Process process, string? status = null, bool verbose = false)
+    public RunningCsProjItem(string name, Process process, ProcessStartInfo startInfo, string? status = null, bool verbose = false)
     {
         this.Name = name;
         this.Process = process;
+        this.OriginalStartInfo = startInfo;
         this.Status = status ?? "Building...";
         this.Verbose = verbose;
         StartReadingOutput();
@@ -69,10 +88,11 @@ public class RunningCsProjItem : RunningProjectItem
 
 public class RunningInstallLibsItem : RunningProjectItem
 {
-    public RunningInstallLibsItem(string name, Process process, string? status = null)
+    public RunningInstallLibsItem(string name, Process process, ProcessStartInfo startInfo, string? status = null)
     {
         this.Name = name;
         this.Process = process;
+        this.OriginalStartInfo = startInfo;
         this.Status = status ?? "Installing...";
         StartReadingOutput();
     }

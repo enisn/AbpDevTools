@@ -73,35 +73,90 @@ public class BuildCommand : ICommand
                 }
 
                 var tools = toolsConfiguration.GetOptions();
-                runningProcess = Process.Start(new ProcessStartInfo(tools["dotnet"], "build /graphBuild" + commandSuffix)
+                
+                try
                 {
-                    WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                })!;
+                    runningProcess = Process.Start(new ProcessStartInfo(tools["dotnet"], "build /graphBuild" + commandSuffix)
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(buildFile.FullName),
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                    });
 
-                // equivalent of WaitForExit
-                var _output = await runningProcess.StandardOutput.ReadToEndAsync();
-                await runningProcess.WaitForExitAsync();
+                    if (runningProcess == null)
+                    {
+                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} - Could not start process");
+                        continue;
+                    }
 
-                if (runningProcess.ExitCode == 0)
-                {
-                    completed++;
-                    AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{buildFile.Name}[/]");
+                    // Capture both standard output and error streams
+                    var outputTask = runningProcess.StandardOutput.ReadToEndAsync();
+                    var errorTask = runningProcess.StandardError.ReadToEndAsync();
+                    
+                    await runningProcess.WaitForExitAsync();
+                    
+                    var _output = await outputTask;
+                    var _error = await errorTask;
+
+                    if (runningProcess.ExitCode == 0)
+                    {
+                        completed++;
+                        AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{buildFile.Name}[/]");
+                    }
+                    else
+                    {
+                        // Show failure status in red, but don't use markup for the build output
+                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} Exit Code: {runningProcess.ExitCode}");
+                        
+                        // Write build output using AnsiConsole but with escaped content to avoid markup interpretation
+                        AnsiConsole.WriteLine();
+                        AnsiConsole.MarkupLine($"[red]Build failed for: {Markup.Escape(buildFile.Name)}[/]");
+                        
+                        // Display standard output if available - escape content to prevent markup interpretation
+                        if (!string.IsNullOrWhiteSpace(_output))
+                        {
+                            AnsiConsole.MarkupLine("[grey]Standard Output:[/]");
+                            // Write raw output without any markup interpretation
+                            AnsiConsole.WriteLine(Markup.Escape(_output));
+                        }
+                        
+                        // Display error output if available - escape content to prevent markup interpretation
+                        if (!string.IsNullOrWhiteSpace(_error))
+                        {
+                            AnsiConsole.MarkupLine("[red]Error Output:[/]");
+                            // Write raw error output without any markup interpretation
+                            AnsiConsole.WriteLine(Markup.Escape(_error));
+                        }
+                        
+                        AnsiConsole.WriteLine();
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"{progressRatio} - [red]failed [bold]Building[/] {buildFile.Name} Exit Code: {runningProcess.ExitCode}[/]");
-                    AnsiConsole.MarkupLine($"[grey]{_output}[/]");
+                    AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} - Exception: {Markup.Escape(ex.Message)}");
+                    AnsiConsole.WriteLine();
+                }
+                finally
+                {
+                    // Ensure process cleanup
+                    try
+                    {
+                        if (runningProcess != null && !runningProcess.HasExited)
+                        {
+                            runningProcess.Kill(entireProcessTree: true);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Ignore cleanup exceptions
+                    }
                 }
 
                 if (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
-
-                runningProcess.Kill(entireProcessTree: true);
             }
 
             return completed;
