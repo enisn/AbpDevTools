@@ -64,6 +64,7 @@ public partial class RunCommand : ICommand
     protected readonly FileExplorer fileExplorer;
     private readonly LocalConfigurationManager localConfigurationManager;
     private readonly IKeyInputManager keyInputManager;
+    private int lastWindowWidth = 0;
 
     public RunCommand(
         INotificationManager notificationManager,
@@ -90,6 +91,7 @@ public partial class RunCommand : ICommand
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
+
         if (string.IsNullOrEmpty(WorkingDirectory))
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
@@ -289,9 +291,9 @@ public partial class RunCommand : ICommand
         do
         {
             restartLive = false;
-            AnsiConsole.Clear();
+            ClearConsoleIfNeeded();
 
-            var table = new Table().Ascii2Border();
+            var table = new Table().Border(TableBorder.HeavyHead);
 
             await AnsiConsole.Live(table)
               .StartAsync(async ctx =>
@@ -339,6 +341,7 @@ public partial class RunCommand : ICommand
                       await Task.Delay(500);
 #endif
                       table.Rows.Clear();
+                      ClearConsoleIfNeeded();
 
                       foreach (var project in runningProjects)
                       {
@@ -412,6 +415,16 @@ public partial class RunCommand : ICommand
             project.Process?.Kill(entireProcessTree: true);
 
             project.Process?.WaitForExit();
+        }
+    }
+
+    protected virtual void ClearConsoleIfNeeded()
+    {
+        if (lastWindowWidth != Console.WindowWidth)
+        {
+            AnsiConsole.Clear();
+            lastWindowWidth = Console.WindowWidth;
+            Console.Title = "AbpDevTools - Run | Width: " + Console.WindowWidth;
         }
     }
 }
