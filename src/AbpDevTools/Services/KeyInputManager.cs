@@ -18,9 +18,12 @@ public class KeyInputManager : IKeyInputManager, IDisposable
         if (IsListening)
             return;
 
-        _cancellationTokenSource.CancelAfter(TimeSpan.FromMilliseconds(100));
-        _cancellationTokenSource.Token.WaitHandle.WaitOne();
-        
+        // Ensure any previous listening task is fully stopped before starting a new one
+        if (_listeningTask != null && !_listeningTask.IsCompleted)
+        {
+            _cancellationTokenSource.Cancel();
+            _listeningTask.Wait(TimeSpan.FromSeconds(1));
+        }
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         
