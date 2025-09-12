@@ -68,9 +68,10 @@ public class KeyInputManager : IKeyInputManager, IDisposable
         {
             // Expected when cancellation is requested
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Handle any other exceptions gracefully
+            // Log unexpected exceptions to aid debugging
+            Console.Error.WriteLine($"[KeyInputManager] Unexpected exception: {ex}");
         }
     }
 
