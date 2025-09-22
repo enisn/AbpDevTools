@@ -2,6 +2,7 @@
 using AbpDevTools.Commands.Migrations;
 using AbpDevTools.Commands.References;
 using AbpDevTools.Notifications;
+using AbpDevTools.RecycleBin;
 using AbpDevTools.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
@@ -106,18 +107,22 @@ public static class Startup
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             services.AddTransient<INotificationManager, WindowsNotificationManager>();
+            services.AddTransient<IRecycleBinManager, WindowsRecycleBinManager>();
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             services.AddTransient<INotificationManager, MacCatalystNotificationManager>();
+            services.AddTransient<IRecycleBinManager, MacRecycleBinManager>();
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             services.AddTransient<INotificationManager, DefaultNotificationManager>();
+            services.AddTransient<IRecycleBinManager, LinuxRecycleBinManager>();
         }
         else
         {
             services.AddTransient<INotificationManager, DefaultNotificationManager>();
+            services.AddTransient<IRecycleBinManager, DefaultRecycleBinManager>();
         }
 
         var serviceProvider = services.BuildServiceProvider();
