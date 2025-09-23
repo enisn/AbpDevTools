@@ -30,8 +30,16 @@ public class LinuxRecycleBinManager : IRecycleBinManager
             try
             {
                 var absolutePath = Path.GetFullPath(filePath);
-                
-                var process = Process.Start(tools.ContainsKey("gio") ? tools["gio"] : "gio", $"trash \"{absolutePath}\"");
+
+                var processStartInfo = new ProcessStartInfo
+                {
+                    FileName = tools.ContainsKey("gio") ? tools["gio"] : "gio",
+                    ArgumentList = { "trash", absolutePath },
+                    RedirectStandardOutput = false,
+                    RedirectStandardError = false,
+                    UseShellExecute = false
+                };
+                var process = Process.Start(processStartInfo);
                 if (process != null)
                 {
                     await process.WaitForExitAsync();
