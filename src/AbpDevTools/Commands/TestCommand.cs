@@ -50,9 +50,11 @@ public class TestCommand : ICommand
 
         var buildFiles = await FindBuildFilesAsync("*.sln", "solution");
 
+         buildFiles = buildFiles.Union(await FindBuildFilesAsync("*.slnx", "solutionx")).ToArray();
+
         if (buildFiles.Length == 0)
         {
-            await console.Output.WriteLineAsync("No .sln files found. Looking for .csproj files.");
+            await console.Output.WriteLineAsync("No .sln/.slnx files found. Looking for .csproj files.");
             return;
         }
 
