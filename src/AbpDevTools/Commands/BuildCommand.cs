@@ -42,9 +42,11 @@ public class BuildCommand : ICommand
         var cancellationToken = console.RegisterCancellationHandler();
         var buildFiles = await FindBuildFilesAsync("*.sln", "solution");
 
+        buildFiles = buildFiles.Union(await FindBuildFilesAsync("*.slnx", "solutionx")).ToArray();
+
         if (buildFiles.Length == 0)
         {
-            await console.Output.WriteLineAsync("No .sln files found. Looking for .csproj files.");
+            await console.Output.WriteLineAsync("No .sln/.slnx files found. Looking for .csproj files.");
 
             buildFiles = await FindBuildFilesAsync("*.csproj", "csproj");
         }
