@@ -12,14 +12,17 @@ public class MigrationsCommand : ICommand
 
         await console.Output.WriteLineAsync("\tabpdev add");
         await console.Output.WriteLineAsync("\tabpdev clear");
+        await console.Output.WriteLineAsync("\tabpdev recreate");
 
         await console.Output.WriteLineAsync("\n\nExample:");
         await console.Output.WriteLineAsync("\tabpdev migrations add --name Initial");
         await console.Output.WriteLineAsync("\tabpdev migrations clear");
+        await console.Output.WriteLineAsync("\tabpdev migrations recreate --drop-database");
 
         await console.Output.WriteLineAsync("\n\nGet Help:");
         await console.Output.WriteLineAsync("\tabpdev migrations --help");
         await console.Output.WriteLineAsync("\tabpdev migrations add --help");
+        await console.Output.WriteLineAsync("\tabpdev migrations recreate --help");
 
         return;
         

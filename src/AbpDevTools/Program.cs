@@ -73,6 +73,7 @@ public static class Startup
             typeof(MigrationsCommand),
             typeof(AddMigrationCommand),
             typeof(ClearMigrationsCommand),
+            typeof(RecreateMigrationsCommand),
             typeof(PrepareCommand),
             typeof(SwitchReferencesToLocalCommand),
             typeof(SwitchReferencesToPackageCommand),
