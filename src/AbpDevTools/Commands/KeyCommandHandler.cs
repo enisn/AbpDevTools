@@ -33,12 +33,8 @@ public class KeyCommandHandler
                 return Task.FromResult(true);
 
             case ConsoleKey.S:
-                HandleStopAll();
-                return Task.FromResult(false);
-
-            case ConsoleKey.K:
-                HandleKillAll();
-                return Task.FromResult(false);
+                HandleStopOne();
+                return Task.FromResult(true);
 
             case ConsoleKey.H:
                 ShowHelp();
@@ -172,13 +168,65 @@ public class KeyCommandHandler
 
         helpTable.AddRow("[bold]R[/]", "Restart All", "Restart all running applications");
         helpTable.AddRow("[bold]Ctrl+R[/]", "Restart Specific", "Restart a specific application");
-        helpTable.AddRow("[bold]S[/]", "Stop All", "Stop all applications gracefully");
-        helpTable.AddRow("[bold]K[/]", "Kill All", "Force kill all applications");
+        helpTable.AddRow("[bold]S[/]", "Stop Specific", "Stop a specific application");
+        helpTable.AddRow("[bold]Ctrl+C[/]", "Exit", "Send interrupt to stop all (exit)");
         helpTable.AddRow("[bold]H[/]", "Help", "Show this help");
 
         AnsiConsole.Write(helpTable);
         _console.Output.WriteLine("\nPress any key to continue...");
         Console.ReadKey(true);
+    }
+
+    private void HandleStopOne()
+    {
+        if (_runningProjects.Count == 0)
+        {
+            _console.Output.WriteLine("\n[yellow]No projects to stop.[/]");
+            return;
+        }
+
+        var projectChoices = _runningProjects.Select(p =>
+        {
+            var status = GetProjectStatus(p);
+            return $"{p.Name} [{status}]";
+        }).ToList();
+
+        projectChoices.Add("[red]Cancel[/]");
+
+        var selectedProjectWithStatus = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Choose [mediumpurple2]project[/] to stop:")
+                .HighlightStyle(new Style(foreground: Color.MediumPurple2))
+                .AddChoices(projectChoices));
+
+        if (selectedProjectWithStatus == "[red]Cancel[/]")
+        {
+            _console.Output.WriteLine("\n[yellow]Operation cancelled.[/]");
+            return;
+        }
+
+        var selectedProjectName = selectedProjectWithStatus.Split(' ')[0];
+        var projectToStop = _runningProjects.First(p => p.Name == selectedProjectName);
+
+        _console.Output.WriteLine($"\n[yellow]Stopping {selectedProjectName}...[/]");
+
+        if (projectToStop.Process?.HasExited == false)
+        {
+            try
+            {
+                projectToStop.Process.Kill(entireProcessTree: true);
+                projectToStop.Process.WaitForExit();
+                projectToStop.Status = "[red]*[/] Stopped";
+                projectToStop.IsCompleted = true;
+            }
+            catch (Exception ex)
+            {
+                _console.Output.WriteLine($"[red]Failed to stop {selectedProjectName}:[/] {Markup.Escape(ex.Message)}");
+                return;
+            }
+        }
+
+        _console.Output.WriteLine($"[green]{selectedProjectName} stopped![/]");
     }
 
     private void RestartProject(RunningProjectItem project)
