@@ -205,6 +205,8 @@ public class BuildCommand : ICommand
 
         if (Interactive && files.Length > 1)
         {
+            var fileChoices = files.Select(s => s.FullName.Replace(WorkingDirectory!, ".")).ToArray();
+            
             var choosed = AnsiConsole.Prompt(
                 new MultiSelectionPrompt<string>()
                     .Title("Choose files to be built:")
@@ -215,9 +217,9 @@ public class BuildCommand : ICommand
                     .InstructionsText(
                         "[grey](Press [mediumpurple2]<space>[/] to toggle a file, " +
                         "[green]<enter>[/] to accept)[/]")
-                    .AddChoices(files.Select(s => s.DirectoryName!.Replace(WorkingDirectory!, "."))));
+                    .AddChoices(fileChoices));
 
-            files = files.Where(x => choosed.Contains(x.FullName)).ToArray();
+            files = files.Where(x => choosed.Contains(x.FullName.Replace(WorkingDirectory!, "."))).ToArray();
         }
 
         return files;
