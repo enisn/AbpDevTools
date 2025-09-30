@@ -317,7 +317,7 @@ public partial class RunCommand : ICommand
                       var keyEvent = keyInputManager.TryGetNextKey();
                       if (keyEvent != null)
                       {
-                          var requiresLiveRestart = keyEvent.Key == ConsoleKey.H || keyEvent.Key == ConsoleKey.R || (keyEvent.Key == ConsoleKey.S && keyEvent.CtrlPressed);
+                          var requiresLiveRestart = keyEvent.Key == ConsoleKey.H || keyEvent.Key == ConsoleKey.R || keyEvent.Key == ConsoleKey.S;
 
                           if (requiresLiveRestart)
                           {
