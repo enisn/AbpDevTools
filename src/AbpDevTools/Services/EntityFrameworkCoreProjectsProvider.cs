@@ -39,6 +39,19 @@ public class EntityFrameworkCoreProjectsProvider
         }
     }
 
+    private async Task<bool> DoesHaveEfCoreToolsReferenceAsync(string projectPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _dependencyResolver.HasDirectPackageReferenceAsync(projectPath, "Microsoft.EntityFrameworkCore.Tools", cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Fallback to text-based search if dependency resolution fails
+            return DoesHaveEfCoreToolsReference(projectPath);
+        }
+    }
+
     private static bool DoesHaveEfCoreReference(string projectPath)
     {
         using var fs = new FileStream(projectPath, FileMode.Open, FileAccess.Read);
@@ -53,6 +66,28 @@ public class EntityFrameworkCoreProjectsProvider
             }
 
             if (line.Contains("Microsoft.EntityFrameworkCore"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool DoesHaveEfCoreToolsReference(string projectPath)
+    {
+        using var fs = new FileStream(projectPath, FileMode.Open, FileAccess.Read);
+        using var sr = new StreamReader(fs);
+
+        while (!sr.EndOfStream)
+        {
+            var line = sr.ReadLine();
+            if (string.IsNullOrEmpty(line))
+            {
+                continue;
+            }
+
+            if (line.Contains("Microsoft.EntityFrameworkCore.Tools"))
             {
                 return true;
             }
