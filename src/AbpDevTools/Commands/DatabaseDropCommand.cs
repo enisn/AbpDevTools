@@ -16,18 +16,24 @@ public class DatabaseDropCommand : ICommand
     [CommandOption("force", 'f')]
     public bool Force { get; set; }
     
+    [CommandOption("package", 'p', Description = "Filter projects by direct package reference. Only projects with this package will have their databases dropped.")]
+    public string? PackageFilter { get; set; }
+    
     protected readonly INotificationManager notificationManager;
     protected readonly ToolsConfiguration toolsConfiguration;
     protected readonly EntityFrameworkCoreProjectsProvider efCoreProjectsProvider;
+    protected readonly DotnetDependencyResolver dependencyResolver;
 
     public DatabaseDropCommand(
         INotificationManager notificationManager, 
         ToolsConfiguration toolsConfiguration,
-        EntityFrameworkCoreProjectsProvider efCoreProjectsProvider)
+        EntityFrameworkCoreProjectsProvider efCoreProjectsProvider,
+        DotnetDependencyResolver dependencyResolver)
     {
         this.notificationManager = notificationManager;
         this.toolsConfiguration = toolsConfiguration;
         this.efCoreProjectsProvider = efCoreProjectsProvider;
+        this.dependencyResolver = dependencyResolver;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -93,7 +99,26 @@ public class DatabaseDropCommand : ICommand
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
                 
-                return await efCoreProjectsProvider.GetEfCoreToolsProjectsAsync(WorkingDirectory!, cancellationToken);
+                var efCoreProjects = await efCoreProjectsProvider.GetEfCoreToolsProjectsAsync(WorkingDirectory!, cancellationToken);
+                
+                // Filter by package reference if specified
+                if (!string.IsNullOrEmpty(PackageFilter))
+                {
+                    ctx.Status($"Filtering projects with direct reference to '{PackageFilter}'...");
+                    var filteredProjects = new List<FileInfo>();
+                    
+                    foreach (var project in efCoreProjects)
+                    {
+                        if (await dependencyResolver.HasDirectPackageReferenceAsync(project.FullName, PackageFilter, cancellationToken))
+                        {
+                            filteredProjects.Add(project);
+                        }
+                    }
+                    
+                    return filteredProjects.ToArray();
+                }
+                
+                return efCoreProjects;
             });
     }
 }
