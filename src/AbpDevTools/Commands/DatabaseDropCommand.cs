@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using AbpDevTools.Configuration;
+using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
 using AbpDevTools.Services;
 using CliFx.Infrastructure;
@@ -19,21 +20,27 @@ public class DatabaseDropCommand : ICommand
     [CommandOption("package", 'p', Description = "Filter projects by direct package reference. Only projects with this package will have their databases dropped.")]
     public string? PackageFilter { get; set; }
     
+    [CommandOption("env", 'e', Description = "Uses the virtual environment for this process. Use 'abpdev env config' command to see/manage environments.")]
+    public string? EnvironmentName { get; set; }
+    
     protected readonly INotificationManager notificationManager;
     protected readonly ToolsConfiguration toolsConfiguration;
     protected readonly EntityFrameworkCoreProjectsProvider efCoreProjectsProvider;
     protected readonly DotnetDependencyResolver dependencyResolver;
+    protected readonly IProcessEnvironmentManager environmentManager;
 
     public DatabaseDropCommand(
         INotificationManager notificationManager, 
         ToolsConfiguration toolsConfiguration,
         EntityFrameworkCoreProjectsProvider efCoreProjectsProvider,
-        DotnetDependencyResolver dependencyResolver)
+        DotnetDependencyResolver dependencyResolver,
+        IProcessEnvironmentManager environmentManager)
     {
         this.notificationManager = notificationManager;
         this.toolsConfiguration = toolsConfiguration;
         this.efCoreProjectsProvider = efCoreProjectsProvider;
         this.dependencyResolver = dependencyResolver;
+        this.environmentManager = environmentManager;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -70,6 +77,11 @@ public class DatabaseDropCommand : ICommand
                 RedirectStandardOutput = true,
                 CreateNoWindow = false
             };
+
+            if (!string.IsNullOrEmpty(EnvironmentName))
+            {
+                environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
+            }
 
             var process = Process.Start(startInfo)!;
             
