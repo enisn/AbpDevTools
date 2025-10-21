@@ -50,20 +50,19 @@ public class EnvironmentAppStopCommand : ICommand
             throw new CommandException("App name couldn't be recognized. Try one of them: \n" + string.Join("\n - ", configurations.Keys));
         }
 
-        if (option.StopCmd.StartsWith("docker "))
+        if (option.StopCmds.Length > 0 && option.StopCmds[0].StartsWith("docker "))
         {
             await StopWithCmdAsync(option, cancellationToken);
         }
         else
         {
-            throw new CommandException($"Only docker apps supported currently. Your command can't be executed. \n'{option.StartCmd}'\n");
+            throw new CommandException($"Only docker apps supported currently. Your command can't be executed. \n'{string.Join("; ", option.StartCmds)}'\n");
         }
     }
 
     private async Task StopWithCmdAsync(EnvironmentToolOption option, CancellationToken cancellationToken)
     {
-        var commands = option.StopCmd.Split(';');
-        foreach (var command in commands)
+        foreach (var command in option.StopCmds)
         {
             var process = Process.Start(
                 "docker",

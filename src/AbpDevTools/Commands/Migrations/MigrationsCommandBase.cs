@@ -68,6 +68,7 @@ public abstract class MigrationsCommandBase : ICommand
 
     async Task<FileInfo[]> GetEfCoreProjectsAsync()
     {
-        return await entityFrameworkCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!);
+        // Pass Projects filter to provider for early filtering to improve performance
+        return await entityFrameworkCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!, Projects.Length > 0 ? Projects : null);
     }
 }

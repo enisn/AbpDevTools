@@ -89,11 +89,11 @@ public class DatabaseDropCommand : ICommand
     private async Task<FileInfo[]> GetEfCoreProjectsAsync(CancellationToken cancellationToken)
     {
         return await AnsiConsole.Status()
-            .StartAsync("Searching EntityFrameworkCore projects...", async ctx =>
+            .StartAsync("Searching EntityFrameworkCore projects with design-time tools...", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
                 
-                return await efCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!, cancellationToken);
+                return await efCoreProjectsProvider.GetEfCoreToolsProjectsAsync(WorkingDirectory!, cancellationToken);
             });
     }
 }

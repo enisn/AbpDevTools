@@ -1,6 +1,7 @@
 ﻿using AbpDevTools.Configuration;
 using CliFx.Exceptions;
 using CliFx.Infrastructure;
+using Spectre.Console;
 using System.Diagnostics;
 
 namespace AbpDevTools.Commands;
@@ -12,6 +13,9 @@ public class EnvironmentAppStartCommand : ICommand
 
     [CommandOption("password", 'p', Description = "Default password for sql images when applicable. Default: 12345678Aa")]
     public string DefaultPassword { get; set; } = "12345678Aa";
+
+    [CommandOption("verbose", 'v', Description = "Show detailed output from Docker commands.")]
+    public bool Verbose { get; set; }
 
     protected IConsole? console;
     protected Dictionary<string,EnvironmentToolOption> configurations;
@@ -58,25 +62,110 @@ public class EnvironmentAppStartCommand : ICommand
             DefaultPassword = "12345678Aa";
         }
 
-        await RunCommandAsync(option.StartCmd.Replace("Passw0rd", DefaultPassword));
+        var commands = option.StartCmds.Select(cmd => cmd.Replace("Passw0rd", DefaultPassword)).ToArray();
+        await RunCommandsAsync(commands, useOrLogic: true);
     }
 
-    protected async Task RunCommandAsync(string command)
+    protected async Task RunCommandsAsync(string[] commands, bool useOrLogic)
     {
-        var commands = command.Split(';');
-
-        // Legacy support for old commands:
-        if (commands.Length == 1 && commands[0].Contains(" || "))
+        for (int i = 0; i < commands.Length; i++)
         {
-            commands = commands[0].Split(" || ");
-        }
+            var command = commands[i].Trim();
+            if (string.IsNullOrEmpty(command))
+            {
+                continue;
+            }
 
-        foreach (var c in commands)
-        {
-            var fileName = c[..c.IndexOf(' ')];
+            var spaceIndex = command.IndexOf(' ');
+            var fileName = spaceIndex > 0 ? command[..spaceIndex] : command;
+            var arguments = spaceIndex > 0 ? command[spaceIndex..] : string.Empty;
 
-            var process = Process.Start(fileName, c[c.IndexOf(' ')..]);
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            if (Verbose)
+            {
+                AnsiConsole.MarkupLine($"[dim]Executing: {command.EscapeMarkup()}[/]");
+            }
+
+            var process = Process.Start(processStartInfo);
+            
+            var outputTask = process!.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            
             await process.WaitForExitAsync();
+            
+            var output = await outputTask;
+            var error = await errorTask;
+
+            var isLastCommand = i == commands.Length - 1;
+
+            // If using OR logic, only continue to next command if this one failed
+            if (useOrLogic && process.ExitCode == 0)
+            {
+                // Always show success message
+                AnsiConsole.MarkupLine("[green]✓ Container started successfully.[/]");
+                
+                // Only show Docker output in verbose mode
+                if (Verbose)
+                {
+                    if (!string.IsNullOrWhiteSpace(output))
+                    {
+                        AnsiConsole.WriteLine(output);
+                    }
+                    if (!string.IsNullOrWhiteSpace(error))
+                    {
+                        AnsiConsole.WriteLine(error);
+                    }
+                }
+                break;
+            }
+            
+            // If this is the last command
+            if (isLastCommand)
+            {
+                if (process.ExitCode == 0)
+                {
+                    // Always show success message
+                    AnsiConsole.MarkupLine("[green]✓ Container created/started successfully.[/]");
+                    
+                    // Only show Docker output in verbose mode
+                    if (Verbose)
+                    {
+                        if (!string.IsNullOrWhiteSpace(output))
+                        {
+                            AnsiConsole.WriteLine(output);
+                        }
+                        if (!string.IsNullOrWhiteSpace(error))
+                        {
+                            AnsiConsole.WriteLine(error);
+                        }
+                    }
+                }
+                else
+                {
+                    // Always show error message and details
+                    AnsiConsole.MarkupLine("[red]✗ Failed to start/create container.[/]");
+                    
+                    if (!string.IsNullOrWhiteSpace(error))
+                    {
+                        AnsiConsole.MarkupLine($"[red]{error.EscapeMarkup()}[/]");
+                    }
+                    
+                    // Show stdout only in verbose mode
+                    if (Verbose && !string.IsNullOrWhiteSpace(output))
+                    {
+                        AnsiConsole.WriteLine(output);
+                    }
+                }
+            }
         }
     }
 }

@@ -10,9 +10,16 @@ public class EntityFrameworkCoreProjectsProvider
         _dependencyResolver = dependencyResolver;
     }
 
-    public async Task<FileInfo[]> GetEfCoreProjectsAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<FileInfo[]> GetEfCoreProjectsAsync(string path, string[]? projectFilters = null, CancellationToken cancellationToken = default)
     {
         var projects = Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories);
+        
+        // Apply project filters early if provided to avoid scanning unnecessary projects
+        if (projectFilters != null && projectFilters.Length > 0)
+        {
+            projects = projects.Where(p => projectFilters.Any(filter => p.Contains(filter)));
+        }
+        
         var efCoreProjects = new List<FileInfo>();
 
         foreach (var projectPath in projects)
@@ -24,6 +31,27 @@ public class EntityFrameworkCoreProjectsProvider
         }
 
         return efCoreProjects.ToArray();
+    }
+
+    /// <summary>
+    /// Gets projects that have EF Core Tools installed (can run dotnet ef commands).
+    /// This checks for Microsoft.EntityFrameworkCore.Tools package reference,
+    /// which is required for design-time operations like migrations and database drops.
+    /// </summary>
+    public async Task<FileInfo[]> GetEfCoreToolsProjectsAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var projects = Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories);
+        var efCoreToolsProjects = new List<FileInfo>();
+
+        foreach (var projectPath in projects)
+        {
+            if (await DoesHaveEfCoreToolsReferenceAsync(projectPath, cancellationToken))
+            {
+                efCoreToolsProjects.Add(new FileInfo(projectPath));
+            }
+        }
+
+        return efCoreToolsProjects.ToArray();
     }
 
     private async Task<bool> DoesHaveEfCoreReferenceAsync(string projectPath, CancellationToken cancellationToken)
