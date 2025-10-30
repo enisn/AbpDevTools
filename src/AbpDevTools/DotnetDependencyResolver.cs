@@ -28,69 +28,28 @@ public class DotnetDependencyResolver
     /// </summary>
     public async Task<bool> HasDirectPackageReferenceAsync(string projectPath, string packageName, CancellationToken cancellationToken)
     {
-        await RestoreProjectAsync(projectPath);
-        
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = Tools["dotnet"],
-            Arguments = $"list \"{projectPath}\" package --format json",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = new Process { StartInfo = startInfo };
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(30)); // 30-second timeout
-
         try
         {
-            process.Start();
-
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-
-            await Task.WhenAny(process.WaitForExitAsync(cts.Token), Task.Delay(Timeout.Infinite, cts.Token));
-
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                return false;
-            }
-
-            if (process.ExitCode != 0)
+            if (!File.Exists(projectPath))
             {
                 return false;
             }
 
-            var output = await outputTask;
-            
-            // Parse the JSON to check for direct package reference
-            using var doc = JsonDocument.Parse(output);
-            var projects = doc.RootElement.GetProperty("projects");
-            
-            foreach (var project in projects.EnumerateArray())
+            // Read the .csproj file and search for PackageReference with the specified package name
+            using var fileStream = new FileStream(projectPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, useAsync: true);
+            using var reader = new StreamReader(fileStream);
+
+            string? line;
+            while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
             {
-                if (project.TryGetProperty("frameworks", out var frameworks))
+                // Look for <PackageReference Include="PackageName"
+                if (line.Contains("<PackageReference", StringComparison.OrdinalIgnoreCase) && 
+                    line.Contains($"\"{packageName}\"", StringComparison.OrdinalIgnoreCase))
                 {
-                    foreach (var framework in frameworks.EnumerateArray())
-                    {
-                        if (framework.TryGetProperty("topLevelPackages", out var topLevelPackages))
-                        {
-                            foreach (var package in topLevelPackages.EnumerateArray())
-                            {
-                                var id = package.GetProperty("id").GetString();
-                                if (string.Equals(id, packageName, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
+                    return true;
                 }
             }
-            
+
             return false;
         }
         catch (Exception)
