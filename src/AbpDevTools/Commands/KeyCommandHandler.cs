@@ -1,3 +1,4 @@
+using System.Text;
 using AbpDevTools.Services;
 using Spectre.Console;
 using CliFx.Infrastructure;
@@ -10,39 +11,35 @@ public class KeyCommandHandler
     private readonly IConsole _console;
     private readonly CancellationToken _cancellationToken;
 
+    public KeyCommandMapping[] KeyCommandMappings { get; init; }
+
     public KeyCommandHandler(List<RunningProjectItem> runningProjects, IConsole console, CancellationToken cancellationToken)
     {
         _runningProjects = runningProjects;
         _console = console;
         _cancellationToken = cancellationToken;
+        KeyCommandMappings = new KeyCommandMapping[]
+        {
+            new KeyCommandMapping(new KeyPressEventArgs { Key = ConsoleKey.R}, HandleRestart, "Restart", "Restart all running applications"),
+            new KeyCommandMapping(new KeyPressEventArgs { Key = ConsoleKey.R, CtrlPressed = true }, HandleRestartAll, "Restart All", "Restart a specific application"),
+            new KeyCommandMapping(new KeyPressEventArgs { Key = ConsoleKey.S }, HandleStopOne, "Stop", "Stop a specific application"),
+            new KeyCommandMapping(new KeyPressEventArgs { Key = ConsoleKey.H }, ShowHelp, "Help", "Show this help"),
+        };
     }
 
     public Task<bool> HandleKeyPress(KeyPressEventArgs keyEvent)
     {
-        switch (keyEvent.Key)
+        var keyCommandMapping = KeyCommandMappings.FirstOrDefault(mapping => mapping.KeyPressEvent.Key == keyEvent.Key && mapping.KeyPressEvent.CtrlPressed == keyEvent.CtrlPressed && mapping.KeyPressEvent.ShiftPressed == keyEvent.ShiftPressed && mapping.KeyPressEvent.AltPressed == keyEvent.AltPressed);
+        if (keyCommandMapping != null)
         {
-            case ConsoleKey.R:
-                if (keyEvent.CtrlPressed)
-                {
-                    HandleCtrlR();
-                }
-                else
-                {
-                    HandleRestartAll();
-                }
-                return Task.FromResult(true);
-
-            case ConsoleKey.S:
-                HandleStopOne();
-                return Task.FromResult(true);
-
-            case ConsoleKey.H:
-                ShowHelp();
-                return Task.FromResult(true);
-
-            default:
-                return Task.FromResult(true); // Continue listening
+            keyCommandMapping.Action();
         }
+        return Task.FromResult(true);
+    }
+
+    public bool RequiresLiveRestart(KeyPressEventArgs keyEvent)
+    {
+        return keyEvent.Key == ConsoleKey.H || keyEvent.Key == ConsoleKey.R || keyEvent.Key == ConsoleKey.S;
     }
 
     private void HandleRestartAll()
@@ -63,7 +60,7 @@ public class KeyCommandHandler
         _console.Output.WriteLine("[green]All applications restarted![/]");
     }
 
-    private void HandleCtrlR()
+    private void HandleRestart()
     {
         if (_runningProjects.Count == 0)
         {
@@ -125,38 +122,6 @@ public class KeyCommandHandler
         return "yellow]Starting[/";
     }
 
-    private void HandleStopAll()
-    {
-        _console.Output.WriteLine("\n[yellow]Stopping all applications gracefully...[/]");
-        
-        foreach (var project in _runningProjects)
-        {
-            if (project.Process?.HasExited == false)
-            {
-                project.Process.Kill(entireProcessTree: true);
-                project.Process.WaitForExit();
-            }
-        }
-        
-        _console.Output.WriteLine("[green]All applications stopped![/]");
-    }
-
-    private void HandleKillAll()
-    {
-        _console.Output.WriteLine("\n[red]Force killing all applications...[/]");
-        
-        foreach (var project in _runningProjects)
-        {
-            if (project.Process?.HasExited == false)
-            {
-                project.Process.Kill(entireProcessTree: true);
-                project.Process.WaitForExit();
-            }
-        }
-        
-        _console.Output.WriteLine("[green]All applications killed![/]");
-    }
-
     private void ShowHelp()
     {
         var helpTable = new Table()
@@ -166,12 +131,12 @@ public class KeyCommandHandler
             .AddColumn("Action")
             .AddColumn("Description");
 
-        helpTable.AddRow("[bold]R[/]", "Restart All", "Restart all running applications");
-        helpTable.AddRow("[bold]Ctrl+R[/]", "Restart Specific", "Restart a specific application");
-        helpTable.AddRow("[bold]S[/]", "Stop Specific", "Stop a specific application");
-        helpTable.AddRow("[bold]Ctrl+C[/]", "Exit", "Send interrupt to stop all (exit)");
-        helpTable.AddRow("[bold]H[/]", "Help", "Show this help");
+        foreach (var keyCommandMapping in KeyCommandMappings)
+        {
+            helpTable.AddRow($"[bold]{keyCommandMapping.GetKeyDisplay()}[/]", keyCommandMapping.Name, keyCommandMapping.Description ?? string.Empty);
+        }
 
+        helpTable.AddRow("[bold]Ctrl+C[/]", "Exit", "Send interrupt to stop all (exit)");
         AnsiConsole.Write(helpTable);
         _console.Output.WriteLine("\nPress any key to continue...");
         Console.ReadKey(true);

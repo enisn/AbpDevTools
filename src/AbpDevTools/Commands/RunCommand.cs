@@ -307,7 +307,7 @@ public partial class RunCommand : ICommand
                   
                   // Add help section
                   table.AddRow("", "");
-                  table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop One | [grey]Ctrl+C[/] - Exit | [grey]H[/] - Help", "");
+                  table.AddRow(BuildHelpSection(keyCommandHandler), "");
                   
                   ctx.Refresh();
 
@@ -317,7 +317,7 @@ public partial class RunCommand : ICommand
                       var keyEvent = keyInputManager.TryGetNextKey();
                       if (keyEvent != null)
                       {
-                          var requiresLiveRestart = keyEvent.Key == ConsoleKey.H || keyEvent.Key == ConsoleKey.R || keyEvent.Key == ConsoleKey.S;
+                          var requiresLiveRestart = keyCommandHandler.RequiresLiveRestart(keyEvent);
 
                           if (requiresLiveRestart)
                           {
@@ -368,7 +368,7 @@ public partial class RunCommand : ICommand
                       
                       // Re-add help section
                       table.AddRow("", "");
-                      table.AddRow("[grey]R[/] - Restart | [grey]Ctrl+R[/] - Restart One | [grey]S[/] - Stop One | [grey]Ctrl+C[/] - Exit | [grey]H[/] - Help", "");
+                      table.AddRow(BuildHelpSection(keyCommandHandler), "");
 
                       ctx.Refresh();
                   }
@@ -405,6 +405,11 @@ public partial class RunCommand : ICommand
         project.Status = $"[orange1]*[/] Exited({project.Process!.ExitCode}) (Retrying...)";
         project.Process = Process.Start(project.Process!.StartInfo)!;
         project.StartReadingOutput();
+    }
+
+    private string BuildHelpSection(KeyCommandHandler keyCommandHandler)
+    {
+        return string.Join(" | ", keyCommandHandler.KeyCommandMappings.Select(kcm => $"[grey]{kcm.GetKeyDisplay()}[/] - {kcm.Name}"));
     }
 
     protected void KillRunningProcesses()
