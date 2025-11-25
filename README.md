@@ -501,3 +501,59 @@ _You can extend the list or change environments of apps by using `abpdev envapp 
     ```bash
     abpdev envapp start sqlserver -p myPassw0rd
     ```
+
+## Switch ABP Studio Version
+Switches the locally installed **ABP Studio** to any published version/channel, ensuring directories exist, caching packages for reuse, and invoking the platform-specific updater with live log streaming and desktop notifications.
+
+```bash
+abpdev abp-studio switch <version> [options]
+```
+
+```bash
+PARAMETERS
+  version            Target ABP Studio version to install. Default: 1.0.0
+
+OPTIONS
+  -c|--channel       Channel to download from. Default: "stable".
+  -f|--force         Forces re-download even if the package already exists.
+  -i|--install-dir   Custom install directory. Default: %LOCALAPPDATA%\abp-studio (Windows) or OS equivalent.
+  -p|--packages-dir  Custom cache directory for downloaded packages.
+  -h|--help          Shows help text.
+```
+
+The command:
+
+- Detects your OS/CPU (Windows x64/ARM, macOS Intel/ARM, Linux) to pick the right package suffix.
+- Creates/uses the requested install and packages directories _(defaults to `%LOCALAPPDATA%\abp-studio` on Windows, `/Applications` or `~/Applications` on macOS)_.
+- Streams download progress while fetching `abp-studio-{version}-{channel}-full.nupkg`; `--force` wipes existing packages first.
+- Verifies that the platform updater (`Update.exe` on Windows or `UpdateMac` on macOS) exists before applying `apply --package <path>`.
+- Applies the downloaded package to the installed ABP Studio by using official updater. 
+
+> ⚠️ This command doesn't add any custom DLL or executable files to your system. It only applies **official** ABP Studio nuget packages to the existing installation.
+
+Using a shared packages directory (for example on a fast SSD or network drive) makes switching between versions nearly instant because only the apply step needs to run.
+
+### When to use?
+
+- You're working on a project that requires a specific version of ABP Studio.
+- You need to create a new project with a specific version of ABP Studio.
+- You have a critical bug in a specific version of ABP Studio and you need to **rollback** to a previous version.
+
+> ❌ Don't use this command to install ABP Studio for the first time. Use the official installer instead. This command is only for switching between versions by applying nuget package updates.
+
+### Example commands
+
+- Switch to a specific stable version (default paths)
+    ```bash
+    abpdev abp-studio switch 2.0.1
+    ```
+
+- Download and apply a beta channel release and reuse cached packages across machines
+    ```bash
+    abpdev abp-studio switch 1.1.0 -c beta -p D:\abp-studio-cache
+    ```
+
+- Redownload and install a version even if it is already downloaded
+    ```bash
+    abpdev abp-studio switch 0.9.0 -f
+    ```
