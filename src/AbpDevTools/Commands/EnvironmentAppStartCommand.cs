@@ -3,6 +3,7 @@ using CliFx.Exceptions;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
+using System.Text;
 
 namespace AbpDevTools.Commands;
 [Command("envapp start", Description = "Deploys infrastructural tools to docker. Such as Redis, RabbitMQ, SqlServer etc.")]
@@ -63,10 +64,10 @@ public class EnvironmentAppStartCommand : ICommand
         }
 
         var commands = option.StartCmds.Select(cmd => cmd.Replace("Passw0rd", DefaultPassword)).ToArray();
-        await RunCommandsAsync(commands, useOrLogic: true);
+        await RunCommandsAsync(appName,commands, useOrLogic: true);
     }
 
-    protected async Task RunCommandsAsync(string[] commands, bool useOrLogic)
+    protected async Task RunCommandsAsync(string appName, string[] commands, bool useOrLogic)
     {
         for (int i = 0; i < commands.Length; i++)
         {
@@ -95,23 +96,61 @@ public class EnvironmentAppStartCommand : ICommand
                 AnsiConsole.MarkupLine($"[dim]Executing: {command.EscapeMarkup()}[/]");
             }
 
-            var process = Process.Start(processStartInfo);
-            
-            var outputTask = process!.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-            
-            await process.WaitForExitAsync();
-            
-            var output = await outputTask;
-            var error = await errorTask;
+            var outputBuilder = new StringBuilder();
+            var errorBuilder = new StringBuilder();
+            var exitCode = -1;
+
+            if (Verbose)
+            {
+                // In verbose mode, stream all output directly
+                exitCode = await RunProcessAsync(
+                    processStartInfo,
+                    outputBuilder,
+                    errorBuilder,
+                    onStdOutLine: line => AnsiConsole.WriteLine(line),
+                    onStdErrLine: line => AnsiConsole.MarkupLine($"[red]{line.EscapeMarkup()}[/]")
+                );
+            }
+            else
+            {
+                // In non-verbose mode, show a single updating status line
+                await AnsiConsole.Status()
+                    .StartAsync("Starting app...", async ctx =>
+                    {
+                        ctx.Spinner(Spinner.Known.Dots);
+                        ctx.SpinnerStyle(Style.Parse("green"));
+
+                        exitCode = await RunProcessAsync(
+                            processStartInfo,
+                            outputBuilder,
+                            errorBuilder,
+                            onStdOutLine: line =>
+                            {
+                                if (!string.IsNullOrWhiteSpace(line))
+                                {
+                                    ctx.Status = line.EscapeMarkup();
+                                }
+                            },
+                            onStdErrLine: line =>
+                            {
+                                if (!string.IsNullOrWhiteSpace(line))
+                                {
+                                    ctx.Status = $"{line.EscapeMarkup()}";
+                                }
+                            });
+                    });
+            }
+
+            var output = outputBuilder.ToString();
+            var error = errorBuilder.ToString();
 
             var isLastCommand = i == commands.Length - 1;
 
             // If using OR logic, only continue to next command if this one failed
-            if (useOrLogic && process.ExitCode == 0)
+            if (useOrLogic && exitCode == 0)
             {
                 // Always show success message
-                AnsiConsole.MarkupLine("[green]✓ Container started successfully.[/]");
+                AnsiConsole.MarkupLine($"[green]✓ App {appName} started successfully.[/]");
                 
                 // Only show Docker output in verbose mode
                 if (Verbose)
@@ -131,7 +170,7 @@ public class EnvironmentAppStartCommand : ICommand
             // If this is the last command
             if (isLastCommand)
             {
-                if (process.ExitCode == 0)
+                if (exitCode == 0)
                 {
                     // Always show success message
                     AnsiConsole.MarkupLine("[green]✓ Container created/started successfully.[/]");
@@ -165,6 +204,59 @@ public class EnvironmentAppStartCommand : ICommand
                         AnsiConsole.WriteLine(output);
                     }
                 }
+            }
+        }
+
+        static async Task<int> RunProcessAsync(
+            ProcessStartInfo startInfo,
+            StringBuilder outputBuilder,
+            StringBuilder errorBuilder,
+            Action<string>? onStdOutLine,
+            Action<string>? onStdErrLine)
+        {
+            using (var process = new Process())
+            {
+                process.StartInfo = startInfo;
+                process.EnableRaisingEvents = true;
+
+                var stdOutTcs = new TaskCompletionSource<bool>();
+                var stdErrTcs = new TaskCompletionSource<bool>();
+
+                process.OutputDataReceived += (_, e) =>
+                {
+                    if (e.Data is null)
+                    {
+                        stdOutTcs.TrySetResult(true);
+                        return;
+                    }
+
+                    outputBuilder.AppendLine(e.Data);
+                    onStdOutLine?.Invoke(e.Data);
+                };
+
+                process.ErrorDataReceived += (_, e) =>
+                {
+                    if (e.Data is null)
+                    {
+                        stdErrTcs.TrySetResult(true);
+                        return;
+                    }
+
+                    errorBuilder.AppendLine(e.Data);
+                    onStdErrLine?.Invoke(e.Data);
+                };
+
+                if (!process.Start())
+                {
+                    throw new CommandException($"Failed to start process '{startInfo.FileName}'.");
+                }
+
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                await Task.WhenAll(process.WaitForExitAsync(), stdOutTcs.Task, stdErrTcs.Task);
+
+                return process.ExitCode;
             }
         }
     }
