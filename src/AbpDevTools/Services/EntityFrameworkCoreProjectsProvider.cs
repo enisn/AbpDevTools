@@ -63,7 +63,7 @@ public class EntityFrameworkCoreProjectsProvider
         catch (Exception)
         {
             // Fallback to text-based search if dependency resolution fails
-            return DoesHaveEfCoreReference(projectPath);
+            return DoesHaveEfCoreReferenceInProjectFile(projectPath);
         }
     }
 
@@ -76,11 +76,11 @@ public class EntityFrameworkCoreProjectsProvider
         catch (Exception)
         {
             // Fallback to text-based search if dependency resolution fails
-            return DoesHaveEfCoreToolsReference(projectPath);
+            return DoesHaveEfCoreToolsReferenceInProjectFile(projectPath);
         }
     }
 
-    private static bool DoesHaveEfCoreReference(string projectPath)
+    private static bool DoesHaveEfCoreReferenceInProjectFile(string projectPath)
     {
         using var fs = new FileStream(projectPath, FileMode.Open, FileAccess.Read);
         using var sr = new StreamReader(fs);
@@ -102,7 +102,7 @@ public class EntityFrameworkCoreProjectsProvider
         return false;
     }
 
-    private static bool DoesHaveEfCoreToolsReference(string projectPath)
+    private static bool DoesHaveEfCoreToolsReferenceInProjectFile(string projectPath)
     {
         using var fs = new FileStream(projectPath, FileMode.Open, FileAccess.Read);
         using var sr = new StreamReader(fs);
