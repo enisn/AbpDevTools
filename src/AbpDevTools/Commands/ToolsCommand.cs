@@ -20,7 +20,7 @@ public class ToolsCommand : ICommand
 
         console.Output.WriteLine("Available tools:\n");
 
-        var table = new Table();
+        var table = new Table().Border(TableBorder.Rounded);
 
         table.AddColumn("Tool");
         table.AddColumn("Path");

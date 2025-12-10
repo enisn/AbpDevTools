@@ -55,7 +55,7 @@ public class AddMigrationCommand : MigrationsCommandBase, ICommand
 
     private async Task RenderProgressesAsync(CancellationToken cancellationToken)
     {
-        var table = new Table().Border(TableBorder.Ascii)
+        var table = new Table().Border(TableBorder.Rounded)
             .AddColumn("Project")
             .AddColumn("Status")
             .AddColumn("Result");

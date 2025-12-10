@@ -293,7 +293,7 @@ public partial class RunCommand : ICommand
             restartLive = false;
             ClearConsoleIfNeeded();
 
-            var table = new Table().Border(TableBorder.HeavyHead);
+            var table = new Table().Border(TableBorder.Rounded);
 
             await AnsiConsole.Live(table)
               .StartAsync(async ctx =>
