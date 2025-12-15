@@ -399,9 +399,9 @@ OPTIONS
 
 This command:
 - Finds all `.csproj` files in the working directory
-- Matches package references against configured local source patterns
-- Converts matching packages to project references with relative paths
-- Backs up original package versions in PropertyGroup for later restoration
+- Matches package references against configured [local source](#local-source-management) patterns
+- Converts matching packages to project references with **relative paths**
+- **Backs up** original package versions in PropertyGroup for later restoration
 
 ### Switch to Package References
 Converts local project references back to package references:
