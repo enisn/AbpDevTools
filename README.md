@@ -398,7 +398,7 @@ OPTIONS
 ```
 
 This command:
-- Finds all `.csproj` files in the working directory
+- Finds all `.csproj` files in the working directory.
 - Matches package references against configured [local source](#local-source-management) patterns
 - Converts matching packages to project references with **relative paths**
 - **Backs up** original package versions in PropertyGroup for later restoration
@@ -451,7 +451,7 @@ This command:
 
 - Switch specific sources back to packages
     ```bash
-    abpdev references to-package --sources abp,other-lib
+    abpdev references to-package --sources abp other-lib
     ```
 
 - Work in specific directory
