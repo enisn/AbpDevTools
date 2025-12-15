@@ -345,7 +345,13 @@ You can configure and manage local source mappings to easily switch between pack
 
 ### Configure Local Sources
 ```bash
-abpdev local-sources config
+abpdev local-sources
+```
+
+or shortcut command for grouping all the 'references' commands:
+
+```bash
+abpdev references config
 ```
 
 This command opens a YAML configuration file where you can define your local source mappings:
@@ -425,7 +431,7 @@ This command:
 
 - Configure local sources
     ```bash
-    abpdev local-sources config
+    abpdev references config
     ```
 
 - Switch all package references to local development versions
