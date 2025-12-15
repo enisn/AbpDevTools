@@ -180,10 +180,7 @@ public class PrepareCommand : ICommand
             await console.Output.WriteLineAsync($"Apps to start: {string.Join(", ", environmentApps.Select(x => x.AppName))}");
             await console.Output.WriteLineAsync("-----------------------------------------------------------");
 
-            await AnsiConsole.Status().StartAsync("Starting environment apps...", async ctx =>
-            {
-                await EnvironmentAppStartCommand.ExecuteAsync(console);
-            });
+            await EnvironmentAppStartCommand.ExecuteAsync(console);
 
             await console.Output.WriteLineAsync("Environment apps started successfully!");
         }
