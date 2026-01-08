@@ -27,9 +27,6 @@ public class FindPortCommand : ICommand
         {
             AnsiConsole.Clear();
 
-            // Display header
-            PrintHeader(processes.Count, Port);
-
             // Display process list
             var table = new Table()
                 .Border(TableBorder.Rounded)
@@ -258,28 +255,6 @@ public class FindPortCommand : ICommand
             // Some system processes don't allow access to MainModule
             return null;
         }
-    }
-
-    private void PrintHeader(int count, int port)
-    {
-        var panel = new Panel(
-            Align.Center(
-                new Markup(
-                    count == 1
-                        ? $"Found [mediumpurple2]1[/] process using port [mediumpurple2]{port}[/]"
-                        : $"Found [mediumpurple2]{count}[/] processes using port [mediumpurple2]{port}[/]"
-                ),
-                VerticalAlignment.Middle
-            )
-        )
-        {
-            Border = BoxBorder.Rounded,
-            BorderStyle = new Style(foreground: Color.MediumPurple2),
-            Padding = new Padding(1, 1, 1, 1)
-        };
-
-        AnsiConsole.Write(panel);
-        AnsiConsole.WriteLine();
     }
 
     private bool KillProcess(List<ProcessInfo> processes)
