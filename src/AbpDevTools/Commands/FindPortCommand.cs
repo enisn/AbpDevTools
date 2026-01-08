@@ -13,6 +13,9 @@ public class FindPortCommand : ICommand
     [CommandParameter(0, IsRequired = true, Description = "Port number to find")]
     public int Port { get; set; }
 
+    [CommandOption("kill", 'k', Description = "Kill the found process directly without asking")]
+    public bool Kill { get; set; }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
         var processes = await FindProcessesByPortAsync(Port);
@@ -20,6 +23,16 @@ public class FindPortCommand : ICommand
         if (!processes.Any())
         {
             AnsiConsole.MarkupLine($"[yellow]No process found using port [mediumpurple2]{Port}[/].[/]");
+            return;
+        }
+
+        // If --kill flag is provided, kill directly without interactive menu
+        if (Kill)
+        {
+            foreach (var process in processes)
+            {
+                KillSingleProcessDirectly(process);
+            }
             return;
         }
 
@@ -274,6 +287,39 @@ public class FindPortCommand : ICommand
                     .AddChoices(processes));
 
             return KillSingleProcess(target);
+        }
+    }
+
+    private void KillSingleProcessDirectly(ProcessInfo process)
+    {
+        try
+        {
+            var proc = System.Diagnostics.Process.GetProcessById(process.Pid);
+            var startTime = proc.StartTime;
+            var runningTime = DateTime.Now - startTime;
+            var threadCount = proc.Threads.Count;
+
+            proc.Kill(entireProcessTree: true);
+            proc.WaitForExit();
+
+            // Show details after killing
+            AnsiConsole.MarkupLine($"[green]Process killed successfully![/]");
+
+            var details = new Grid()
+                .AddColumn()
+                .AddColumn()
+                .AddRow("[grey]PID:[/]", $"[mediumpurple2]{process.Pid}[/]")
+                .AddRow("[grey]Process Name:[/]", $"[green]{process.ProcessName}[/]")
+                .AddRow("[grey]Path:[/]", $"[blue]{process.Path}[/]")
+                .AddRow("[grey]Start Time:[/]", $"[yellow]{startTime:yyyy-MM-dd HH:mm:ss}[/]")
+                .AddRow("[grey]Running Time:[/]", $"[yellow]{runningTime:hh\\:mm\\:ss}[/]")
+                .AddRow("[grey]Threads:[/]", $"[mediumpurple2]{threadCount}[/]");
+
+            AnsiConsole.Write(details);
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Failed to kill process [red]{process.ProcessName}[/] (PID: {process.Pid}): {ex.Message}[/]");
         }
     }
 
