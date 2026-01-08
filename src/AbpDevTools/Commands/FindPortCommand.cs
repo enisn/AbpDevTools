@@ -35,16 +35,14 @@ public class FindPortCommand : ICommand
                 .Border(TableBorder.Rounded)
                 .AddColumn("[grey]#[/]")
                 .AddColumn("[grey]PID[/]")
-                .AddColumn("[grey]Process Name[/]")
-                .AddColumn("[grey]Path[/]");
+                .AddColumn("[grey]Process Name[/]");
 
             foreach (var (process, index) in processes.Select((p, i) => (p, i)))
             {
                 table.AddRow(
                     $"{index + 1}",
                     $"[mediumpurple2]{process.Pid}[/]",
-                    $"[green]{process.ProcessName}[/]",
-                    $"[grey]{process.Path}[/]"
+                    $"[green]{process.ProcessName}[/]"
                 );
             }
 
