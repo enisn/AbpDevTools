@@ -71,7 +71,10 @@ public class FindPortCommand : ICommand
             switch (action)
             {
                 case "Kill":
-                    KillProcess(processes);
+                    if (KillProcess(processes))
+                    {
+                        return;
+                    }
                     break;
                 case "Details":
                     ShowDetails(processes);
@@ -281,11 +284,11 @@ public class FindPortCommand : ICommand
         AnsiConsole.WriteLine();
     }
 
-    private void KillProcess(List<ProcessInfo> processes)
+    private bool KillProcess(List<ProcessInfo> processes)
     {
         if (processes.Count == 1)
         {
-            KillSingleProcess(processes[0]);
+            return KillSingleProcess(processes[0]);
         }
         else
         {
@@ -297,15 +300,15 @@ public class FindPortCommand : ICommand
                     .UseConverter(p => $"[red]{p.ProcessName}[/] (PID: {p.Pid})")
                     .AddChoices(processes));
 
-            KillSingleProcess(target);
+            return KillSingleProcess(target);
         }
     }
 
-    private void KillSingleProcess(ProcessInfo process)
+    private bool KillSingleProcess(ProcessInfo process)
     {
         if (!AnsiConsole.Confirm($"Are you sure you want to kill [red]{process.ProcessName}[/] (PID: {process.Pid})?"))
         {
-            return;
+            return false;
         }
 
         try
@@ -315,14 +318,14 @@ public class FindPortCommand : ICommand
             proc.WaitForExit();
 
             AnsiConsole.MarkupLine($"[green]Process [red]{process.ProcessName}[/] (PID: {process.Pid}) has been killed.[/]");
-            AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]");
-            Console.ReadKey();
+            return true;
         }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[red]Failed to kill process: {ex.Message}[/]");
             AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]");
             Console.ReadKey();
+            return false;
         }
     }
 
