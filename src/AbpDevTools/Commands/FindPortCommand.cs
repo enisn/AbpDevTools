@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
+using AbpDevTools.Processes;
 using CliFx.Attributes;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -16,9 +16,16 @@ public class FindPortCommand : ICommand
     [CommandOption("kill", 'k', Description = "Kill the found process directly without asking")]
     public bool Kill { get; set; }
 
+    protected readonly IProcessFinder processFinder;
+
+    public FindPortCommand(IProcessFinder processFinder)
+    {
+        this.processFinder = processFinder;
+    }
+
     public async ValueTask ExecuteAsync(IConsole console)
     {
-        var processes = await FindProcessesByPortAsync(Port);
+        var processes = await processFinder.FindProcessesByPortAsync(Port);
 
         if (!processes.Any())
         {
@@ -97,7 +104,7 @@ public class FindPortCommand : ICommand
                     CopyToClipboard(processes.Select(p => p.Path).ToArray());
                     break;
                 case "Refresh":
-                    processes = await FindProcessesByPortAsync(Port);
+                    processes = await processFinder.FindProcessesByPortAsync(Port);
                     if (!processes.Any())
                     {
                         AnsiConsole.MarkupLine($"[yellow]No process found using port [mediumpurple2]{Port}[/].[/]");
@@ -107,166 +114,6 @@ public class FindPortCommand : ICommand
                 case "Exit":
                     return;
             }
-        }
-    }
-
-    private async Task<List<ProcessInfo>> FindProcessesByPortAsync(int port)
-    {
-        var processes = new List<ProcessInfo>();
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            processes = await FindProcessesOnWindowsAsync(port);
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            processes = await FindProcessesOnUnixAsync(port);
-        }
-
-        return processes;
-    }
-
-    private Task<List<ProcessInfo>> FindProcessesOnWindowsAsync(int port)
-    {
-        var processes = new List<ProcessInfo>();
-
-        try
-        {
-            // Use netstat to find connections on the specified port
-            var startInfo = new ProcessStartInfo("netstat", "-ano")
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null)
-            {
-                return Task.FromResult(processes);
-            }
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-
-            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var line in lines)
-            {
-                // Netstat output format: Proto Local Address Foreign Address State PID
-                var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 5)
-                {
-                    var localAddress = parts[1];
-                    var pid = parts[parts.Length - 1];
-
-                    // Parse local address (e.g., 0.0.0.0:3000 or [::]:3000)
-                    if (localAddress.Contains(':') && localAddress.Contains($":{port}"))
-                    {
-                        if (int.TryParse(pid, out var processId))
-                        {
-                            var processInfo = GetProcessInfo(processId);
-                            if (processInfo != null)
-                            {
-                                processes.Add(processInfo);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"[red]Error finding processes: {ex.Message}[/]");
-        }
-
-        return Task.FromResult(processes.DistinctBy(p => p.Pid).ToList());
-    }
-
-    private Task<List<ProcessInfo>> FindProcessesOnUnixAsync(int port)
-    {
-        var processes = new List<ProcessInfo>();
-
-        try
-        {
-            // Use lsof to find processes using the specified port
-            var arguments = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
-                ? $"-i :{port} -P -n"
-                : $"-i :{port} -P -n";
-
-            var startInfo = new ProcessStartInfo("lsof", arguments)
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null)
-            {
-                return Task.FromResult(processes);
-            }
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-
-            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-            // Skip header line
-            foreach (var line in lines.Skip(1))
-            {
-                // lsof output format: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-                var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2 && int.TryParse(parts[1], out var pid))
-                {
-                    var processInfo = GetProcessInfo(pid);
-                    if (processInfo != null)
-                    {
-                        processes.Add(processInfo);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            // lsof might not be installed or failed
-            AnsiConsole.MarkupLine($"[red]Error finding processes (lsof required): {ex.Message}[/]");
-        }
-
-        return Task.FromResult(processes.DistinctBy(p => p.Pid).ToList());
-    }
-
-    private ProcessInfo? GetProcessInfo(int pid)
-    {
-        try
-        {
-            var process = System.Diagnostics.Process.GetProcessById(pid);
-            return new ProcessInfo
-            {
-                Pid = pid,
-                ProcessName = process.ProcessName,
-                Path = tryGetProcessPath(process) ?? "Unknown"
-            };
-        }
-        catch
-        {
-            // Process might have ended or access denied
-            return null;
-        }
-    }
-
-    private string? tryGetProcessPath(System.Diagnostics.Process process)
-    {
-        try
-        {
-            return process.MainModule?.FileName;
-        }
-        catch
-        {
-            // Some system processes don't allow access to MainModule
-            return null;
         }
     }
 
@@ -489,12 +336,5 @@ public class FindPortCommand : ICommand
             AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]");
             Console.ReadKey();
         }
-    }
-
-    private class ProcessInfo
-    {
-        public required int Pid { get; set; }
-        public required string ProcessName { get; set; }
-        public required string Path { get; set; }
     }
 }
