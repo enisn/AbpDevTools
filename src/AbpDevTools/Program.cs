@@ -2,6 +2,7 @@
 using AbpDevTools.Commands.Migrations;
 using AbpDevTools.Commands.References;
 using AbpDevTools.Notifications;
+using AbpDevTools.Processes;
 using AbpDevTools.RecycleBin;
 using AbpDevTools.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +71,7 @@ public static class Startup
             typeof(DatabaseDropCommand),
             typeof(SwitchToEnvironmentCommand),
             typeof(FindFileCommand),
+            typeof(FindPortCommand),
             typeof(MigrationsCommand),
             typeof(AddMigrationCommand),
             typeof(ClearMigrationsCommand),
@@ -109,21 +111,25 @@ public static class Startup
         {
             services.AddTransient<INotificationManager, WindowsNotificationManager>();
             services.AddTransient<IRecycleBinManager, WindowsRecycleBinManager>();
+            services.AddTransient<IProcessFinder, WindowsProcessFinder>();
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             services.AddTransient<INotificationManager, MacCatalystNotificationManager>();
             services.AddTransient<IRecycleBinManager, MacRecycleBinManager>();
+            services.AddTransient<IProcessFinder, UnixProcessFinder>();
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             services.AddTransient<INotificationManager, DefaultNotificationManager>();
             services.AddTransient<IRecycleBinManager, LinuxRecycleBinManager>();
+            services.AddTransient<IProcessFinder, UnixProcessFinder>();
         }
         else
         {
             services.AddTransient<INotificationManager, DefaultNotificationManager>();
             services.AddTransient<IRecycleBinManager, DefaultRecycleBinManager>();
+            services.AddTransient<IProcessFinder, UnixProcessFinder>();
         }
 
         var serviceProvider = services.BuildServiceProvider();
