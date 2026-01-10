@@ -17,11 +17,11 @@ public abstract class ConfigurationTestBase
     protected ConfigurationTestBase()
     {
         YamlDeserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .WithNamingConvention(HyphenatedNamingConvention.Instance)
             .Build();
 
         YamlSerializer = new SerializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .WithNamingConvention(HyphenatedNamingConvention.Instance)
             .Build();
     }
 
