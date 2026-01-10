@@ -59,6 +59,7 @@ public static class TestConstants
         public const string RunConfiguration = "run-configuration.yml";
         public const string ReplacementConfiguration = "replacement-configuration.yml";
         public const string EnvironmentConfiguration = "environment-configuration.yml";
+        public const string ToolsConfiguration = "tools-configuration.yml";
     }
 
     /// <summary>
@@ -94,6 +95,26 @@ name: Development
 environment-variables:
   ASPNETCORE_ENVIRONMENT: Development
   ASPNETCORE_URLS: http://localhost:5000
+";
+
+        public const string ToolsConfiguration = @"
+powershell: pwsh
+dotnet: dotnet
+abp: abp
+open: explorer
+terminal: wt
+";
+
+        public const string ToolsConfigurationEmpty = @"
+# Empty tools configuration
+";
+
+        public const string ToolsConfigurationMultipleAliases = @"
+git: git
+docker: docker
+compose: docker-compose
+kubectl: kubectl
+helm: helm
 ";
     }
 
