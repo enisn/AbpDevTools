@@ -18,6 +18,7 @@ public abstract class ConfigurationTestBase
     {
         YamlDeserializer = new DeserializerBuilder()
             .WithNamingConvention(HyphenatedNamingConvention.Instance)
+            .IgnoreUnmatchedProperties()
             .Build();
 
         YamlSerializer = new SerializerBuilder()

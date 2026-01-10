@@ -13,7 +13,7 @@ public class RunConfigurationTests : ConfigurationTestBase
     {
         // Arrange
         var yaml = @"
-runnableProjects:
+runnable-projects:
   - "".HttpApi.Host""
   - "".HttpApi.HostWithIds""
   - "".AuthServer""
@@ -86,7 +86,7 @@ runnableProjects:
     {
         // Arrange
         var yaml = @"
-runnableProjects: []
+runnable-projects: []
 ";
 
         // Act
@@ -100,16 +100,16 @@ runnableProjects: []
 
     [Theory]
     [InlineData(@"
-runnableProjects:
+runnable-projects:
   - "".Web""
 ", 1)]
     [InlineData(@"
-runnableProjects:
+runnable-projects:
   - "".Web""
   - "".Blazor""
 ", 2)]
     [InlineData(@"
-runnableProjects:
+runnable-projects:
   - "".Web""
   - "".Blazor""
   - "".Mvc""
@@ -130,12 +130,12 @@ runnableProjects:
 
     [Theory]
     [InlineData(@"
-runnableProjects:
+runnable-projects:
   - ""   ""
   - ""Test.Project""
 ", new string[] { "   ", "Test.Project" })]
     [InlineData(@"
-runnableProjects:
+runnable-projects:
   - "".Web.Mvc""
   - "".Web""
 ", new string[] { ".Web.Mvc", ".Web" })]
@@ -162,7 +162,7 @@ runnableProjects:
     {
         // Arrange
         var invalidYaml = @"
-runnableProjects:
+runnable-projects:
   - "".Web""
     - "".Blazor""
 ";
@@ -176,11 +176,11 @@ runnableProjects:
     {
         // Arrange
         var yaml = @"
-runnableProjects: ""not-an-array""
+runnable-projects: ""not-an-array""
 ";
 
         // Act & Assert
-        // When runnableProjects is a string instead of an array, deserialization throws
+        // When RunnableProjects is a string instead of an array, deserialization throws
         Should.Throw<Exception>(() => DeserializeYaml<RunOptions>(yaml));
     }
 
@@ -190,14 +190,14 @@ runnableProjects: ""not-an-array""
         {
             {
                 @"
-runnableProjects:
+runnable-projects:
   - "".Web""
 ",
                 new[] { ".Web" }
             },
             {
                 @"
-runnableProjects:
+runnable-projects:
   - "".HttpApi.Host""
   - "".Web""
   - "".Blazor""
@@ -206,7 +206,7 @@ runnableProjects:
             },
             {
                 @"
-runnableProjects:
+runnable-projects:
   - "".Mvc.Host""
   - "".Mvc""
 ",

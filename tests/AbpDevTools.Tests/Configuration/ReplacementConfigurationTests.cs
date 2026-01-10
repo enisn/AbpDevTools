@@ -20,12 +20,12 @@ public class ReplacementConfigurationTests : ConfigurationTestBase
         // Arrange
         var yaml = @"
 ConnectionString:
-  filePattern: appsettings.json
+  file-pattern: appsettings.json
   find: Trusted_Connection=True;
   replace: User ID=SA;Password=12345678Aa;
 
 LocalDb:
-  filePattern: appsettings.json
+  file-pattern: appsettings.json
   find: Server=(LocalDb)\\MSSQLLocalDB;
   replace: Server=localhost;
 ";
@@ -66,7 +66,7 @@ LocalDb:
         // Use single quotes in YAML to preserve escape sequences literally
         var yaml = $@"
 RegexTest:
-  filePattern: '{filePattern}'
+  file-pattern: '{filePattern}'
   find: '{find}'
   replace: '{replacement}'
 ";
@@ -94,7 +94,7 @@ RegexTest:
         // Arrange
         var yaml = @"
 CaptureGroupReplacement:
-  filePattern: '*.cs'
+  file-pattern: '*.cs'
   find: '(\d{4})-(\d{2})-(\d{2})'
   replace: '$3/$2/$1'
 ";
@@ -115,7 +115,7 @@ CaptureGroupReplacement:
         var emailRegex = @"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b";
         var yaml = $@"
 EmailReplacement:
-  filePattern: '*.txt'
+  file-pattern: '*.txt'
   find: '{emailRegex}'
   replace: 'REDACTED_EMAIL'
 ";
@@ -143,7 +143,7 @@ EmailReplacement:
         // Quote the filePattern value to prevent YAML from interpreting * as an anchor
         var yaml = $@"
 GlobPattern:
-  filePattern: ""{filePattern}""
+  file-pattern: ""{filePattern}""
   find: test
   replace: production
 ";
@@ -162,7 +162,7 @@ GlobPattern:
         // Arrange
         var yaml = @"
 ConfigFiles:
-  filePattern: '*.{json,yml,yaml}'
+  file-pattern: '*.{json,yml,yaml}'
   find: localhost
   replace: production-server
 ";
@@ -181,7 +181,7 @@ ConfigFiles:
         // Arrange
         var yaml = @"
 RecursivePattern:
-  filePattern: ""**/*.config""
+  file-pattern: ""**/*.config""
   find: old_value
   replace: new_value
 ";
@@ -218,7 +218,7 @@ RecursivePattern:
         // Arrange
         var yaml = @"
 MinimalRule:
-  filePattern: '*.txt'
+  file-pattern: '*.txt'
   find: 'search_text'
 ";
 
@@ -238,7 +238,7 @@ MinimalRule:
         // Arrange
         var yaml = @"
 FilePatternOnly:
-  filePattern: '*.log'
+  file-pattern: '*.log'
 ";
 
         // Act
@@ -261,22 +261,22 @@ FilePatternOnly:
         // Arrange
         var yaml = @"
 FirstReplacement:
-  filePattern: appsettings.json
+  file-pattern: appsettings.json
   find: 'Development'
   replace: 'Staging'
 
 SecondReplacement:
-  filePattern: appsettings.json
+  file-pattern: appsettings.json
   find: 'localhost'
   replace: 'staging-server'
 
 ThirdReplacement:
-  filePattern: '*.cs'
+  file-pattern: '*.cs'
   find: 'namespace OldCompany'
   replace: 'namespace NewCompany'
 
 FourthReplacement:
-  filePattern: '*.csproj'
+  file-pattern: '*.csproj'
   find: '<Version>1.0.0</Version>'
   replace: '<Version>2.0.0</Version>'
 ";
@@ -316,7 +316,7 @@ FourthReplacement:
         // Arrange
         var yaml = @"
 BackslashTest:
-  filePattern: '*.json'
+  file-pattern: '*.json'
   find: 'Server=(LocalDb)\\\\MSSQLLocalDB'
   replace: 'Server=localhost'
 ";
@@ -338,7 +338,7 @@ BackslashTest:
         // Arrange
         var yaml = @"
 SpecialChars:
-  filePattern: '*.cs'
+  file-pattern: '*.cs'
   find: 'TODO'
   replace: 'FIXME: High priority - $1'
 ";
@@ -358,7 +358,7 @@ SpecialChars:
         // Arrange
         var yaml = @"
 QuotesTest:
-  filePattern: '*.json'
+  file-pattern: '*.json'
   find: '""value""'
   replace: '''new_value'''
 ";
@@ -378,7 +378,7 @@ QuotesTest:
         // Arrange
         var yaml = @"
 ConnectionString:
-  filePattern: appsettings.json
+  file-pattern: appsettings.json
   find: 'Server=(LocalDb)\\\\MSSQLLocalDB;Trusted_Connection=True;'
   replace: 'Server=localhost;User ID=sa;Password=P@ssw0rd;'
 ";
@@ -400,7 +400,7 @@ ConnectionString:
         // Arrange
         var yaml = @"
 DollarSignReplacement:
-  filePattern: '*.txt'
+  file-pattern: '*.txt'
   find: '(\d+)'
   replace: '$$1.00'
 ";
