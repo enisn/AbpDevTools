@@ -30,6 +30,9 @@ public partial class RunCommand : ICommand
     [CommandOption("install-libs", 'i', Description = "Runs 'abp install-libs' command while running the project simultaneously.")]
     public bool InstallLibs { get; set; }
 
+    [CommandOption("skip-check-libs", Description = "Skips library installation check before running.")]
+    public bool SkipCheckLibs { get; set; }
+
     [CommandOption("graphBuild", 'g', Description = "Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance.")]
     public bool GraphBuild { get; set; }
 
@@ -164,6 +167,36 @@ public partial class RunCommand : ICommand
             }
         }
 
+        // Check for missing libs before starting projects
+        bool shouldInstallLibs = InstallLibs; // Start with explicit flag
+
+        if (!SkipCheckLibs && localRootConfig?.Run?.SkipCheckLibs != true)
+        {
+            var projectsNeedingLibs = new List<FileInfo>();
+
+            foreach (var csproj in projectFiles)
+            {
+                var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+
+                if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
+                {
+                    projectsNeedingLibs.Add(csproj);
+                }
+            }
+
+            if (projectsNeedingLibs.Count > 0)
+            {
+                var projectList = string.Join("\n  - ", projectsNeedingLibs.Select(p => p.Name));
+                await console.Output.WriteLineAsync($"\n[yellow]Warning: The following projects are missing wwwroot/libs:[/]");
+                await console.Output.WriteLineAsync($"  - {projectList}");
+
+                if (AnsiConsole.Confirm("\n[yellow]Would you like to install libs for these projects?[/]"))
+                {
+                    shouldInstallLibs = true;
+                }
+            }
+        }
+
         foreach (var csproj in projectFiles)
         {
             localConfigurationManager.TryLoad(csproj.FullName, out var localConfiguration);
@@ -199,7 +232,7 @@ public partial class RunCommand : ICommand
                 )
             );
 
-            if (InstallLibs)
+            if (shouldInstallLibs)
             {
                 var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
                 if (!Directory.Exists(wwwRootLibs))

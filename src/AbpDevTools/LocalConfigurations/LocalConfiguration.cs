@@ -18,6 +18,7 @@ public class LocalConfiguration
         public bool GraphBuild { get; set; }
         public string? Configuration { get; set; }
         public bool SkipMigrate { get; set; }
+        public bool SkipCheckLibs { get; set; }
         public string[] Projects { get; set; } = Array.Empty<string>();
     }
 }
