@@ -89,7 +89,6 @@ public class PrepareCommand : ICommand
 
                     if (dependencies.Count > 0)
                     {
-                        AnsiConsole.WriteLine($"{Emoji.Known.Package} {string.Join(", ", dependencies.Select(x => x.AppName))} (total: {dependencies.Count}) dependencies found for {csproj.Name}");
                         environmentAppsPerProject[csproj.FullName] = dependencies;
                     }
                 }
@@ -101,6 +100,24 @@ public class PrepareCommand : ICommand
         }
         else if (!NoEnvApps)
         {
+            // Render tree
+            AnsiConsole.WriteLine("-----------------------------------------------------------");
+            AnsiConsole.WriteLine();
+
+            foreach (var projectEnvironmentApps in environmentAppsPerProject)
+            {
+                var tree = new Tree($"{Emoji.Known.Package} {Path.GetRelativePath(WorkingDirectory, projectEnvironmentApps.Key)} (Total Dependencies: {projectEnvironmentApps.Value.Count})");
+                foreach (var dependency in projectEnvironmentApps.Value)
+                {
+                    tree.AddNode(dependency.AppName);
+                }
+                AnsiConsole.Write(tree);
+                AnsiConsole.WriteLine();
+            }
+    
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine("-----------------------------------------------------------\n");
+
             var environmentApps = environmentAppsPerProject.Values.SelectMany(x => x).Distinct().ToArray();
             if (!NoConfiguration)
             {
