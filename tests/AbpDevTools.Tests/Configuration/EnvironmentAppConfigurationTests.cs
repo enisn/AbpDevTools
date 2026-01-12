@@ -2,6 +2,8 @@ using AbpDevTools.Configuration;
 using AbpDevTools.Tests.Helpers;
 using FluentAssertions;
 using Xunit;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace AbpDevTools.Tests.Configuration;
 
@@ -12,6 +14,26 @@ namespace AbpDevTools.Tests.Configuration;
 /// </summary>
 public class EnvironmentAppConfigurationTests : ConfigurationTestBase
 {
+    // Override deserializer to match YamlMember aliases (no naming convention)
+    private new IDeserializer YamlDeserializer { get; }
+    private new ISerializer YamlSerializer { get; }
+
+    public EnvironmentAppConfigurationTests()
+    {
+        // Don't use naming convention - rely on YamlMember aliases
+        YamlDeserializer = new DeserializerBuilder()
+            .IgnoreUnmatchedProperties()
+            .Build();
+
+        YamlSerializer = new SerializerBuilder()
+            .Build();
+    }
+
+    private new T DeserializeYaml<T>(string yaml) where T : class
+    {
+        return YamlDeserializer.Deserialize<T>(yaml);
+    }
+
     #region Valid YAML Deserialization Tests
 
     [Fact]
@@ -20,42 +42,42 @@ public class EnvironmentAppConfigurationTests : ConfigurationTestBase
         // Arrange
         var yaml = @"
 sql-server:
-  start-cmds:
+  StartCmds:
     - docker start tmp-sqlserver
     - docker run --name tmp-sqlserver --restart unless-stopped -e ""ACCEPT_EULA=Y"" -e ""SA_PASSWORD=Passw0rd"" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-CU8-ubuntu
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-sqlserver
     - docker rm tmp-sqlserver
 
 redis:
-  start-cmds:
+  StartCmds:
     - docker start tmp-redis
     - docker run --name tmp-redis -p 6379:6379 -d --restart unless-stopped redis
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-redis
     - docker rm tmp-redis
 
 mongodb:
-  start-cmds:
+  StartCmds:
     - docker start tmp-mongo
     - docker run --name tmp-mongo --restart unless-stopped -p 27017:27017 -d mongo:latest
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-mongo
     - docker rm tmp-mongo
 
 postgres:
-  start-cmds:
+  StartCmds:
     - docker start tmp-postgres
     - docker run --name tmp-postgres --restart unless-stopped -e POSTGRES_PASSWORD=Passw0rd -p 5432:5432 -d postgres
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-postgres
     - docker rm tmp-postgres
 
 rabbitmq:
-  start-cmds:
+  StartCmds:
     - docker start tmp-rabbitmq
     - docker run --name tmp-rabbitmq -d --restart unless-stopped -p 15672:15672 -p 5672:5672 rabbitmq:3-management
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-rabbitmq
     - docker rm tmp-rabbitmq
 ";
@@ -80,10 +102,10 @@ rabbitmq:
         // Arrange
         var yaml = @"
 mysql:
-  start-cmds:
+  StartCmds:
     - docker start tmp-mysql
     - docker run --name tmp-mysql --restart unless-stopped -e ""MYSQL_ROOT_PASSWORD=Passw0rd"" -p 3306:3306 --platform linux/x86_64 -d mysql:5.7
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-mysql
     - docker rm tmp-mysql
 ";
@@ -113,8 +135,8 @@ mysql:
         // Arrange
         var yaml = @"
 legacy-app:
-  start-cmd: docker start legacy-app || docker run --name legacy-app -d nginx:latest
-  stop-cmd: docker kill legacy-app;docker rm legacy-app
+  StartCmd: docker start legacy-app || docker run --name legacy-app -d nginx:latest
+  StopCmd: docker kill legacy-app;docker rm legacy-app
 ";
 
         // Act
@@ -150,9 +172,9 @@ legacy-app:
         // Arrange
         var yaml = $@"
 {appName}:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-{appName} -p {portMapping} -d {appName}:latest
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-{appName}
 ";
 
@@ -170,9 +192,9 @@ legacy-app:
         // Arrange
         var yaml = @"
 rabbitmq:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-rabbitmq -d --restart unless-stopped -p 15672:15672 -p 5672:5672 -p 25672:25672 rabbitmq:3-management
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-rabbitmq
 ";
 
@@ -193,9 +215,9 @@ rabbitmq:
         // Arrange
         var yaml = @"
 custom-redis:
-  start-cmds:
+  StartCmds:
     - docker run --name custom-redis -p 6380:6379 -d redis:latest
-  stop-cmds:
+  StopCmds:
     - docker kill custom-redis
 ";
 
@@ -224,9 +246,9 @@ custom-redis:
         // Arrange
         var yaml = $@"
 {appName}:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-{appName} -d {image}
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-{appName}
 ";
 
@@ -244,21 +266,21 @@ custom-redis:
         // Arrange
         var yaml = @"
 postgres-14:
-  start-cmds:
+  StartCmds:
     - docker run --name postgres-14 -d postgres:14
-  stop-cmds:
+  StopCmds:
     - docker kill postgres-14
 
 postgres-15:
-  start-cmds:
+  StartCmds:
     - docker run --name postgres-15 -d postgres:15
-  stop-cmds:
+  StopCmds:
     - docker kill postgres-15
 
 postgres-16:
-  start-cmds:
+  StartCmds:
     - docker run --name postgres-16 -d postgres:16
-  stop-cmds:
+  StopCmds:
     - docker kill postgres-16
 ";
 
@@ -287,9 +309,9 @@ postgres-16:
         // Arrange
         var yaml = $@"
 {appName}:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-{appName} -e ""{envVar}"" -d {appName}:latest
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-{appName}
 ";
 
@@ -307,9 +329,9 @@ postgres-16:
         // Arrange
         var yaml = @"
 sql-server:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-sqlserver --restart unless-stopped -e ""ACCEPT_EULA=Y"" -e ""SA_PASSWORD=Passw0rd"" -e ""MSSQL_PID=Developer"" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-CU8-ubuntu
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-sqlserver
     - docker rm tmp-sqlserver
 ";
@@ -331,9 +353,9 @@ sql-server:
         // Arrange
         var yaml = @"
 app:
-  start-cmds:
+  StartCmds:
     - docker run --name my-app -e ""ConnectionStrings__Default=Server=localhost;Database=MyDb;User ID=SA;Password=Pass123;"" -e ""ASPNETCORE_ENVIRONMENT=Development"" -d myapp:latest
-  stop-cmds:
+  StopCmds:
     - docker kill my-app
 ";
 
@@ -356,45 +378,45 @@ app:
         // Arrange
         var yaml = @"
 sqlserver:
-  start-cmds:
+  StartCmds:
     - docker start tmp-sqlserver
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-sqlserver
 
 postgresql:
-  start-cmds:
+  StartCmds:
     - docker start tmp-postgres
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-postgres
 
 mysql:
-  start-cmds:
+  StartCmds:
     - docker start tmp-mysql
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-mysql
 
 mongodb:
-  start-cmds:
+  StartCmds:
     - docker start tmp-mongo
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-mongo
 
 redis:
-  start-cmds:
+  StartCmds:
     - docker start tmp-redis
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-redis
 
 rabbitmq:
-  start-cmds:
+  StartCmds:
     - docker start tmp-rabbitmq
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-rabbitmq
 
 sqlserver-edge:
-  start-cmds:
+  StartCmds:
     - docker start tmp-sqlserver-edge
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-sqlserver-edge
 ";
 
@@ -418,15 +440,15 @@ sqlserver-edge:
         // Arrange
         var yaml = @"
 redis:
-  start-cmds:
+  StartCmds:
     - docker start tmp-redis
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-redis
 
 mongodb:
-  start-cmds:
+  StartCmds:
     - docker start tmp-mongo
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-mongo
 ";
 
@@ -451,9 +473,9 @@ mongodb:
         // Arrange
         var yaml = @"
 postgres-with-volume:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-postgres -v /data/postgres:/var/lib/postgresql/data -p 5432:5432 -d postgres:15
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-postgres
 ";
 
@@ -471,9 +493,9 @@ postgres-with-volume:
         // Arrange
         var yaml = @"
 mongodb-with-volumes:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-mongo -v /data/mongo/data:/data/db -v /data/mongo/config:/data/configdb -p 27017:27017 -d mongo:latest
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-mongo
 ";
 
@@ -493,9 +515,9 @@ mongodb-with-volumes:
         // Arrange
         var yaml = @"
 sql-server-with-volume:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-sqlserver -v C:\\Data\\SQLServer:/var/opt/mssql -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-CU8-ubuntu
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-sqlserver
 ";
 
@@ -534,8 +556,8 @@ sql-server-with-volume:
         // Arrange
         var yaml = @"
 empty-app:
-  start-cmds: []
-  stop-cmds: []
+  StartCmds: []
+  StopCmds: []
 ";
 
         // Act
@@ -639,9 +661,9 @@ empty-app:
         // Arrange
         var yaml = @"
 app-with-special-chars:
-  start-cmds:
+  StartCmds:
     - docker run --name my-app -e ""PASSWORD=P@ssw0rd!#$%"" -e ""CONNECTION=Server=localhost;Database=MyDb;"" -d myapp:latest
-  stop-cmds:
+  StopCmds:
     - docker kill my-app
 ";
 
@@ -664,9 +686,9 @@ app-with-special-chars:
         // Arrange
         var yaml = @"
 app-with-restart:
-  start-cmds:
+  StartCmds:
     - docker run --name my-app --restart unless-stopped -d nginx:latest
-  stop-cmds:
+  StopCmds:
     - docker kill my-app
 ";
 
@@ -688,9 +710,9 @@ app-with-restart:
         // Arrange
         var yaml = $@"
 app-{restartPolicy}:
-  start-cmds:
+  StartCmds:
     - docker run --name my-app --restart {restartPolicy} -d nginx:latest
-  stop-cmds:
+  StopCmds:
     - docker kill my-app
 ";
 
@@ -712,9 +734,9 @@ app-{restartPolicy}:
         // Arrange
         var yaml = @"
 mysql-with-platform:
-  start-cmds:
+  StartCmds:
     - docker run --name tmp-mysql --restart unless-stopped -e ""MYSQL_ROOT_PASSWORD=Passw0rd"" -p 3306:3306 --platform linux/x86_64 -d mysql:5.7
-  stop-cmds:
+  StopCmds:
     - docker kill tmp-mysql
 ";
 

@@ -26,9 +26,9 @@ internal class MockConsole : IConsole
     {
     }
 
-    public ConsoleWriter Output => new(Console.OpenStandardOutput());
-    public ConsoleWriter Error => new(Console.OpenStandardError());
-    public ConsoleReader Input => new(Console.OpenStandardInput());
+    public ConsoleWriter Output => new(this, Console.OpenStandardOutput(), System.Text.Encoding.UTF8);
+    public ConsoleWriter Error => new(this, Console.OpenStandardError(), System.Text.Encoding.UTF8);
+    public ConsoleReader Input => new(this, Console.OpenStandardInput(), System.Text.Encoding.UTF8);
 
     public CancellationToken RegisterCancellationHandler() => CancellationToken.None;
     public void Clear() { }
@@ -158,6 +158,8 @@ public class SwitchReferencesToPackageCommandTests : IDisposable
         // Create source directory
         var sourcePath = Path.Combine(_testRootPath, "abp");
         Directory.CreateDirectory(sourcePath);
+        // Add a marker file to make directory non-empty
+        File.WriteAllText(Path.Combine(sourcePath, ".gitkeep"), "");
 
         localSourcesConfig.GetOptions().Returns(new LocalSourceMapping
         {
@@ -203,8 +205,10 @@ public class SwitchReferencesToPackageCommandTests : IDisposable
 
         var abpSourcePath = Path.Combine(_testRootPath, "abp");
         Directory.CreateDirectory(abpSourcePath);
+        File.WriteAllText(Path.Combine(abpSourcePath, ".gitkeep"), ""); // Avoid interactive prompt
         var commercialSourcePath = Path.Combine(_testRootPath, "commercial");
         Directory.CreateDirectory(commercialSourcePath);
+        File.WriteAllText(Path.Combine(commercialSourcePath, ".gitkeep"), ""); // Avoid interactive prompt
 
         var expectedSources = new LocalSourceMapping
         {
@@ -263,12 +267,15 @@ public class SwitchReferencesToPackageCommandTests : IDisposable
         Directory.CreateDirectory(sourcePath);
         var referencedProjectPath = Path.Combine(sourcePath, "Volo.Abp.Core.csproj");
         CreateTestProjectFile(referencedProjectPath);
+        File.WriteAllText(Path.Combine(sourcePath, ".gitkeep"), ""); // Avoid interactive prompt
 
-        // Add project reference to the test project
+        // Add project reference to the test project (correct relative path)
         var doc = XDocument.Load(projectPath);
+        var itemGroup = new XElement("ItemGroup");
         var projectRef = new XElement("ProjectReference",
-            new XAttribute("Include", "..\\abp\\Volo.Abp.Core.csproj"));
-        doc.Root!.Add(projectRef);
+            new XAttribute("Include", "abp\\Volo.Abp.Core.csproj"));
+        itemGroup.Add(projectRef);
+        doc.Root!.Add(itemGroup);
         doc.Save(projectPath);
 
         localSourcesConfig.GetOptions().Returns(new LocalSourceMapping
@@ -318,6 +325,8 @@ public class SwitchReferencesToPackageCommandTests : IDisposable
 
         var sourcePath = Path.Combine(_testRootPath, "abp");
         Directory.CreateDirectory(sourcePath);
+        // Add a marker file to make directory non-empty
+        File.WriteAllText(Path.Combine(sourcePath, ".gitkeep"), "");
 
         localSourcesConfig.GetOptions().Returns(new LocalSourceMapping
         {
@@ -372,6 +381,8 @@ public class SwitchReferencesToPackageCommandTests : IDisposable
 
         var sourcePath = Path.Combine(_testRootPath, "abp");
         Directory.CreateDirectory(sourcePath);
+        // Add a marker file to make directory non-empty
+        File.WriteAllText(Path.Combine(sourcePath, ".gitkeep"), "");
 
         localSourcesConfig.GetOptions().Returns(new LocalSourceMapping
         {
@@ -428,12 +439,15 @@ public class SwitchReferencesToPackageCommandTests : IDisposable
         Directory.CreateDirectory(sourcePath);
         var referencedProjectPath = Path.Combine(sourcePath, "Volo.Abp.Core.csproj");
         CreateTestProjectFile(referencedProjectPath);
+        File.WriteAllText(Path.Combine(sourcePath, ".gitkeep"), ""); // Avoid interactive prompt
 
-        // Add project reference
+        // Add project reference (correct relative path)
         var doc = XDocument.Load(projectPath);
+        var itemGroup = new XElement("ItemGroup");
         var projectRef = new XElement("ProjectReference",
-            new XAttribute("Include", "..\\abp\\Volo.Abp.Core.csproj"));
-        doc.Root!.Add(projectRef);
+            new XAttribute("Include", "abp\\Volo.Abp.Core.csproj"));
+        itemGroup.Add(projectRef);
+        doc.Root!.Add(itemGroup);
         doc.Save(projectPath);
 
         localSourcesConfig.GetOptions().Returns(new LocalSourceMapping
@@ -484,6 +498,8 @@ public class SwitchReferencesToPackageCommandTests : IDisposable
 
         var sourcePath = Path.Combine(_testRootPath, "abp");
         Directory.CreateDirectory(sourcePath);
+        // Add a marker file to make directory non-empty
+        File.WriteAllText(Path.Combine(sourcePath, ".gitkeep"), "");
 
         localSourcesConfig.GetOptions().Returns(new LocalSourceMapping
         {

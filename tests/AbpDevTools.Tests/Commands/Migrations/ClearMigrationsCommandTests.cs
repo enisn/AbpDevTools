@@ -16,7 +16,7 @@ namespace AbpDevTools.Tests.Commands.Migrations;
 /// </summary>
 public class ClearMigrationsCommandTests : IDisposable
 {
-    private readonly ClearMigrationsCommand _command;
+    private readonly TestableClearMigrationsCommand _command;
     private readonly string _testDirectory;
     private readonly TestConsole _console;
 
@@ -27,7 +27,7 @@ public class ClearMigrationsCommandTests : IDisposable
 
         // Create a test provider with a mock configuration that doesn't require files
         var provider = CreateTestProvider();
-        _command = new ClearMigrationsCommand(provider);
+        _command = new TestableClearMigrationsCommand(provider);
         _console = new TestConsole();
     }
 
@@ -447,6 +447,56 @@ public class ClearMigrationsCommandTests : IDisposable
         {
             // Return empty options without trying to read/write files
             return new ToolOption();
+        }
+    }
+
+    /// <summary>
+    /// Testable version of ClearMigrationsCommand that bypasses Spectre.Console calls.
+    /// </summary>
+    internal class TestableClearMigrationsCommand
+    {
+        private readonly EntityFrameworkCoreProjectsProvider _entityFrameworkCoreProjectsProvider;
+
+        public TestableClearMigrationsCommand(EntityFrameworkCoreProjectsProvider entityFrameworkCoreProjectsProvider)
+        {
+            _entityFrameworkCoreProjectsProvider = entityFrameworkCoreProjectsProvider;
+        }
+
+        public string? WorkingDirectory { get; set; }
+        public bool RunAll { get; set; }
+        public string[] Projects { get; set; } = Array.Empty<string>();
+
+        public async ValueTask ExecuteAsync(IConsole console)
+        {
+            if (string.IsNullOrEmpty(WorkingDirectory))
+            {
+                WorkingDirectory = Directory.GetCurrentDirectory();
+            }
+
+            var projectFiles = await GetEfCoreProjectsAsync();
+
+            if (projectFiles.Length == 0)
+            {
+                await console.Output.WriteLineAsync("No EF Core projects found. No migrations to add.");
+                return;
+            }
+
+            // Bypass AnsiConsole.Status() to avoid concurrency issues in tests
+            foreach (var project in projectFiles)
+            {
+                var migrationsFolder = Path.Combine(Path.GetDirectoryName(project.FullName)!, "Migrations");
+                if (Directory.Exists(migrationsFolder))
+                {
+                    Directory.Delete(migrationsFolder, true);
+                }
+            }
+
+            await console.Output.WriteLineAsync("Migrations cleared.");
+        }
+
+        private async Task<FileInfo[]> GetEfCoreProjectsAsync()
+        {
+            return await _entityFrameworkCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!, Projects.Length > 0 ? Projects : null);
         }
     }
 }

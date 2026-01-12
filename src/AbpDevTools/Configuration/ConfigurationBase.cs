@@ -61,7 +61,7 @@ public abstract class ConfigurationBase<T> : IConfigurationBase
         return options;
     }
 
-    protected virtual T ReadOptions()
+    protected virtual T? ReadOptions()
     {
         var ymlContent = File.ReadAllText(FilePath);
         return _yamlDeserializer.Deserialize<T>(ymlContent);

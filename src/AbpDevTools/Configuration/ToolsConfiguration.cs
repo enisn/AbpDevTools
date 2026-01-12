@@ -25,9 +25,12 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
 
         if (File.Exists(FilePath))
         {
-            var options = ReadOptions()!;
+            var options = ReadOptions();
 
-            shouldSave = Merge(options, _defaults);
+            if (options != null)
+            {
+                shouldSave = Merge(options, _defaults);
+            }
         }
 
         if(shouldSave)
