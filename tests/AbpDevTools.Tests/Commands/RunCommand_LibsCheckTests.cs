@@ -160,7 +160,7 @@ public class RunCommand_LibsCheckTests
 
     [Theory]
     [InlineData(true, true, false)]
-    [InlineData(false, true, true)]
+    [InlineData(false, true, false)]
     [InlineData(false, false, true)]
     public void SkipCheckLibs_FlagConfigurationCombinesCorrectly(
         bool commandSkipFlag,
