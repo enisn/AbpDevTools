@@ -1,4 +1,4 @@
-﻿using AbpDevTools.Configuration;
+using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
@@ -57,6 +57,8 @@ public partial class RunCommand : ICommand
     protected IConsole? console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
+    private volatile bool _processesKilled = false;
+    private readonly object _killLock = new();
 
     protected readonly INotificationManager notificationManager;
     protected readonly MigrateCommand migrateCommand;
@@ -197,76 +199,92 @@ public partial class RunCommand : ICommand
             }
         }
 
-        foreach (var csproj in projectFiles)
+        // Register cleanup handlers for all exit scenarios
+        void ProcessExitHandler(object? sender, EventArgs e) => KillRunningProcesses();
+        AppDomain.CurrentDomain.ProcessExit += ProcessExitHandler;
+
+        try
         {
-            localConfigurationManager.TryLoad(csproj.FullName, out var localConfiguration);
-
-            var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
-            var commandSuffix = BuildCommandSuffix(
-                localConfiguration?.Run?.NoBuild,
-                localConfiguration?.Run?.GraphBuild,
-                localConfiguration?.Run?.Configuration);
-
-            var tools = toolsConfiguration.GetOptions();
-            var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
+            foreach (var csproj in projectFiles)
             {
-                WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
+                localConfigurationManager.TryLoad(csproj.FullName, out var localConfiguration);
 
-            localConfigurationManager.ApplyLocalEnvironmentForProcess(csproj.FullName, startInfo, localConfiguration);
+                var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
+                var commandSuffix = BuildCommandSuffix(
+                    localConfiguration?.Run?.NoBuild,
+                    localConfiguration?.Run?.GraphBuild,
+                    localConfiguration?.Run?.Configuration);
 
-            if (!string.IsNullOrEmpty(EnvironmentName))
-            {
-                environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
-            }
-
-            runningProjects.Add(
-                new RunningCsProjItem(
-                    csproj.Name,
-                    Process.Start(startInfo)!,
-                    startInfo,
-                    verbose: Verbose
-                )
-            );
-
-            if (shouldInstallLibs)
-            {
-                var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
-                if (!Directory.Exists(wwwRootLibs))
-                {
-                    Directory.CreateDirectory(wwwRootLibs);
-                }
-
-                if (!Directory.EnumerateFiles(wwwRootLibs).Any())
-                {
-                    File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
-                }
-
-                var installLibsStartInfo = new ProcessStartInfo(tools["abp"], "install-libs")
+                var tools = toolsConfiguration.GetOptions();
+                var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
                 {
                     WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                 };
 
-                var installLibsRunninItem = new RunningInstallLibsItem(
-                    csproj.Name.Replace(".csproj", " install-libs"),
-                    Process.Start(installLibsStartInfo)!,
-                    installLibsStartInfo
+                localConfigurationManager.ApplyLocalEnvironmentForProcess(csproj.FullName, startInfo, localConfiguration);
+
+                if (!string.IsNullOrEmpty(EnvironmentName))
+                {
+                    environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
+                }
+
+                runningProjects.Add(
+                    new RunningCsProjItem(
+                        csproj.Name,
+                        Process.Start(startInfo)!,
+                        startInfo,
+                        verbose: Verbose
+                    )
                 );
 
-                runningProjects.Add(installLibsRunninItem);
+                if (shouldInstallLibs)
+                {
+                    var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+                    if (!Directory.Exists(wwwRootLibs))
+                    {
+                        Directory.CreateDirectory(wwwRootLibs);
+                    }
+
+                    if (!Directory.EnumerateFiles(wwwRootLibs).Any())
+                    {
+                        File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
+                    }
+
+                    var installLibsStartInfo = new ProcessStartInfo(tools["abp"], "install-libs")
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                    };
+
+                    var installLibsRunninItem = new RunningInstallLibsItem(
+                        csproj.Name.Replace(".csproj", " install-libs"),
+                        Process.Start(installLibsStartInfo)!,
+                        installLibsStartInfo
+                    );
+
+                    runningProjects.Add(installLibsRunninItem);
+                }
             }
+
+            cancellationToken.Register(KillRunningProcesses);
+
+            await RenderProcesses(cancellationToken);
+
+            await updateCheckCommand.SoftCheckAsync(console);
         }
-
-        cancellationToken.Register(KillRunningProcesses);
-
-        await RenderProcesses(cancellationToken);
-
-        await updateCheckCommand.SoftCheckAsync(console);
+        finally
+        {
+            // Always kill processes on exit, regardless of how we exit
+            // Reset flag to ensure cleanup runs even if called before
+            _processesKilled = false;
+            KillRunningProcesses();
+            AppDomain.CurrentDomain.ProcessExit -= ProcessExitHandler;
+        }
     }
 
     private void ApplyLocalProjects(LocalConfiguration? localConfiguration)
@@ -346,6 +364,11 @@ public partial class RunCommand : ICommand
 
                   while (!cancellationToken.IsCancellationRequested)
                   {
+                      if (keyCommandHandler.IsInnerCommandInProgress)
+                      {
+                          continue;
+                      }
+
                       // Check for key input
                       var keyEvent = keyInputManager.TryGetNextKey();
                       if (keyEvent != null)
@@ -428,16 +451,46 @@ public partial class RunCommand : ICommand
     private static async Task RestartProject(RunningProjectItem project, CancellationToken cancellationToken = default)
     {
         project.Queued = true;
-        await Task.Delay(3100, cancellationToken);
+
+        try
+        {
+            await Task.Delay(3100, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            project.Queued = false;
+            return;
+        }
 
         if (cancellationToken.IsCancellationRequested)
         {
+            project.Queued = false;
             return;
         }
 
         project.Status = $"[orange1]*[/] Exited({project.Process!.ExitCode}) (Retrying...)";
-        project.Process = Process.Start(project.Process!.StartInfo)!;
-        project.StartReadingOutput();
+
+        try
+        {
+            project.Process = Process.Start(project.Process!.StartInfo)!;
+
+            // Double-check cancellation after starting - if cancelled, kill immediately
+            if (cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    project.Process?.Kill(entireProcessTree: true);
+                }
+                catch { }
+                return;
+            }
+
+            project.StartReadingOutput();
+        }
+        catch (Exception)
+        {
+            project.Status = "[red]*[/] Failed to restart";
+        }
     }
 
     private string BuildHelpSection(KeyCommandHandler keyCommandHandler)
@@ -447,12 +500,40 @@ public partial class RunCommand : ICommand
 
     protected void KillRunningProcesses()
     {
-        console!.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
+        // Ensure this is only executed once, even if called from multiple handlers
+        lock (_killLock)
+        {
+            if (_processesKilled)
+            {
+                return;
+            }
+            _processesKilled = true;
+        }
+
+        try
+        {
+            console?.Output.WriteLine($"- Killing running {runningProjects.Count} processes...");
+        }
+        catch
+        {
+            // Console may not be available during shutdown
+        }
+
         foreach (var project in runningProjects)
         {
-            project.Process?.Kill(entireProcessTree: true);
-
-            project.Process?.WaitForExit();
+            try
+            {
+                if (project.Process != null && !project.Process.HasExited)
+                {
+                    project.Process.Kill(entireProcessTree: true);
+                    project.Process.WaitForExit(5000); // Wait up to 5 seconds
+                }
+            }
+            catch (Exception)
+            {
+                // Process may have already exited or may not be accessible
+                // Continue to next project
+            }
         }
     }
 

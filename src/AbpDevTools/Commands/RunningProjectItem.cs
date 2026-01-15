@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
+using System.Collections.Concurrent;
+using Spectre.Console;
 
 namespace AbpDevTools.Commands;
 
@@ -11,6 +13,43 @@ public class RunningProjectItem
     public virtual bool Queued { get; set; }
     public bool Verbose { get; set; }
     public ProcessStartInfo? OriginalStartInfo { get; set; }
+    public ConcurrentQueue<string> Logs { get; } = new();
+    public int LogLimit { get; set; } = 200;
+
+    public event EventHandler<string>? LogAdded;
+
+    protected virtual void AddLog(string? log)
+    {
+        if (string.IsNullOrEmpty(log)) return;
+
+        Logs.Enqueue(log);
+
+        if (LogLimit > 0 && Logs.Count > LogLimit)
+        {
+            while (Logs.Count > LogLimit)
+            {
+                Logs.TryDequeue(out _);
+            }
+        }
+
+        LogAdded?.Invoke(this, log);
+    }
+
+    public string[] GetLogs()
+    {
+        return Logs.ToArray();
+    }
+
+    public void TrimLogs(int limit)
+    {
+        if (limit > 0)
+        {
+            while (Logs.Count > limit)
+            {
+                Logs.TryDequeue(out _);
+            }
+        }
+    }
 
     public virtual void StartReadingOutput()
     {
@@ -52,37 +91,56 @@ public class RunningCsProjItem : RunningProjectItem
         Process!.OutputDataReceived -= OutputReceived;
         Process!.OutputDataReceived += OutputReceived;
         Process!.BeginOutputReadLine();
+        Process!.ErrorDataReceived -= ErrorReceived;
+        Process!.ErrorDataReceived += ErrorReceived;
+        Process!.BeginErrorReadLine();
     }
 
     protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)
     {
+        if (args.Data == null)
+        {
+            return;
+        }
+
+        var log = Markup.Escape(args.Data);
+
         if (!IsCompleted && Verbose)
         {
-            Status = args.Data?.Replace("[", string.Empty).Replace("]", string.Empty) ?? string.Empty;
+            Status = log;
         }
 
-        if (args.Data != null && args.Data.Contains("Now listening on: "))
+        if (log.Contains("Now listening on: "))
         {
-            Status = args.Data[args.Data.IndexOf("Now listening on: ")..];
-            Process?.CancelOutputRead();
+            Status = log[log.IndexOf("Now listening on: ")..];
             IsCompleted = true;
+            AddLog($"[green]{log}[/]");
         }
-
-        if (args.Data != null && 
-            args.Data.Contains("dotnet watch ") &&
-            args.Data.Contains(" Started"))
+        else if (log.Contains("dotnet watch ") && log.Contains(" Started"))
         {
-            Status = args.Data;
-            Process?.CancelOutputRead();
+            Status = log;
             IsCompleted = true;
+            AddLog($"[green]{log}[/]");
         }
-
-        if (DateTime.Now - Process?.StartTime > TimeSpan.FromMinutes(5))
+        else if (log.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+                 log.Contains("fail", StringComparison.OrdinalIgnoreCase))
         {
-            Status = "Stale";
-            Process!.OutputDataReceived -= OutputReceived;
-            Process.CancelOutputRead();
+            AddLog($"[red]{log}[/]");
         }
+        else if (log.Contains("warn", StringComparison.OrdinalIgnoreCase))
+        {
+            AddLog($"[yellow]{log}[/]");
+        }
+        else
+        {
+            AddLog(log);
+        }
+    }
+
+    private void ErrorReceived(object sender, DataReceivedEventArgs args)
+    {
+        if (args.Data == null) return;
+        AddLog($"[red]{Markup.Escape(args.Data)}[/]");
     }
 }
 
@@ -102,22 +160,41 @@ public class RunningInstallLibsItem : RunningProjectItem
         Process!.OutputDataReceived -= OutputReceived;
         Process!.OutputDataReceived += OutputReceived;
         Process!.BeginOutputReadLine();
+        Process!.ErrorDataReceived -= ErrorReceived;
+        Process!.ErrorDataReceived += ErrorReceived;
+        Process!.BeginErrorReadLine();
     }
 
     protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)
     {
-        if (args.Data != null && args.Data.Contains("Done in"))
+        if (args.Data != null)
         {
-            Status = "Completed.";
-            Process!.CancelOutputRead();
-            IsCompleted = true;
+            var log = Markup.Escape(args.Data);
+            if (log.Contains("Done in"))
+            {
+                Status = "Completed.";
+                IsCompleted = true;
+                AddLog($"[green]{log}[/]");
+            }
+            else if (log.Contains("error", StringComparison.OrdinalIgnoreCase))
+            {
+                AddLog($"[red]{log}[/]");
+            }
+            else
+            {
+                AddLog(log);
+            }
         }
 
         if (DateTime.Now - Process!.StartTime > TimeSpan.FromMinutes(5))
         {
             Status = "Stale";
-            Process!.OutputDataReceived -= OutputReceived;
-            Process!.CancelOutputRead();
         }
+    }
+
+    private void ErrorReceived(object sender, DataReceivedEventArgs args)
+    {
+        if (args.Data == null) return;
+        AddLog($"[red]{Markup.Escape(args.Data)}[/]");
     }
 }
