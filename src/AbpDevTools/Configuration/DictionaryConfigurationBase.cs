@@ -24,7 +24,7 @@ public abstract class DictionaryConfigurationBase<T> : ConfigurationBase<Diction
         {
             var existingOptions = base.GetOptions();
             
-            if (PreserveExistingValues)
+            if (PreserveExistingValues && existingOptions != null)
             {
                 foreach (var defaultOption in options)
                 {

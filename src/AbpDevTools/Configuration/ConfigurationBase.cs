@@ -37,7 +37,7 @@ public abstract class ConfigurationBase<T> : IConfigurationBase
                 FolderPath,
                 FileName + ".json");
 
-    public virtual T GetOptions()
+    public virtual T? GetOptions()
     {
         if (!Directory.Exists(FolderPath))
             Directory.CreateDirectory(FolderPath);
