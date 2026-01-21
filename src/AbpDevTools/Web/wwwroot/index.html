@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AbpDevTools</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        .projects {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .section-title {
+            color: #333;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .project-list {
+            display: grid;
+            gap: 15px;
+        }
+        .project-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .project-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+        }
+        .project-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .project-icon.solution {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .project-icon.project {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .project-info {
+            flex: 1;
+        }
+        .project-name {
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+            margin-bottom: 4px;
+        }
+        .project-path {
+            color: #888;
+            font-size: 0.9em;
+            font-family: monospace;
+        }
+        .project-type {
+            background: #e9ecef;
+            color: #666;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .empty {
+            text-align: center;
+            padding: 60px;
+            color: #888;
+        }
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <div class="header">
+                <h1>🚀 AbpDevTools</h1>
+                <p>Web UI for ABP Development Tools</p>
+            </div>
+
+            <div class="projects">
+                <h2 class="section-title">Projects & Solutions</h2>
+
+                <div v-if="loading" class="loading">
+                    Loading projects...
+                </div>
+
+                <div v-else-if="error" class="error">
+                    {{ error }}
+                </div>
+
+                <div v-else-if="projects.length === 0" class="empty">
+                    <div class="empty-icon">📂</div>
+                    <p>No projects found in current directory</p>
+                </div>
+
+                <div v-else class="project-list">
+                    <div v-for="project in projects" :key="project.path" class="project-card" @click="selectProject(project)">
+                        <div class="project-icon" :class="project.type">
+                            {{ project.type === 'solution' ? '📦' : '📄' }}
+                        </div>
+                        <div class="project-info">
+                            <div class="project-name">{{ project.name }}</div>
+                            <div class="project-path">{{ project.path }}</div>
+                        </div>
+                        <div class="project-type">{{ project.type }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    projects: [],
+                    loading: true,
+                    error: null
+                };
+            },
+            async mounted() {
+                await this.loadProjects();
+            },
+            methods: {
+                async loadProjects() {
+                    this.loading = true;
+                    this.error = null;
+                    
+                    try {
+                        const response = await fetch('/api/projects');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        this.projects = await response.json();
+                    } catch (e) {
+                        this.error = 'Failed to load projects: ' + e.message;
+                        console.error(e);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                selectProject(project) {
+                    console.log('Selected:', project);
+                    alert(`Selected: ${project.name}\nType: ${project.type}\n\nMore features coming soon!`);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

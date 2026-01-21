@@ -1,4 +1,4 @@
-﻿using AbpDevTools.Commands;
+using AbpDevTools.Commands;
 using AbpDevTools.Commands.Migrations;
 using AbpDevTools.Commands.References;
 using AbpDevTools.Notifications;
@@ -81,6 +81,7 @@ public static class Startup
             typeof(SwitchReferencesToPackageCommand),
             typeof(LocalSourcesCommand),
             typeof(ReferencesCommand),
+            typeof(ServeCommand),
         };
 
         foreach (var commandType in commands)
