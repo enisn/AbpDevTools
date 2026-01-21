@@ -364,3 +364,7 @@ FodyWeavers.xsd
 
 # Claude Code plans directory
 .claude/
+# Vue/Vite
+src/AbpDevTools/Web/node_modules/
+src/AbpDevTools/Web/dist/
+src/AbpDevTools/Web/wwwroot/assets/

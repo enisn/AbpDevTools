@@ -45,4 +45,9 @@
     </Content>
   </ItemGroup>
 
+  <Target Name="BuildWebUI" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Exec Command="cd Web &amp;&amp; npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Exec Command="cd Web &amp;&amp; npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>
