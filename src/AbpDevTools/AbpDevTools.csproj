@@ -39,15 +39,15 @@
     <None Include="..\..\art\logo_128.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
+  <Target Name="BuildWebUI" BeforeTargets="Build">
+    <Exec Command="cd Web &amp;&amp; npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Exec Command="cd Web &amp;&amp; npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
   <ItemGroup>
     <Content Include="Web\wwwroot\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-
-  <Target Name="BuildWebUI" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
-    <Exec Command="cd Web &amp;&amp; npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
-    <Exec Command="cd Web &amp;&amp; npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
-  </Target>
 
 </Project>
