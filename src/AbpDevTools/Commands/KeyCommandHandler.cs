@@ -60,7 +60,7 @@ public class KeyCommandHandler
             RestartProject(project);
         }
         
-        _console.Output.WriteLine("[green]All applications restarted![/]");
+        _console.Output.WriteLine("[green]All applications schedules to restart![/]");
     }
 
     private void HandleRestart()
