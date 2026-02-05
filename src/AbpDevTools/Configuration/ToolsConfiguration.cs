@@ -30,6 +30,7 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
             if (options != null)
             {
                 shouldSave = Merge(options, _defaults);
+                _defaults = options;
             }
         }
 
