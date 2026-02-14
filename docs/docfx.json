@@ -48,7 +48,7 @@
         ]
       }
     ],
-    "dest": "_site",
+    "output": "../_site",
     "globalMetadata": {
       "_appTitle": "AbpDevTools Documentation",
       "_enableSearch": true,
