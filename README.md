@@ -75,7 +75,7 @@ OPTIONS
 
 Convention: `*.sln` files are considered as solutions and `*.csproj` files are considered as projects.
 
-![abpvdev build](images/abpvdevbuild.gif)
+![abpvdev build](images/abpdevbuild.gif)
 
 ### Example commands
 
