@@ -5,7 +5,19 @@ title: Bundle Commands
 
 # Bundle Commands
 
-AbpDevTools provides commands for managing ABP bundles, including listing and installing bundles.
+> **Important**: This command is **NOT related to ABP Studio**. It is used for **Blazor WebAssembly (WASM) bundles** in your application.
+
+AbpDevTools provides commands for managing Blazor WASM client-side bundles. These commands generate static files (CSS, JavaScript) based on [bundle contributors](https://docs.abp.io/en/abp/latest/UI/Blazor/Bundling) defined in your application.
+
+## What It Does
+
+The bundle commands generate client-side static resource files for Blazor WASM applications by:
+
+- Reading **bundle contributors** defined in your Blazor project
+- Processing stylesheets (CSS) and scripts (JavaScript) specified in the bundles
+- Generating optimized static files in the application's `wwwroot` folder
+
+This is different from ABP Studio's bundling system and specifically targets the Blazor WASM bundling mechanism used by ABP applications.
 
 ## Commands Overview
 
@@ -136,5 +148,5 @@ Ensure you're in a project directory with an ABP application.
 
 ## Related Commands
 
-- [abpvdev prepare](../commands/prepare.md) - Prepares project including bundle installation
-- [abpvdev run](../commands/run.md) - Run with `--install-libs` to install libraries
+- [abpvdev prepare](prepare.md) - Prepares project including bundle installation
+- [abpvdev run](run.md) - Run with `--install-libs` to install libraries

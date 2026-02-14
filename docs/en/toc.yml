@@ -25,6 +25,8 @@ items:
         href: commands/test.md
       - name: Database Commands
         href: commands/database.md
+      - name: Bundle Commands
+        href: commands/bundle-commands.md
   - name: Reference Management
     items:
       - name: Local Sources
@@ -47,5 +49,3 @@ items:
     items:
       - name: Switch Version
         href: abp-studio/switch-version.md
-      - name: Bundle Commands
-        href: abp-studio/bundle-commands.md
