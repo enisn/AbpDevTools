@@ -12,7 +12,7 @@ AbpDevTools provides commands for database management operations.
 | Command | Description |
 |---------|-------------|
 | `abpvdev migrate` | Runs database migrations |
-| `abpvdev db drop` | Drops the database |
+| `abpvdev database-drop` | Drops the database |
 
 ## Migrate Command
 
@@ -55,7 +55,7 @@ Drops the database for your application.
 ### Usage
 
 ```
-abpvdev db drop [options]
+abpvdev database-drop [options]
 ```
 
 ### Options
@@ -70,9 +70,9 @@ abpvdev db drop [options]
 ### Examples
 
 ```bash
-abpvdev db drop
-abpvdev db drop -f
-abpvdev db drop -p MyProject.DbMigrator
+abpvdev database-drop
+abpvdev database-drop -f
+abpvdev database-drop -p MyProject.DbMigrator
 ```
 
 ### Warning
@@ -88,7 +88,7 @@ Typical database workflow:
 3. **Start application**: `abpvdev run`
 4. **Drop and recreate**: 
    ```bash
-   abpvdev db drop -f
+   abpvdev database-drop -f
    abpvdev migrate
    ```
 
