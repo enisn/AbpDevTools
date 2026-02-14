@@ -163,7 +163,7 @@ public class AddPackageCommand : ICommand
         {
             AnsiConsole.MarkupLine($"[red]Error adding package:[/]");
             AnsiConsole.WriteLine(result.Output);
-            throw new CommandException("Failed to add package.");
+            throw new AddPackageCommandException("Failed to add package.");
         }
 
         AnsiConsole.MarkupLine($"[green]Package added:[/] {Markup.Escape(PackageName)}");
@@ -380,12 +380,5 @@ public class AddPackageCommand : ICommand
         await process.WaitForExitAsync();
 
         return (process.ExitCode, output.ToString());
-    }
-}
-
-public class CommandException : Exception
-{
-    public CommandException(string message) : base(message)
-    {
     }
 }

@@ -73,14 +73,94 @@ OPTIONS
 
 Convention: `*.sln` files are considered as solutions and `*.csproj` files are considered as projects.
 
-![abpdev build](images/abpdevbuild.gif)
+![abpvdev build](images/abpvdevbuild.gif)
 
 ### Example commands
 
 - Run in a specific path
     ```bash
-    abpdev build C:\Path\To\Projects
+    abpvdev build C:\Path\To\Projects
     ```
+
+## abpvdev add-package
+
+Adds a NuGet package to the project and automatically configures the module dependency. This command is designed to work with **any NuGet source**, unlike the official `abp add-package` command which only works with the official ABP package registry.
+
+### The Problem with `abp add-package`
+
+ABP's official CLI has a strict policy that only allows adding packages from their official registry. If you try to add a third-party package or a package from a custom NuGet source, you'll get an error:
+
+```
+PS C:\P\AbpSolution3025> abp add-package AbpDev.QoL.Mvc.DataTables
+🔒 'AbpDev.QoL.Mvc.DataTables' nuget package could not be found!
+```
+
+This is because `abp add-package` queries the ABP's internal package database instead of directly using the NuGet API. Any package not registered in their database will fail, even if it exists on NuGet.
+
+### The Solution: AbpDevTools `add-package`
+
+AbpDevTools takes a **developer-friendly approach**:
+
+- **NuGet source agnostic**: Uses `dotnet add package` which respects all configured sources in `nuget.config`
+- **Auto-configures DependsOn**: Automatically finds and adds the `[DependsOn(typeof(ModuleName))]` attribute to your module
+- **No assembly loading**: Uses metadata reflection to read module classes from DLLs without loading them into runtime (avoids target framework conflicts)
+- **Multi-project support**: Prompts to select from multiple projects or adds to all projects at once
+
+```
+abpvdev add-package <packagename> [options]
+```
+
+```bash
+abpvdev add-package -h
+
+PARAMETERS
+* packagename       Name of the NuGet package to add. 
+
+OPTIONS
+  -p|--project        Path to the project file (.csproj). Default: searches current directory. 
+  -v|--version        Version of the package to install. 
+  -s|--skip-dependency  Skip adding module dependency (DependsOn attribute). Default: "False".
+  --no-restore        Skip restoring the project after adding the package. Default: "False".
+  -a|--all          Add package to all projects in the solution/folder. Default: "False".
+  -h|--help         Shows help text.
+```
+
+### Example commands
+
+- Add a package to the current project
+    ```bash
+    abpvdev add-package AbpDev.QoL.Mvc.DataTables
+    ```
+
+- Add a specific version
+    ```bash
+    abpvdev add-package AbpDev.QoL.Mvc.DataTables -v 1.0.0
+    ```
+
+- Add to all projects in the solution
+    ```bash
+    abpvdev add-package AbpDev.QoL.Mvc.DataTables -a
+    ```
+
+- Add to a specific project
+    ```bash
+    abpvdev add-package AbpDev.QoL.Mvc.DataTables -p C:\Path\To\Project.csproj
+    ```
+
+- Skip adding the DependsOn attribute (if not an ABP module)
+    ```bash
+    abpvdev add-package Some.Other.Package -s
+    ```
+
+### How It Works
+
+1. **Add Package**: Uses `dotnet add package` which respects your `nuget.config` sources
+2. **Restore**: Restores packages to download the DLL to NuGet cache
+3. **Find Module**: Uses metadata reflection to find the module class in the package DLL (without loading the assembly)
+4. **Find Project Module**: Uses Roslyn to parse your project's source files to find the ABP module class
+5. **Configure Dependency**: Adds `[DependsOn(typeof(ModuleName))]` attribute to your module
+
+> **Note**: This command is safe to run multiple times - it won't add duplicate dependencies.
 
 - Run in a specific configuration
     ```bash
