@@ -30,7 +30,6 @@ jobs:
       with:
         dotnet-version: 10.x
 
-    - run: dotnet workload restore
     - run: dotnet tool update -g docfx
     - run: docfx docs/docfx.json
 
