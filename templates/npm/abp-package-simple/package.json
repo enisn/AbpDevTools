@@ -1,0 +1,19 @@
+{
+  "name": "__PACKAGE_NAME__",
+  "version": "0.1.0",
+  "description": "__DESCRIPTION__",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@abp/core": "~__ABP_VERSION__",
+    "@highlightjs/cdn-assets": "~11.11.1"
+  },
+  "keywords": [
+    "abp",
+    "aspnetcore",
+    "module",
+    "web"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AbpDevTools",
+  "classifications": [
+    "ABP",
+    "Module",
+    "Library"
+  ],
+  "identity": "AbpDevTools.Templates.AbpModuleSimple",
+  "name": "ABP Module (Simple)",
+  "shortName": "abp-module-simple",
+  "sourceName": "Acme.MyModule",
+  "preferNameDirectory": true,
+  "symbols": {
+    "ModuleClassName": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "ABP module class name prefix",
+      "defaultValue": "MyModule",
+      "replaces": "__MODULE_CLASS__",
+      "fileRename": "__MODULE_CLASS__"
+    },
+    "AbpVersion": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "ABP package version",
+      "defaultValue": "10.0.2",
+      "replaces": "__ABP_VERSION__"
+    }
+  }
+}

@@ -33,6 +33,7 @@
   <ItemGroup>
     <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="" />
     <None Include="..\..\art\logo_128.png" Pack="true" PackagePath="" />
+    <None Include="..\..\templates\**\*" Pack="true" PackagePath="templates/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
