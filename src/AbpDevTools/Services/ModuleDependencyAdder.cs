@@ -87,9 +87,24 @@ public class ModuleDependencyAdder
             return AddToExistingDependsOn(content, existingDependsOn.Value, moduleName);
         }
 
-        var dependsOnAttribute = $"[DependsOn(typeof({moduleName}))]{Environment.NewLine}    ";
+        var indentation = GetIndentation(content, indexOfPublicClass);
+        var dependsOnAttribute = $"[DependsOn(typeof({moduleName}))]{Environment.NewLine}{indentation}";
         
         return content.Insert(indexOfPublicClass, dependsOnAttribute);
+    }
+
+    private static string GetIndentation(string content, int indexOfPublicClass)
+    {
+        var lineStart = content.LastIndexOf('\n', indexOfPublicClass);
+        lineStart = lineStart < 0 ? 0 : lineStart + 1;
+
+        var current = lineStart;
+        while (current < content.Length && (content[current] == ' ' || content[current] == '\t'))
+        {
+            current++;
+        }
+
+        return content.Substring(lineStart, current - lineStart);
     }
 
     private (int Start, int End)? FindExistingDependsOnAttribute(string content, int beforeIndex)
