@@ -367,3 +367,4 @@ FodyWeavers.xsd
 
 # DocFX output
 docs/_site/
+_site/
