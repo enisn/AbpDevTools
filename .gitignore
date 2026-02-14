@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 # Claude Code plans directory
 .claude/
+
+# DocFX output
+docs/_site/
