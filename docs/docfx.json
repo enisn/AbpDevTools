@@ -54,6 +54,7 @@
       "_enableSearch": true,
       "_gitUrl": "https://github.com/enisn/AbpDevTools"
     },
+    "output": "../_site",
     "template": [
       "default",
       "modern",
