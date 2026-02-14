@@ -65,25 +65,59 @@ The command performs these steps:
 3. **Retrieve Versions**: Gets the backed-up version from PropertyGroup (stored during `to-local`)
 4. **Convert References**: Replaces project references with package references
 
-### If Version is Backed Up
+### Example Diff (With Backup)
 
-The conversion is automatic:
+When the version was backed up during `to-local`, the conversion is automatic:
 
-```xml
-<!-- Before (Project Reference) -->
-<ProjectReference Include="..\..\abp\framework\Volo.Abp.AspNetCore.Mvc\Volo.Abp.AspNetCore.Mvc.csproj" />
+```diff
+ <Project Sdk="Microsoft.NET.Sdk.Web">
 
-<!-- After (Package Reference) -->
-<PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="8.0.0" />
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+     <abpVersion>8.0.0</abpVersion>
+   </PropertyGroup>
+
+   <ItemGroup>
+-    <ProjectReference Include="..\..\abp\framework\src\Volo.Abp.AspNetCore.Mvc\Volo.Abp.AspNetCore.Mvc.csproj" />
+-    <ProjectReference Include="..\..\abp\framework\src\Volo.Abp.Ddd.Application\Volo.Abp.Ddd.Application.csproj" />
++    <PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="8.0.0" />
++    <PackageReference Include="Volo.Abp.Ddd.Application" Version="8.0.0" />
+   </ItemGroup>
+
+ </Project>
 ```
 
-### If Version is NOT Backed Up
+### Example Diff (Without Backup)
 
-You'll be prompted to enter the version:
+If you manually added project references (without using `to-local`), you'll be prompted for versions:
+
+```diff
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+   </PropertyGroup>
+
+   <ItemGroup>
+-    <ProjectReference Include="..\..\abp\framework\src\Volo.Abp.AspNetCore.Mvc\Volo.Abp.AspNetCore.Mvc.csproj" />
++    <PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="8.0.0" />
+   </ItemGroup>
+
+ </Project>
+```
+
+You'll be prompted to enter the version (per source, not per package):
 
 ```
-Enter version for Volo.Abp.AspNetCore.Mvc: _
+Enter version for source 'abp': _
 ```
+
+### Before → After Comparison
+
+| State | Reference Type | Example |
+|-------|----------------|---------|
+| **Before** | Project Reference | `<ProjectReference Include="..\..\abp\framework\src\Volo.Abp.AspNetCore.Mvc\Volo.Abp.AspNetCore.Mvc.csproj" />` |
+| **After** | Package Reference | `<PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="8.0.0" />` |
 
 ## Workflow
 
@@ -136,9 +170,9 @@ If multiple package versions match, specify the exact version when prompted.
 
 ## Important Notes
 
-- **Always backup**: The `to-local` command automatically backs up versions
-- **Don't modify backups**: Keep the PropertyGroup intact for easy restoration
-- **Order matters**: Run `to-package` before `to-local` again to avoid conflicts
+- **Version backup is per source**: The `to-local` command stores the version as `{SourceKey}Version` (e.g., `abpVersion`), not per package
+- **All packages in a source share the same version**: When switching back, all packages from the same source use the backed-up version
+- **Order matters**: Run `to-package` before running `to-local` again to avoid conflicts
 
 ## Next Steps
 

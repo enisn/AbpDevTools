@@ -66,25 +66,43 @@ The command performs these steps:
 4. **Convert References**: Replaces package references with project references using relative paths
 5. **Backup Versions**: Stores original package versions in PropertyGroup for later restoration
 
-### Before (Package Reference)
+### Example Diff
 
-```xml
-<PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="8.0.0" />
+Here's what happens to your `.csproj` file:
+
+```diff
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+   </PropertyGroup>
+
+   <ItemGroup>
+-    <PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="8.0.0" />
+-    <PackageReference Include="Volo.Abp.Ddd.Application" Version="8.0.0" />
++    <ProjectReference Include="..\..\abp\framework\src\Volo.Abp.AspNetCore.Mvc\Volo.Abp.AspNetCore.Mvc.csproj" />
++    <ProjectReference Include="..\..\abp\framework\src\Volo.Abp.Ddd.Application\Volo.Abp.Ddd.Application.csproj" />
+   </ItemGroup>
+
++  <PropertyGroup>
++    <abpVersion>8.0.0</abpVersion>
++  </PropertyGroup>
++
+ </Project>
 ```
 
-### After (Project Reference)
+### Before → After Comparison
 
-```xml
-<ProjectReference Include="..\..\abp\framework\Volo.Abp.AspNetCore.Mvc\Volo.Abp.AspNetCore.Mvc.csproj" />
-```
+| State | Reference Type | Example |
+|-------|----------------|---------|
+| **Before** | Package Reference | `<PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="8.0.0" />` |
+| **After** | Project Reference | `<ProjectReference Include="..\..\abp\framework\src\Volo.Abp.AspNetCore.Mvc\Volo.Abp.AspNetCore.Mvc.csproj" />` |
 
-### Backup
-
-Original versions are stored in the project file:
+The backed-up version is stored **per source** (not per package):
 
 ```xml
 <PropertyGroup>
-  <Backup_Volo_Abp_AspNetCore_Mvc>8.0.0</Backup_Volo_Abp_AspNetCore_Mvc>
+  <abpVersion>8.0.0</abpVersion>
 </PropertyGroup>
 ```
 
