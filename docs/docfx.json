@@ -1,0 +1,63 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "src/AbpDevTools",
+          "files": [
+            "**/*.cs"
+          ]
+        }
+      ],
+      "dest": "api"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "**/*.md",
+          "**/*.yml"
+        ],
+        "exclude": [
+          "**/obj/**",
+          "**/bin/**",
+          "**/_site/**"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "en/images/**"
+        ],
+        "exclude": [
+          "**/obj/**",
+          "**/bin/**"
+        ]
+      },
+      {
+        "files": [
+          "images/**",
+          "art/**"
+        ],
+        "source": "../",
+        "exclude": [
+          "**/obj/**",
+          "**/bin/**"
+        ]
+      }
+    ],
+    "dest": "_site",
+    "globalMetadata": {
+      "_appTitle": "AbpDevTools Documentation",
+      "_enableSearch": true,
+      "_gitUrl": "https://github.com/enisn/AbpDevTools"
+    },
+    "template": [
+      "default",
+      "modern",
+      "themes/abpdev-modern"
+    ]
+  }
+}

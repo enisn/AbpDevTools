@@ -1,0 +1,51 @@
+### YamlMime:TableOfContent
+tocRel: toc.html
+items:
+  - name: Installation
+    href: installation.md
+  - name: Getting Started
+    href: getting-started.md
+  - name: Commands
+    items:
+      - name: Build Command
+        href: commands/build.md
+      - name: Run Command
+        href: commands/run.md
+      - name: Add Package Command
+        href: commands/add-package.md
+      - name: Prepare Command
+        href: commands/prepare.md
+      - name: Logs Command
+        href: commands/logs.md
+      - name: Replace Command
+        href: commands/replace.md
+      - name: Migrations Commands
+        href: commands/migrations.md
+      - name: Test Command
+        href: commands/test.md
+      - name: Database Commands
+        href: commands/database.md
+  - name: Reference Management
+    items:
+      - name: Local Sources
+        href: references/local-sources.md
+      - name: Switch to Local
+        href: references/switch-to-local.md
+      - name: Switch to Package
+        href: references/switch-to-package.md
+  - name: Environment Management
+    items:
+      - name: Virtual Environments
+        href: environment/virtual-environments.md
+      - name: Environment Apps
+        href: environment/environment-apps.md
+  - name: Configuration
+    href: configuration.md
+  - name: Notifications
+    href: notifications.md
+  - name: ABP Studio
+    items:
+      - name: Switch Version
+        href: abp-studio/switch-version.md
+      - name: Bundle Commands
+        href: abp-studio/bundle-commands.md

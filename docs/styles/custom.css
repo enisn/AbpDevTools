@@ -1,0 +1,226 @@
+/* Custom Theme Styles for AbpDevTools */
+
+:root {
+  /* Primary colors - ABP purple theme */
+  --primary-color: #6f42c1;
+  --primary-color-dark: #5a32a3;
+  --primary-color-light: #8b5cf6;
+  --accent-color: #0dcaf0;
+  --accent-color-dark: #0aabc7;
+  
+  /* Background colors */
+  --bg-color: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  
+  /* Text colors */
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --text-muted: #adb5bd;
+  
+  /* Border colors */
+  --border-color: #dee2e6;
+  --border-color-dark: #ced4da;
+  
+  /* Sidebar */
+  --sidebar-bg: #f8f9fa;
+  --sidebar-active-bg: #e9ecef;
+  --sidebar-active-color: #6f42c1;
+  
+  /* Code blocks */
+  --code-bg: #f6f8fa;
+  --code-border: #d0d7de;
+}
+
+/* Override primary brand color */
+.navbar {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-dark) 100%) !important;
+}
+
+.navbar-brand, .navbar-nav .nav-link {
+  color: white !important;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-color-dark);
+  border-color: var(--primary-color-dark);
+}
+
+/* Sidebar styling */
+.sidebar {
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--border-color);
+}
+
+.toc .nav > li > a {
+  color: var(--text-secondary);
+  padding: 8px 16px;
+}
+
+.toc .nav > li > a:hover {
+  color: var(--primary-color);
+  background-color: var(--sidebar-active-bg);
+}
+
+.toc .nav > li.active > a {
+  color: var(--sidebar-active-color);
+  font-weight: 600;
+  background-color: var(--sidebar-active-bg);
+  border-left: 3px solid var(--primary-color);
+}
+
+/* Typography */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.75rem;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 0.5rem;
+}
+
+/* Code blocks */
+pre {
+  background-color: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+code {
+  background-color: var(--code-bg);
+  color: var(--primary-color);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+/* Links */
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--primary-color-dark);
+  text-decoration: underline;
+}
+
+/* Card styling for landing page */
+.card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  background-color: var(--bg-secondary);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+}
+
+/* Affix (right sidebar) */
+.affix {
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+}
+
+/* Search box */
+#search-query {
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding-left: 2.5rem;
+}
+
+#search-query:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(111, 66, 193, 0.2);
+}
+
+/* Footer */
+footer {
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  padding: 2rem 0;
+  margin-top: 3rem;
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] {
+  --bg-color: #1a1d21;
+  --bg-secondary: #212529;
+  --bg-tertiary: #2c3035;
+  --text-primary: #e9ecef;
+  --text-secondary: #adb5bd;
+  --text-muted: #6c757d;
+  --border-color: #373b3e;
+  --border-color-dark: #454b50;
+  --sidebar-bg: #212529;
+  --sidebar-active-bg: #2c3035;
+  --code-bg: #2d333b;
+  --code-border: #444c56;
+}
+
+[data-bs-theme="dark"] .navbar {
+  background: linear-gradient(135deg, #6f42c1 0%, #4a2c8c 100%) !important;
+}
+
+[data-bs-theme="dark"] .sidebar {
+  background-color: var(--sidebar-bg);
+}
+
+[data-bs-theme="dark"] .card {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-bs-theme="dark"] .card-header {
+  background-color: var(--bg-tertiary);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.content-wrapper {
+  animation: fadeIn 0.3s ease;
+}

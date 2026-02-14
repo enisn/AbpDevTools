@@ -11,6 +11,8 @@ It helps the developer, build, run, replace, and manage logs of the projects. It
 
 <a href="https://www.nuget.org/packages/AbpDevTools"><img src="https://img.shields.io/nuget/v/AbpDevTools?logo=nuget" alt="AbpDevTools on Nuget" /></a>
 
+<a href="https://enisn.github.io/AbpDevTools/"><img src="https://img.shields.io/badge/Documentation-available-blue" alt="Documentation" /></a>
+
 # Installation
 
 - Install [AbpDevTools from NuGet](https://www.nuget.org/packages/AbpDevTools) as dotnet tool:
