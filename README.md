@@ -84,6 +84,23 @@ Convention: `*.sln` files are considered as solutions and `*.csproj` files are c
     abpdev build C:\Path\To\Projects
     ```
 
+- Run in a specific configuration
+    ```bash
+    abpdev build C:\Path\To\Projects -c Release
+    ```
+
+
+- Run in a specific path with specific configuration and specific projects
+    ```bash
+    abpdev build C:\Path\To\Projects -c Release -f ProjectA.csproj ProjectB.csproj
+    ```
+
+- Run in interactive mode **(Select projects to build)**
+    ```bash
+    abpdev build -i
+    ```
+    ![abpdev build interactive](images/abpdevbuild-interactive.gif)
+
 ## abpdev add-package
 
 Adds a NuGet package to the project and automatically configures the module dependency. This command is designed to work with **any NuGet source**, unlike the official `abp add-package` command which only works with the official ABP package registry.
@@ -164,22 +181,6 @@ OPTIONS
 
 > **Note**: This command is safe to run multiple times - it won't add duplicate dependencies.
 
-- Run in a specific configuration
-    ```bash
-    abpdev build C:\Path\To\Projects -c Release
-    ```
-
-
-- Run in a specific path with specific configuration and specific projects
-    ```bash
-    abpdev build C:\Path\To\Projects -c Release -f ProjectA.csproj ProjectB.csproj
-    ```
-
-- Run in interactive mode **(Select projects to build)**
-    ```bash
-    abpdev build -i
-    ```
-    ![abpdev build interactive](images/abpdevbuild-interactive.gif)
 
 ## abpdev run
 Runs the solution in the current directory. _(Multiple solution, multiple applications including DbMigrator)_
