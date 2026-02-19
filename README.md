@@ -75,16 +75,16 @@ OPTIONS
 
 Convention: `*.sln` files are considered as solutions and `*.csproj` files are considered as projects.
 
-![abpvdev build](images/abpdevbuild.gif)
+![abpdev build](images/abpdevbuild.gif)
 
 ### Example commands
 
 - Run in a specific path
     ```bash
-    abpvdev build C:\Path\To\Projects
+    abpdev build C:\Path\To\Projects
     ```
 
-## abpvdev add-package
+## abpdev add-package
 
 Adds a NuGet package to the project and automatically configures the module dependency. This command is designed to work with **any NuGet source**, unlike the official `abp add-package` command which only works with the official ABP package registry.
 
@@ -109,11 +109,11 @@ AbpDevTools takes a **developer-friendly approach**:
 - **Multi-project support**: Prompts to select from multiple projects or adds to all projects at once
 
 ```
-abpvdev add-package <packagename> [options]
+abpdev add-package <packagename> [options]
 ```
 
 ```bash
-abpvdev add-package -h
+abpdev add-package -h
 
 PARAMETERS
 * packagename       Name of the NuGet package to add. 
@@ -131,27 +131,27 @@ OPTIONS
 
 - Add a package to the current project
     ```bash
-    abpvdev add-package AbpDev.QoL.Mvc.DataTables
+    abpdev add-package AbpDev.QoL.Mvc.DataTables
     ```
 
 - Add a specific version
     ```bash
-    abpvdev add-package AbpDev.QoL.Mvc.DataTables -v 1.0.0
+    abpdev add-package AbpDev.QoL.Mvc.DataTables -v 1.0.0
     ```
 
 - Add to all projects in the solution
     ```bash
-    abpvdev add-package AbpDev.QoL.Mvc.DataTables -a
+    abpdev add-package AbpDev.QoL.Mvc.DataTables -a
     ```
 
 - Add to a specific project
     ```bash
-    abpvdev add-package AbpDev.QoL.Mvc.DataTables -p C:\Path\To\Project.csproj
+    abpdev add-package AbpDev.QoL.Mvc.DataTables -p C:\Path\To\Project.csproj
     ```
 
 - Skip adding the DependsOn attribute (if not an ABP module)
     ```bash
-    abpvdev add-package Some.Other.Package -s
+    abpdev add-package Some.Other.Package -s
     ```
 
 ### How It Works
