@@ -279,3 +279,19 @@ form.filter {
 .alert-danger > h5 {
   background-color: var(--material-danger-header);
 }
+
+[data-bs-theme='dark'] .hljs-addition{
+  color: #b4f1b4;
+}
+
+[data-bs-theme='dark'] .hljs-deletion{
+  color:#ffd8d3;
+}
+
+[data-bs-theme='light'] .hljs-addition{
+  color: #0fb425;
+}
+
+[data-bs-theme='light'] .hljs-deletion{
+  color: #ff1c20;
+}
