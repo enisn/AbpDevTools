@@ -45,6 +45,7 @@ abpvdev add-package <packagename> [options]
 |--------|----------|-------------|
 | `--project` | `-p` | Path to the project file (.csproj). Default: searches current directory |
 | `--version` | `-v` | Version of the package to install |
+| `--prerelease` | | Allow installing prerelease package versions |
 | `--skip-dependency` | `-s` | Skip adding module dependency (DependsOn attribute) |
 | `--no-restore` | | Skip restoring the project after adding the package |
 | `--all` | `-a` | Add package to all projects in the solution/folder |
@@ -62,6 +63,12 @@ abpvdev add-package AbpDev.QoL.Mvc.DataTables
 
 ```bash
 abpvdev add-package AbpDev.QoL.Mvc.DataTables -v 1.0.0
+```
+
+### Add Latest Prerelease Version
+
+```bash
+abpvdev add-package AbpDev.QoL.Mvc.DataTables --prerelease
 ```
 
 ### Add to All Projects

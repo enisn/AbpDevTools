@@ -18,6 +18,9 @@ public class AddPackageCommand : ICommand
     [CommandOption("version", 'v', Description = "Version of the package to install.")]
     public string? Version { get; set; }
 
+    [CommandOption("prerelease", Description = "Allow installing prerelease package versions.")]
+    public bool Prerelease { get; set; }
+
     [CommandOption("skip-dependency", 's', Description = "Skip adding module dependency (DependsOn attribute).")]
     public bool SkipDependency { get; set; }
 
@@ -153,6 +156,11 @@ public class AddPackageCommand : ICommand
         if (!string.IsNullOrEmpty(Version))
         {
             arguments += $" --version {Version}";
+        }
+
+        if (Prerelease)
+        {
+            arguments += " --prerelease";
         }
 
         ctx.Status($"Running: [grey]dotnet {Markup.Escape(arguments)}[/]");

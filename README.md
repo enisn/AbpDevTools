@@ -138,6 +138,7 @@ PARAMETERS
 OPTIONS
   -p|--project        Path to the project file (.csproj). Default: searches current directory. 
   -v|--version        Version of the package to install. 
+  --prerelease      Allow installing prerelease package versions. Default: "False".
   -s|--skip-dependency  Skip adding module dependency (DependsOn attribute). Default: "False".
   --no-restore        Skip restoring the project after adding the package. Default: "False".
   -a|--all          Add package to all projects in the solution/folder. Default: "False".
@@ -154,6 +155,11 @@ OPTIONS
 - Add a specific version
     ```bash
     abpdev add-package AbpDev.QoL.Mvc.DataTables -v 1.0.0
+    ```
+
+- Add latest prerelease version
+    ```bash
+    abpdev add-package AbpDev.QoL.Mvc.DataTables --prerelease
     ```
 
 - Add to all projects in the solution
