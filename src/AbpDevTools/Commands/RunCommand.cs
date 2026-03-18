@@ -178,7 +178,12 @@ public partial class RunCommand : ICommand
 
             foreach (var csproj in projectFiles)
             {
-                var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+                var projectDir = Path.GetDirectoryName(csproj.FullName)!;
+
+                if (!File.Exists(Path.Combine(projectDir, "package.json")))
+                    continue;
+
+                var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
 
                 if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
                 {
@@ -240,9 +245,9 @@ public partial class RunCommand : ICommand
                     )
                 );
 
-                if (shouldInstallLibs)
+                if (shouldInstallLibs && File.Exists(Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "package.json")))
                 {
-                    var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+                    var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot", "libs");
                     if (!Directory.Exists(wwwRootLibs))
                     {
                         Directory.CreateDirectory(wwwRootLibs);
