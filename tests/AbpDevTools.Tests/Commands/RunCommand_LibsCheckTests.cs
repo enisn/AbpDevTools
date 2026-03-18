@@ -138,19 +138,26 @@ public class RunCommand_LibsCheckTests
             };
 
             // Act - Replicate the detection logic from RunCommand
-            var projectsNeedingLibs = new List<FileInfo>();
-            foreach (var csproj in projectFiles)
+            var projectsNeedingLibs = FindProjectsNeedingLibs(projectFiles);
+
+            List<FileInfo> FindProjectsNeedingLibs(IEnumerable<FileInfo> projectFiles)
             {
-                var projectDir = Path.GetDirectoryName(csproj.FullName)!;
-
-                if (!File.Exists(Path.Combine(projectDir, "package.json")))
-                    continue;
-
-                var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
-                if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
+                var projectsNeedingLibs = new List<FileInfo>();
+                foreach (var csproj in projectFiles)
                 {
-                    projectsNeedingLibs.Add(csproj);
+                    var projectDir = Path.GetDirectoryName(csproj.FullName)!;
+
+                    if (!File.Exists(Path.Combine(projectDir, "package.json")))
+                        continue;
+
+                    var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
+                    if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
+                    {
+                        projectsNeedingLibs.Add(csproj);
+                    }
                 }
+
+                return projectsNeedingLibs;
             }
 
             // Assert
