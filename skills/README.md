@@ -28,14 +28,14 @@ Cursor natively supports skills as `SKILL.md` files.
 ```powershell
 # Windows (PowerShell)
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.cursor\skills\abpdev-references" | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md" -OutFile "$env:USERPROFILE\.cursor\skills\abpdev-references\SKILL.md"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" -OutFile "$env:USERPROFILE\.cursor\skills\abpdev-references\SKILL.md"
 ```
 
 ```bash
 # macOS / Linux
 mkdir -p ~/.cursor/skills/abpdev-references
 curl -fsSL -o ~/.cursor/skills/abpdev-references/SKILL.md \
-  "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md"
+  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
 ```
 
 **Project-level (shared via your repository):**
@@ -43,14 +43,14 @@ curl -fsSL -o ~/.cursor/skills/abpdev-references/SKILL.md \
 ```powershell
 # Windows (PowerShell) -- run from your ABP project root
 New-Item -ItemType Directory -Force ".cursor\skills\abpdev-references" | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md" -OutFile ".cursor\skills\abpdev-references\SKILL.md"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" -OutFile ".cursor\skills\abpdev-references\SKILL.md"
 ```
 
 ```bash
 # macOS / Linux
 mkdir -p .cursor/skills/abpdev-references
 curl -fsSL -o .cursor/skills/abpdev-references/SKILL.md \
-  "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md"
+  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
 ```
 
 ---
@@ -62,14 +62,14 @@ Claude Code reads `CLAUDE.md` files from the project root or `~/.claude/CLAUDE.m
 **Project-level (run from your ABP project root):**
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md" >> CLAUDE.md
+curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" >> CLAUDE.md
 ```
 
 **Personal (all projects):**
 
 ```bash
 mkdir -p ~/.claude
-curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md" >> ~/.claude/CLAUDE.md
+curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" >> ~/.claude/CLAUDE.md
 ```
 
 > If you have multiple skills, separate them with `---` or a heading.
@@ -83,14 +83,14 @@ Copilot reads instructions from `.github/instructions/*.instructions.md` in your
 ```powershell
 # Windows (PowerShell) -- run from your ABP project root
 New-Item -ItemType Directory -Force ".github\instructions" | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md" -OutFile ".github\instructions\abpdev-references.instructions.md"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" -OutFile ".github\instructions\abpdev-references.instructions.md"
 ```
 
 ```bash
 # macOS / Linux
 mkdir -p .github/instructions
 curl -fsSL -o .github/instructions/abpdev-references.instructions.md \
-  "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md"
+  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
 ```
 
 ---
@@ -102,7 +102,7 @@ OpenCode reads `AGENTS.md` files from the project root.
 **Project-level (run from your ABP project root):**
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md" >> AGENTS.md
+curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" >> AGENTS.md
 ```
 
 ---
@@ -113,7 +113,7 @@ For any other AI agent (Windsurf, Cline, Aider, etc.) that supports custom instr
 
 1. Download the skill content:
    ```bash
-   curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/abpdev-references/SKILL.md"
+   curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
    ```
 2. Paste it into your agent's rules file, custom instructions, or system prompt configuration.
 
