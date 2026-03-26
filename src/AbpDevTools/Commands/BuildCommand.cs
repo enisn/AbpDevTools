@@ -249,6 +249,13 @@ public class BuildCommand : ICommand
             return $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds:D2}s";
         }
 
-        return $"{Math.Round(elapsed.TotalSeconds, 1):0.0}s";
+        var roundedSeconds = Math.Round(elapsed.TotalSeconds, 1, MidpointRounding.AwayFromZero);
+
+        if (roundedSeconds >= 60.0)
+        {
+            return "1m 00s";
+        }
+
+        return roundedSeconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "s";
     }
 }

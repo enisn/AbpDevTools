@@ -10,6 +10,7 @@ public class BuildCommand_FormatDurationTests
     [InlineData(0, 0, "0.0s")]
     [InlineData(0, 500, "0.5s")]
     [InlineData(0, 499, "0.5s")]
+    [InlineData(0, 50, "0.1s")]
     [InlineData(0, 100, "0.1s")]
     [InlineData(3, 200, "3.2s")]
     [InlineData(45, 0, "45.0s")]
@@ -17,6 +18,13 @@ public class BuildCommand_FormatDurationTests
     {
         var elapsed = TimeSpan.FromMilliseconds(seconds * 1000 + ms);
         BuildCommand.FormatDuration(elapsed).Should().Be(expected);
+    }
+
+    [Fact]
+    public void FormatDuration_RoundingTo60Seconds_ReturnsOneMinute()
+    {
+        var elapsed = TimeSpan.FromMilliseconds(59_950);
+        BuildCommand.FormatDuration(elapsed).Should().Be("1m 00s");
     }
 
     [Theory]
