@@ -1,4 +1,4 @@
-﻿using AbpDevTools.Configuration;
+using AbpDevTools.Configuration;
 using AbpDevTools.Notifications;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -58,6 +58,8 @@ public class BuildCommand : ICommand
             return;
         }
 
+        var totalStopwatch = Stopwatch.StartNew();
+
         var successfulCount = await AnsiConsole.Status().StartAsync("Starting build...", async ctx =>
         {
             int completed = 0;
@@ -75,6 +77,7 @@ public class BuildCommand : ICommand
                 }
 
                 var tools = toolsConfiguration.GetOptions();
+                var stepStopwatch = Stopwatch.StartNew();
                 
                 try
                 {
@@ -92,7 +95,6 @@ public class BuildCommand : ICommand
                         continue;
                     }
 
-                    // Capture both standard output and error streams
                     var outputTask = runningProcess.StandardOutput.ReadToEndAsync();
                     var errorTask = runningProcess.StandardError.ReadToEndAsync();
                     
@@ -101,33 +103,30 @@ public class BuildCommand : ICommand
                     var _output = await outputTask;
                     var _error = await errorTask;
 
+                    stepStopwatch.Stop();
+                    var stepDuration = FormatDuration(stepStopwatch.Elapsed);
+
                     if (runningProcess.ExitCode == 0)
                     {
                         completed++;
-                        AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{buildFile.Name}[/]");
+                        AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{buildFile.Name}[/] [grey]in {stepDuration}[/]");
                     }
                     else
                     {
-                        // Show failure status in red, but don't use markup for the build output
-                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} Exit Code: {runningProcess.ExitCode}");
+                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} Exit Code: {runningProcess.ExitCode} [grey]in {stepDuration}[/]");
                         
-                        // Write build output using AnsiConsole but with escaped content to avoid markup interpretation
                         AnsiConsole.WriteLine();
                         AnsiConsole.MarkupLine($"[red]Build failed for: {Markup.Escape(buildFile.Name)}[/]");
                         
-                        // Display standard output if available - escape content to prevent markup interpretation
                         if (!string.IsNullOrWhiteSpace(_output))
                         {
                             AnsiConsole.MarkupLine("[grey]Standard Output:[/]");
-                            // Write raw output without any markup interpretation
                             AnsiConsole.WriteLine(Markup.Escape(_output));
                         }
                         
-                        // Display error output if available - escape content to prevent markup interpretation
                         if (!string.IsNullOrWhiteSpace(_error))
                         {
                             AnsiConsole.MarkupLine("[red]Error Output:[/]");
-                            // Write raw error output without any markup interpretation
                             AnsiConsole.WriteLine(Markup.Escape(_error));
                         }
                         
@@ -136,12 +135,13 @@ public class BuildCommand : ICommand
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} - Exception: {Markup.Escape(ex.Message)}");
+                    stepStopwatch.Stop();
+                    var stepDuration = FormatDuration(stepStopwatch.Elapsed);
+                    AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} - Exception: {Markup.Escape(ex.Message)} [grey]in {stepDuration}[/]");
                     AnsiConsole.WriteLine();
                 }
                 finally
                 {
-                    // Ensure process cleanup
                     try
                     {
                         if (runningProcess != null && !runningProcess.HasExited)
@@ -151,7 +151,6 @@ public class BuildCommand : ICommand
                     }
                     catch (Exception)
                     {
-                        // Ignore cleanup exceptions
                     }
                 }
 
@@ -164,13 +163,18 @@ public class BuildCommand : ICommand
             return completed;
         });
 
+        totalStopwatch.Stop();
+        var totalDuration = FormatDuration(totalStopwatch.Elapsed);
+
+        AnsiConsole.MarkupLine($"[bold]Total build time:[/] [blue]{totalDuration}[/]");
+
         if (buildFiles.Length == 1)
         {
-            await notificationManager.SendAsync("Build "+ (successfulCount > 0 ? "Completed!" : "Failed!"), $"{buildFiles[0].Name} has been built.");
+            await notificationManager.SendAsync("Build "+ (successfulCount > 0 ? "Completed!" : "Failed!"), $"{buildFiles[0].Name} has been built in {totalDuration}.");
         }
         else
         {
-            await notificationManager.SendAsync("Build Done!", $"{successfulCount} of {buildFiles.Length} projects have been built in '{WorkingDirectory}' folder.");
+            await notificationManager.SendAsync("Build Done!", $"{successfulCount} of {buildFiles.Length} projects have been built in '{WorkingDirectory}' folder in {totalDuration}.");
         }
 
         cancellationToken.Register(KillRunningProcesses);
@@ -230,5 +234,20 @@ public class BuildCommand : ICommand
         runningProcess?.Kill(entireProcessTree: true);
 
         runningProcess?.WaitForExit();
+    }
+
+    private static string FormatDuration(TimeSpan elapsed)
+    {
+        if (elapsed.TotalHours >= 1)
+        {
+            return $"{(int)elapsed.TotalHours}h {elapsed.Minutes:D2}m {elapsed.Seconds:D2}s";
+        }
+
+        if (elapsed.TotalMinutes >= 1)
+        {
+            return $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds:D2}s";
+        }
+
+        return $"{elapsed.Seconds}.{elapsed.Milliseconds / 100}s";
     }
 }
