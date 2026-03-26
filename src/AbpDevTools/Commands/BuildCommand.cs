@@ -91,7 +91,8 @@ public class BuildCommand : ICommand
 
                     if (runningProcess == null)
                     {
-                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} - Could not start process");
+                        stepStopwatch.Stop();
+                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {Markup.Escape(buildFile.Name)} - Could not start process [grey]in {FormatDuration(stepStopwatch.Elapsed)}[/]");
                         continue;
                     }
 
@@ -109,11 +110,11 @@ public class BuildCommand : ICommand
                     if (runningProcess.ExitCode == 0)
                     {
                         completed++;
-                        AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{buildFile.Name}[/] [grey]in {stepDuration}[/]");
+                        AnsiConsole.MarkupLine($"{progressRatio} - [green]completed[/] [bold]Building[/] [silver]{Markup.Escape(buildFile.Name)}[/] [grey]in {stepDuration}[/]");
                     }
                     else
                     {
-                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} Exit Code: {runningProcess.ExitCode} [grey]in {stepDuration}[/]");
+                        AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {Markup.Escape(buildFile.Name)} Exit Code: {runningProcess.ExitCode} [grey]in {stepDuration}[/]");
                         
                         AnsiConsole.WriteLine();
                         AnsiConsole.MarkupLine($"[red]Build failed for: {Markup.Escape(buildFile.Name)}[/]");
@@ -137,7 +138,7 @@ public class BuildCommand : ICommand
                 {
                     stepStopwatch.Stop();
                     var stepDuration = FormatDuration(stepStopwatch.Elapsed);
-                    AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {buildFile.Name} - Exception: {Markup.Escape(ex.Message)} [grey]in {stepDuration}[/]");
+                    AnsiConsole.MarkupLine($"{progressRatio} - [red]failed[/] [bold]Building[/] {Markup.Escape(buildFile.Name)} - Exception: {Markup.Escape(ex.Message)} [grey]in {stepDuration}[/]");
                     AnsiConsole.WriteLine();
                 }
                 finally
@@ -174,7 +175,7 @@ public class BuildCommand : ICommand
         }
         else
         {
-            await notificationManager.SendAsync("Build Done!", $"{successfulCount} of {buildFiles.Length} projects have been built in '{WorkingDirectory}' folder in {totalDuration}.");
+            await notificationManager.SendAsync("Build Done!", $"{successfulCount} of {buildFiles.Length} projects have been built in '{WorkingDirectory}' folder. Total time: {totalDuration}.");
         }
 
         cancellationToken.Register(KillRunningProcesses);
@@ -236,7 +237,7 @@ public class BuildCommand : ICommand
         runningProcess?.WaitForExit();
     }
 
-    private static string FormatDuration(TimeSpan elapsed)
+    internal static string FormatDuration(TimeSpan elapsed)
     {
         if (elapsed.TotalHours >= 1)
         {
@@ -248,6 +249,6 @@ public class BuildCommand : ICommand
             return $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds:D2}s";
         }
 
-        return $"{elapsed.Seconds}.{elapsed.Milliseconds / 100}s";
+        return $"{Math.Round(elapsed.TotalSeconds, 1):0.0}s";
     }
 }
