@@ -1,9 +1,20 @@
 using CliFx.Infrastructure;
+using Spectre.Console;
 
 namespace AbpDevTools;
 
 internal static class ConsoleSupport
 {
+    public static bool ConfirmOrDefault(IConsole? console, string prompt, bool defaultValue = true, string? fallbackMessage = null)
+    {
+        return ConfirmOrDefault(
+            console,
+            prompt,
+            defaultValue,
+            fallbackMessage,
+            (text, value) => AnsiConsole.Prompt(new ConfirmationPrompt(text) { DefaultValue = value }));
+    }
+
     public static bool CanReadConsoleInput()
     {
         try
@@ -63,5 +74,34 @@ internal static class ConsoleSupport
         {
             return false;
         }
+    }
+
+    internal static bool ConfirmOrDefault(
+        IConsole? console,
+        string prompt,
+        bool defaultValue,
+        string? fallbackMessage,
+        Func<string, bool, bool> confirm)
+    {
+        if (!SupportsInteractiveConsole(console))
+        {
+            if (!string.IsNullOrWhiteSpace(fallbackMessage) && console != null)
+            {
+                try
+                {
+                    console.Output.WriteLine(fallbackMessage);
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (IOException)
+                {
+                }
+            }
+
+            return defaultValue;
+        }
+
+        return confirm(prompt, defaultValue);
     }
 }

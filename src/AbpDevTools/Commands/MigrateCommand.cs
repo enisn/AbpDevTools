@@ -137,16 +137,12 @@ public class MigrateCommand : ICommand
             return;
         }
 
-        if (canUseInteractiveConsole)
+        if (!RunAll && Projects.Length == 0 && !global::AbpDevTools.ConsoleSupport.ConfirmOrDefault(
+            console,
+            "Do you want to run any of projects in this folder with '--migrate-database' parameter?",
+            defaultValue: false,
+            fallbackMessage: "Interactive migration confirmation is unavailable; skipping '--migrate-database' fallback projects. Pass '--all' or '--projects' to run them non-interactively."))
         {
-            if (!AnsiConsole.Confirm("Do you want to run any of projects in this folder with '--migrate-database' parameter?"))
-            {
-                return;
-            }
-        }
-        else if (!RunAll && Projects.Length == 0)
-        {
-            await console!.Output.WriteLineAsync("Interactive migration confirmation is unavailable; skipping '--migrate-database' fallback projects. Pass '--all' or '--projects' to run them non-interactively.");
             return;
         }
 

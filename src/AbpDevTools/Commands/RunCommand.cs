@@ -200,16 +200,13 @@ public partial class RunCommand : ICommand
                 await console.Output.WriteLineAsync($"\n[yellow]Warning: The following projects are missing wwwroot/libs:[/]");
                 await console.Output.WriteLineAsync($"  - {projectList}");
 
-                if (canUseInteractiveConsole)
+                if (!shouldInstallLibs)
                 {
-                    if (AnsiConsole.Confirm("\n[yellow]Would you like to install libs for these projects?[/]"))
-                    {
-                        shouldInstallLibs = true;
-                    }
-                }
-                else if (!shouldInstallLibs)
-                {
-                    await console.Output.WriteLineAsync("Interactive confirmation is unavailable; skipping 'abp install-libs'. Pass '--install-libs' to run it automatically.");
+                    shouldInstallLibs = global::AbpDevTools.ConsoleSupport.ConfirmOrDefault(
+                        console,
+                        "\n[yellow]Would you like to install libs for these projects?[/]",
+                        defaultValue: false,
+                        fallbackMessage: "Interactive confirmation is unavailable; skipping 'abp install-libs'. Pass '--install-libs' to run it automatically.");
                 }
             }
         }
