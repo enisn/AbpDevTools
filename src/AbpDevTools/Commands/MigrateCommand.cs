@@ -119,6 +119,8 @@ public class MigrateCommand : ICommand
 
     protected async Task RunParameterMigrationFallbackAsync()
     {
+        var canUseInteractiveConsole = global::AbpDevTools.ConsoleSupport.SupportsInteractiveConsole(console);
+
         FileInfo[] csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects that support '--migrate-database' parameter...", async ctx =>
             {
@@ -135,8 +137,11 @@ public class MigrateCommand : ICommand
             return;
         }
 
-        
-        if (!AnsiConsole.Confirm("Do you want to run any of projects in this folder with '--migrate-database' parameter?"))
+        if (!RunAll && Projects.Length == 0 && !global::AbpDevTools.ConsoleSupport.ConfirmOrDefault(
+            console,
+            "Do you want to run any of projects in this folder with '--migrate-database' parameter?",
+            defaultValue: false,
+            fallbackMessage: "Interactive migration confirmation is unavailable; skipping '--migrate-database' fallback projects. Pass '--all' or '--projects' to run them non-interactively."))
         {
             return;
         }
@@ -147,18 +152,25 @@ public class MigrateCommand : ICommand
         {
             if (Projects.Length == 0)
             {
-                var selectedProjects = AnsiConsole.Prompt(
-                    new MultiSelectionPrompt<FileInfo>()
-                        .Title("Select project(s) to run with '--migrate-database' parameter")
-                        .Required(true)
-                        .PageSize(10)
-                        .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
-                        .InstructionsText("[grey](Press [blue]<space>[/] to toggle a project, [green]<enter>[/] to accept)[/]")
-                        .UseConverter(file => Path.GetRelativePath(WorkingDirectory!, file.FullName))
-                        .AddChoices(csprojs)
-                );
+                if (canUseInteractiveConsole)
+                {
+                    var selectedProjects = AnsiConsole.Prompt(
+                        new MultiSelectionPrompt<FileInfo>()
+                            .Title("Select project(s) to run with '--migrate-database' parameter")
+                            .Required(true)
+                            .PageSize(10)
+                            .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
+                            .InstructionsText("[grey](Press [blue]<space>[/] to toggle a project, [green]<enter>[/] to accept)[/]")
+                            .UseConverter(file => Path.GetRelativePath(WorkingDirectory!, file.FullName))
+                            .AddChoices(csprojs)
+                    );
 
-                projectFiles = selectedProjects.ToArray();
+                    projectFiles = selectedProjects.ToArray();
+                }
+                else
+                {
+                    await console!.Output.WriteLineAsync("Interactive migration project selection is unavailable; running all matching '--migrate-database' projects.");
+                }
             }
             else
             {
@@ -237,6 +249,12 @@ public class MigrateCommand : ICommand
 
     private async Task RenderStatusAsync()
     {
+        if (!global::AbpDevTools.ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            await RenderStatusWithoutInteractiveConsoleAsync();
+            return;
+        }
+
         var table = new Table().Border(TableBorder.Rounded);
 
         AnsiConsole.WriteLine(Environment.NewLine);
@@ -251,28 +269,70 @@ public class MigrateCommand : ICommand
 
                 foreach (var runningProject in runningProjects)
                 {
-                    runningProject.Process!.OutputDataReceived += (sender, args) =>
+                    AttachMigrationOutputReader(runningProject, _ =>
                     {
-                        if (args?.Data != null && args.Data.Length < 90)
-                        {
-                            var indexOfBracket = args.Data.IndexOf(']');
-                            if (indexOfBracket >= 0 && indexOfBracket < args.Data.Length)
-                            {
-                                runningProject.Status = args.Data[indexOfBracket..].Replace('[', '\0').Replace(']', '\0');
-                            }
-                            else
-                            {
-                                runningProject.Status = args.Data;
-                            }
-                            UpdateTable(table);
-                            ctx.UpdateTarget(table);
-                        }
-                    };
-                    runningProject.Process.BeginOutputReadLine();
+                        UpdateTable(table);
+                        ctx.UpdateTarget(table);
+                    });
                 }
 
                 await Task.WhenAll(runningProjects.Select(x => x.Process!.WaitForExitAsync()));
             });
+    }
+
+    private async Task RenderStatusWithoutInteractiveConsoleAsync()
+    {
+        var lastStatuses = new Dictionary<RunningProjectItem, string?>();
+        var statusLock = new object();
+
+        await console!.Output.WriteLineAsync("Interactive console features are unavailable; streaming migration status updates without the live dashboard.");
+
+        foreach (var runningProject in runningProjects)
+        {
+            lastStatuses[runningProject] = runningProject.Status;
+            await console.Output.WriteLineAsync($"- {runningProject.Name}: {runningProject.Status}");
+
+            AttachMigrationOutputReader(runningProject, project =>
+            {
+                lock (statusLock)
+                {
+                    if (lastStatuses.TryGetValue(project, out var lastStatus) && string.Equals(lastStatus, project.Status, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    lastStatuses[project] = project.Status;
+                    console.Output.WriteLine($"- {project.Name}: {project.Status}");
+                }
+            });
+        }
+
+        await Task.WhenAll(runningProjects.Select(x => x.Process!.WaitForExitAsync()));
+    }
+
+    private void AttachMigrationOutputReader(RunningProjectItem runningProject, Action<RunningProjectItem> onStatusChanged)
+    {
+        runningProject.Process!.OutputDataReceived += (sender, args) =>
+        {
+            if (args?.Data == null || args.Data.Length >= 90)
+            {
+                return;
+            }
+
+            var indexOfBracket = args.Data.IndexOf(']');
+            if (indexOfBracket >= 0 && indexOfBracket < args.Data.Length)
+            {
+                runningProject.Status = args.Data[indexOfBracket..].Replace('[', '\0').Replace(']', '\0');
+            }
+            else
+            {
+                runningProject.Status = args.Data;
+            }
+
+            onStatusChanged(runningProject);
+        };
+
+        runningProject.Process.BeginOutputReadLine();
     }
 
     private void UpdateTable(Table table)

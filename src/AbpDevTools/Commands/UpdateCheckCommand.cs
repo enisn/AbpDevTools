@@ -99,11 +99,11 @@ public class UpdateCheckCommand : ICommand
 
         if (!Yes)
         {
-            var confirm = AnsiConsole.Prompt(
-                new ConfirmationPrompt("Do you want to update now?")
-                {
-                    DefaultValue = true
-                });
+            var confirm = global::AbpDevTools.ConsoleSupport.ConfirmOrDefault(
+                console,
+                "Do you want to update now?",
+                defaultValue: false,
+                fallbackMessage: "Interactive confirmation is unavailable; update cancelled. Pass '--yes' to apply the update non-interactively.");
 
             if (!confirm)
             {

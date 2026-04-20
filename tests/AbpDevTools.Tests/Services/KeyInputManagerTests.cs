@@ -59,6 +59,40 @@ public class KeyInputManagerTests
     }
 
     [Fact]
+    public void StartListening_WithUnavailableConsoleInput_DoesNotStartListening()
+    {
+        // Arrange
+        using var manager = new KeyInputManager(
+            () => false,
+            () => false,
+            () => default);
+
+        // Act
+        manager.StartListening();
+
+        // Assert
+        manager.IsListening.Should().BeFalse("listening should remain disabled when console input is unavailable");
+    }
+
+    [Fact]
+    public async Task StartListening_WhenKeyPollingFails_StopsGracefully()
+    {
+        // Arrange
+        using var manager = new KeyInputManager(
+            () => true,
+            () => throw new InvalidOperationException("No console available"),
+            () => default);
+
+        // Act
+        manager.StartListening();
+        await Task.Delay(150);
+
+        // Assert
+        manager.IsListening.Should().BeFalse("the listener should stop when key polling is unavailable");
+        manager.TryGetNextKey().Should().BeNull("no key should be queued when polling fails");
+    }
+
+    [Fact]
     public void StopListening_DoesNotThrow()
     {
         // Arrange

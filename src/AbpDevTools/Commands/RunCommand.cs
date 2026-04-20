@@ -96,6 +96,7 @@ public partial class RunCommand : ICommand
     public async ValueTask ExecuteAsync(IConsole console)
     {
         this.console = console;
+        var canUseInteractiveConsole = global::AbpDevTools.ConsoleSupport.SupportsInteractiveConsole(console);
 
         if (string.IsNullOrEmpty(WorkingDirectory))
         {
@@ -149,19 +150,26 @@ public partial class RunCommand : ICommand
 
             if (Projects.Length == 0)
             {
-                var choosedProjects = AnsiConsole.Prompt(
-                    new MultiSelectionPrompt<string>()
-                        .Title("Choose [mediumpurple2]projects[/] to run.")
-                        .Required(true)
-                        .PageSize(12)
-                        .HighlightStyle(new Style(foreground: Color.MediumPurple2))
-                        .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
-                        .InstructionsText(
-                            "[grey](Press [mediumpurple2]<space>[/] to toggle a project, " +
-                            "[green]<enter>[/] to accept)[/]")
-                        .AddChoices(projectFiles.Select(s => s.Name)));
+                if (canUseInteractiveConsole)
+                {
+                    var choosedProjects = AnsiConsole.Prompt(
+                        new MultiSelectionPrompt<string>()
+                            .Title("Choose [mediumpurple2]projects[/] to run.")
+                            .Required(true)
+                            .PageSize(12)
+                            .HighlightStyle(new Style(foreground: Color.MediumPurple2))
+                            .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
+                            .InstructionsText(
+                                "[grey](Press [mediumpurple2]<space>[/] to toggle a project, " +
+                                "[green]<enter>[/] to accept)[/]")
+                            .AddChoices(projectFiles.Select(s => s.Name)));
 
-                projectFiles = projectFiles.Where(x => choosedProjects.Contains(x.Name)).ToArray();
+                    projectFiles = projectFiles.Where(x => choosedProjects.Contains(x.Name)).ToArray();
+                }
+                else
+                {
+                    await console.Output.WriteLineAsync("Interactive project selection is unavailable; running all discovered projects. Use '--projects' to limit the selection.");
+                }
             }
             else
             {
@@ -192,9 +200,13 @@ public partial class RunCommand : ICommand
                 await console.Output.WriteLineAsync($"\n[yellow]Warning: The following projects are missing wwwroot/libs:[/]");
                 await console.Output.WriteLineAsync($"  - {projectList}");
 
-                if (AnsiConsole.Confirm("\n[yellow]Would you like to install libs for these projects?[/]"))
+                if (!shouldInstallLibs)
                 {
-                    shouldInstallLibs = true;
+                    shouldInstallLibs = global::AbpDevTools.ConsoleSupport.ConfirmOrDefault(
+                        console,
+                        "\n[yellow]Would you like to install libs for these projects?[/]",
+                        defaultValue: false,
+                        fallbackMessage: "Interactive confirmation is unavailable; skipping 'abp install-libs'. Pass '--install-libs' to run it automatically.");
                 }
             }
         }
@@ -273,7 +285,7 @@ public partial class RunCommand : ICommand
 
             cancellationToken.Register(KillRunningProcesses);
 
-            await RenderProcesses(cancellationToken);
+            await RenderProcesses(cancellationToken, canUseInteractiveConsole);
 
             await updateCheckCommand.SoftCheckAsync(console);
         }
@@ -328,8 +340,14 @@ public partial class RunCommand : ICommand
         return Watch ? "watch " : string.Empty;
     }
 
-    private async Task RenderProcesses(CancellationToken cancellationToken)
+    private async Task RenderProcesses(CancellationToken cancellationToken, bool canUseInteractiveConsole)
     {
+        if (!canUseInteractiveConsole)
+        {
+            await RenderProcessesWithoutInteractiveConsole(cancellationToken);
+            return;
+        }
+
         var keyCommandHandler = new KeyCommandHandler(runningProjects, console!, cancellationToken);
 
         // Start key input listening
@@ -448,6 +466,52 @@ public partial class RunCommand : ICommand
         keyInputManager.StopListening();
     }
 
+    protected virtual async Task RenderProcessesWithoutInteractiveConsole(CancellationToken cancellationToken)
+    {
+        var lastStatuses = new Dictionary<RunningProjectItem, string?>();
+
+        await console!.Output.WriteLineAsync("Interactive console features are unavailable; live dashboard and keybindings are disabled.");
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var hasActiveProcesses = false;
+
+            foreach (var project in runningProjects)
+            {
+                UpdateProjectStatusForNonInteractiveMode(project, cancellationToken);
+
+                if (IsProjectActive(project))
+                {
+                    hasActiveProcesses = true;
+                }
+
+                if (!lastStatuses.TryGetValue(project, out var lastStatus) || !string.Equals(lastStatus, project.Status, StringComparison.Ordinal))
+                {
+                    await console.Output.WriteLineAsync($"- {project.Name}: {project.Status}");
+                    lastStatuses[project] = project.Status;
+                }
+            }
+
+            if (!hasActiveProcesses)
+            {
+                break;
+            }
+
+            try
+            {
+#if DEBUG
+                await Task.Delay(100, cancellationToken);
+#else
+                await Task.Delay(500, cancellationToken);
+#endif
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
     private static async Task RestartProject(RunningProjectItem project, CancellationToken cancellationToken = default)
     {
         project.Queued = true;
@@ -498,6 +562,34 @@ public partial class RunCommand : ICommand
         return string.Join(" | ", keyCommandHandler.KeyCommandMappings.Select(kcm => $"[grey]{kcm.GetKeyDisplay()}[/] - {kcm.Name}"));
     }
 
+    private void UpdateProjectStatusForNonInteractiveMode(RunningProjectItem project, CancellationToken cancellationToken)
+    {
+        if (project.Process is null || !project.Process.HasExited || project.Queued)
+        {
+            return;
+        }
+
+        if (project is RunningInstallLibsItem && project.IsCompleted)
+        {
+            return;
+        }
+
+        project.IsCompleted = false;
+        project.Status = Retry
+            ? $"[orange1]*[/] Exited({project.Process.ExitCode})"
+            : $"[red]*[/] Exited({project.Process.ExitCode})";
+
+        if (Retry)
+        {
+            _ = RestartProject(project, cancellationToken);
+        }
+    }
+
+    private static bool IsProjectActive(RunningProjectItem project)
+    {
+        return project.Queued || project.Process?.HasExited == false;
+    }
+
     protected void KillRunningProcesses()
     {
         // Ensure this is only executed once, even if called from multiple handlers
@@ -539,10 +631,15 @@ public partial class RunCommand : ICommand
 
     protected virtual void ClearConsoleIfNeeded()
     {
-        if (lastWindowWidth != Console.WindowWidth)
+        if (!global::AbpDevTools.ConsoleSupport.TryGetWindowWidth(console, out var currentWindowWidth))
+        {
+            return;
+        }
+
+        if (lastWindowWidth != currentWindowWidth)
         {
             AnsiConsole.Clear();
-            lastWindowWidth = Console.WindowWidth;
+            lastWindowWidth = currentWindowWidth;
         }
     }
 }

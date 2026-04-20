@@ -93,7 +93,11 @@ public class LogsClearCommand : ICommand
             var filePath = Path.Combine(logsDir, "logs.txt");
             if (File.Exists(filePath))
             {
-                if (!Force && !AnsiConsole.Confirm($"{filePath} will be deleted. Are you sure?"))
+                if (!Force && !global::AbpDevTools.ConsoleSupport.ConfirmOrDefault(
+                    console,
+                    $"{filePath} will be deleted. Are you sure?",
+                    defaultValue: false,
+                    fallbackMessage: $"Interactive confirmation is unavailable; '{filePath}' was not deleted. Pass '--force' to delete logs non-interactively."))
                 {
                     return;
                 }

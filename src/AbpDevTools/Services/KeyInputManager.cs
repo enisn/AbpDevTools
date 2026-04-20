@@ -7,15 +7,39 @@ public class KeyInputManager : IKeyInputManager, IDisposable
     public event EventHandler<KeyPressEventArgs>? KeyPressed;
     
     private readonly ConcurrentQueue<KeyPressEventArgs> _keyQueue = new();
+    private readonly Func<bool> _canReadConsoleInput;
+    private readonly Func<bool> _isKeyAvailable;
+    private readonly Func<ConsoleKeyInfo> _readKey;
     private CancellationTokenSource _cancellationTokenSource = new();
     private Task? _listeningTask;
     private bool _disposed;
 
     public bool IsListening => _listeningTask?.Status == TaskStatus.Running;
 
+    public KeyInputManager()
+        : this(
+            global::AbpDevTools.ConsoleSupport.CanReadConsoleInput,
+            () => Console.KeyAvailable,
+            () => Console.ReadKey(true))
+    {
+    }
+
+    internal KeyInputManager(
+        Func<bool> canReadConsoleInput,
+        Func<bool> isKeyAvailable,
+        Func<ConsoleKeyInfo> readKey)
+    {
+        _canReadConsoleInput = canReadConsoleInput;
+        _isKeyAvailable = isKeyAvailable;
+        _readKey = readKey;
+    }
+
     public void StartListening()
     {
         if (IsListening)
+            return;
+
+        if (!_canReadConsoleInput())
             return;
 
         // Ensure any previous listening task is fully stopped before starting a new one
@@ -45,9 +69,17 @@ public class KeyInputManager : IKeyInputManager, IDisposable
         {
             while (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
-                if (Console.KeyAvailable)
+                if (!TryGetKeyAvailable(out var keyAvailable))
                 {
-                    var keyInfo = Console.ReadKey(true);
+                    return;
+                }
+
+                if (keyAvailable)
+                {
+                    if (!TryReadKey(out var keyInfo))
+                    {
+                        return;
+                    }
                     
                     var keyEventArgs = new KeyPressEventArgs
                     {
@@ -72,6 +104,44 @@ public class KeyInputManager : IKeyInputManager, IDisposable
         {
             // Log unexpected exceptions to aid debugging
             Console.Error.WriteLine($"[KeyInputManager] Unexpected exception: {ex}");
+        }
+    }
+
+    private bool TryGetKeyAvailable(out bool keyAvailable)
+    {
+        keyAvailable = false;
+
+        try
+        {
+            keyAvailable = _isKeyAvailable();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private bool TryReadKey(out ConsoleKeyInfo keyInfo)
+    {
+        keyInfo = default;
+
+        try
+        {
+            keyInfo = _readKey();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
         }
     }
 
