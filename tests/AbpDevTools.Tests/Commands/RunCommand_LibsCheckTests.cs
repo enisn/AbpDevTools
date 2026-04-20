@@ -9,6 +9,7 @@ namespace AbpDevTools.Tests.Commands;
 /// Unit tests for RunCommand libs check functionality.
 /// Tests verify how the command detects missing wwwroot/libs folders
 /// and prompts the user to install libraries.
+/// Projects without a package.json are skipped entirely since they have no frontend dependencies.
 /// </summary>
 public class RunCommand_LibsCheckTests
 {
@@ -24,15 +25,17 @@ public class RunCommand_LibsCheckTests
 
         try
         {
-            CreateProjectWithProgramCs(projectDir);
+            CreateProjectWithProgramCs(projectDir, includePackageJson: true);
             // Don't create wwwroot/libs - it's missing
 
-            var wwwRootLibs = Path.Combine(projectDir, "wwwroot/libs");
+            var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
 
             // Act
+            var hasPackageJson = File.Exists(Path.Combine(projectDir, "package.json"));
             var libsExists = Directory.Exists(wwwRootLibs);
 
             // Assert
+            hasPackageJson.Should().BeTrue("package.json should exist for frontend project");
             libsExists.Should().BeFalse("wwwroot/libs folder should not exist");
         }
         finally
@@ -51,17 +54,18 @@ public class RunCommand_LibsCheckTests
 
         try
         {
-            CreateProjectWithProgramCs(projectDir);
+            CreateProjectWithProgramCs(projectDir, includePackageJson: true);
 
-            var wwwRootLibs = Path.Combine(projectDir, "wwwroot/libs");
+            var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
             Directory.CreateDirectory(wwwRootLibs);
-            // Don't add any files - it's empty
 
             // Act
+            var hasPackageJson = File.Exists(Path.Combine(projectDir, "package.json"));
             var libsExists = Directory.Exists(wwwRootLibs);
             var hasEntries = libsExists && Directory.EnumerateFileSystemEntries(wwwRootLibs).Any();
 
             // Assert
+            hasPackageJson.Should().BeTrue("package.json should exist for frontend project");
             libsExists.Should().BeTrue("wwwroot/libs folder should exist");
             hasEntries.Should().BeFalse("wwwroot/libs folder should be empty");
         }
@@ -81,9 +85,9 @@ public class RunCommand_LibsCheckTests
 
         try
         {
-            CreateProjectWithProgramCs(projectDir);
+            CreateProjectWithProgramCs(projectDir, includePackageJson: true);
 
-            var wwwRootLibs = Path.Combine(projectDir, "wwwroot/libs");
+            var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
             Directory.CreateDirectory(wwwRootLibs);
             File.WriteAllText(Path.Combine(wwwRootLibs, "test.js"), "console.log('test');");
 
@@ -110,32 +114,102 @@ public class RunCommand_LibsCheckTests
 
         try
         {
-            // Create multiple projects
-            var project1Dir = Path.Combine(testRootPath, "MyProject.Web");
-            var project2Dir = Path.Combine(testRootPath, "MyProject.HttpApi.Host");
-            var project3Dir = Path.Combine(testRootPath, "MyProject.Blazor");
+            var webDir = Path.Combine(testRootPath, "MyProject.Web");
+            var apiDir = Path.Combine(testRootPath, "MyProject.HttpApi.Host");
+            var blazorDir = Path.Combine(testRootPath, "MyProject.Blazor");
 
-            CreateProjectWithProgramCs(project1Dir);
-            CreateProjectWithProgramCs(project2Dir);
-            CreateProjectWithProgramCs(project3Dir);
+            // Web: has package.json, missing libs → should be flagged
+            CreateProjectWithProgramCs(webDir, includePackageJson: true);
 
-            // Create wwwroot/libs only for project2
-            var wwwRootLibs2 = Path.Combine(project2Dir, "wwwroot/libs");
+            // HttpApi.Host: has package.json, libs populated → should NOT be flagged
+            CreateProjectWithProgramCs(apiDir, includePackageJson: true);
+            var wwwRootLibs2 = Path.Combine(apiDir, "wwwroot", "libs");
             Directory.CreateDirectory(wwwRootLibs2);
             File.WriteAllText(Path.Combine(wwwRootLibs2, "test.js"), "console.log('test');");
 
+            // Blazor: has package.json, missing libs → should be flagged
+            CreateProjectWithProgramCs(blazorDir, includePackageJson: true);
+
             var projectFiles = new[]
             {
-                new FileInfo(Path.Combine(project1Dir, "MyProject.Web.csproj")),
-                new FileInfo(Path.Combine(project2Dir, "MyProject.HttpApi.Host.csproj")),
-                new FileInfo(Path.Combine(project3Dir, "MyProject.Blazor.csproj"))
+                new FileInfo(Path.Combine(webDir, "MyProject.Web.csproj")),
+                new FileInfo(Path.Combine(apiDir, "MyProject.HttpApi.Host.csproj")),
+                new FileInfo(Path.Combine(blazorDir, "MyProject.Blazor.csproj"))
             };
 
-            // Act - Find projects needing libs
+            // Act - Replicate the detection logic from RunCommand
+            var projectsNeedingLibs = FindProjectsNeedingLibs(projectFiles);
+
+            List<FileInfo> FindProjectsNeedingLibs(IEnumerable<FileInfo> projectFiles)
+            {
+                var projectsNeedingLibs = new List<FileInfo>();
+                foreach (var csproj in projectFiles)
+                {
+                    var projectDir = Path.GetDirectoryName(csproj.FullName)!;
+
+                    if (!File.Exists(Path.Combine(projectDir, "package.json")))
+                        continue;
+
+                    var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
+                    if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
+                    {
+                        projectsNeedingLibs.Add(csproj);
+                    }
+                }
+
+                return projectsNeedingLibs;
+            }
+
+            // Assert
+            projectsNeedingLibs.Should().HaveCount(2, "web and blazor should need libs");
+            projectsNeedingLibs.Select(p => p.Name).Should().Contain("MyProject.Web.csproj");
+            projectsNeedingLibs.Select(p => p.Name).Should().Contain("MyProject.Blazor.csproj");
+            projectsNeedingLibs.Select(p => p.Name).Should().NotContain("MyProject.HttpApi.Host.csproj");
+        }
+        finally
+        {
+            CleanupTestDirectory(testRootPath);
+        }
+    }
+
+    [Fact]
+    public void CheckLibsDirectory_SkipsProjectsWithoutPackageJson()
+    {
+        // Arrange
+        var testRootPath = Path.Combine(Path.GetTempPath(), $"AbpDevToolsTests_{Guid.NewGuid()}");
+        Directory.CreateDirectory(testRootPath);
+
+        try
+        {
+            // Domain project: no package.json, no wwwroot/libs → should NOT be flagged
+            var domainDir = Path.Combine(testRootPath, "MyProject.Domain");
+            CreateProjectWithProgramCs(domainDir, includePackageJson: false);
+
+            // API host: no package.json, no wwwroot/libs → should NOT be flagged
+            var apiDir = Path.Combine(testRootPath, "MyProject.HttpApi.Host");
+            CreateProjectWithProgramCs(apiDir, includePackageJson: false);
+
+            // Web project: has package.json, no libs → SHOULD be flagged
+            var webDir = Path.Combine(testRootPath, "MyProject.Web");
+            CreateProjectWithProgramCs(webDir, includePackageJson: true);
+
+            var projectFiles = new[]
+            {
+                new FileInfo(Path.Combine(domainDir, "MyProject.Domain.csproj")),
+                new FileInfo(Path.Combine(apiDir, "MyProject.HttpApi.Host.csproj")),
+                new FileInfo(Path.Combine(webDir, "MyProject.Web.csproj"))
+            };
+
+            // Act
             var projectsNeedingLibs = new List<FileInfo>();
             foreach (var csproj in projectFiles)
             {
-                var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+                var projectDir = Path.GetDirectoryName(csproj.FullName)!;
+
+                if (!File.Exists(Path.Combine(projectDir, "package.json")))
+                    continue;
+
+                var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
                 if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
                 {
                     projectsNeedingLibs.Add(csproj);
@@ -143,10 +217,94 @@ public class RunCommand_LibsCheckTests
             }
 
             // Assert
-            projectsNeedingLibs.Should().HaveCount(2, "project1 and project3 should need libs");
-            projectsNeedingLibs.Select(p => p.Name).Should().Contain("MyProject.Web.csproj");
-            projectsNeedingLibs.Select(p => p.Name).Should().Contain("MyProject.Blazor.csproj");
-            projectsNeedingLibs.Select(p => p.Name).Should().NotContain("MyProject.HttpApi.Host.csproj");
+            projectsNeedingLibs.Should().ContainSingle()
+                .Which.Name.Should().Be("MyProject.Web.csproj");
+        }
+        finally
+        {
+            CleanupTestDirectory(testRootPath);
+        }
+    }
+
+    [Fact]
+    public void CheckLibsDirectory_NoProjectsNeedLibs_WhenNoneHavePackageJson()
+    {
+        // Arrange
+        var testRootPath = Path.Combine(Path.GetTempPath(), $"AbpDevToolsTests_{Guid.NewGuid()}");
+        Directory.CreateDirectory(testRootPath);
+
+        try
+        {
+            var domainDir = Path.Combine(testRootPath, "MyProject.Domain");
+            var appDir = Path.Combine(testRootPath, "MyProject.Application");
+
+            CreateProjectWithProgramCs(domainDir, includePackageJson: false);
+            CreateProjectWithProgramCs(appDir, includePackageJson: false);
+
+            var projectFiles = new[]
+            {
+                new FileInfo(Path.Combine(domainDir, "MyProject.Domain.csproj")),
+                new FileInfo(Path.Combine(appDir, "MyProject.Application.csproj"))
+            };
+
+            // Act
+            var projectsNeedingLibs = new List<FileInfo>();
+            foreach (var csproj in projectFiles)
+            {
+                var projectDir = Path.GetDirectoryName(csproj.FullName)!;
+
+                if (!File.Exists(Path.Combine(projectDir, "package.json")))
+                    continue;
+
+                var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
+                if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
+                {
+                    projectsNeedingLibs.Add(csproj);
+                }
+            }
+
+            // Assert — no prompt should ever appear
+            projectsNeedingLibs.Should().BeEmpty("no projects have package.json so none need libs");
+        }
+        finally
+        {
+            CleanupTestDirectory(testRootPath);
+        }
+    }
+
+    [Fact]
+    public void CheckLibsDirectory_ProjectWithPackageJsonAndPopulatedLibs_NotFlagged()
+    {
+        // Arrange
+        var testRootPath = Path.Combine(Path.GetTempPath(), $"AbpDevToolsTests_{Guid.NewGuid()}");
+        var projectDir = Path.Combine(testRootPath, "MyProject.Web");
+        Directory.CreateDirectory(projectDir);
+
+        try
+        {
+            CreateProjectWithProgramCs(projectDir, includePackageJson: true);
+
+            var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
+            Directory.CreateDirectory(wwwRootLibs);
+            File.WriteAllText(Path.Combine(wwwRootLibs, "bootstrap.min.js"), "/* bootstrap */");
+
+            var csproj = new FileInfo(Path.Combine(projectDir, "MyProject.Web.csproj"));
+
+            // Act
+            var projectsNeedingLibs = new List<FileInfo>();
+            var projDir = Path.GetDirectoryName(csproj.FullName)!;
+
+            if (File.Exists(Path.Combine(projDir, "package.json")))
+            {
+                var libsPath = Path.Combine(projDir, "wwwroot", "libs");
+                if (!Directory.Exists(libsPath) || !Directory.EnumerateFileSystemEntries(libsPath).Any())
+                {
+                    projectsNeedingLibs.Add(csproj);
+                }
+            }
+
+            // Assert
+            projectsNeedingLibs.Should().BeEmpty("libs are already installed");
         }
         finally
         {
@@ -280,11 +438,11 @@ public class RunCommand_LibsCheckTests
 
         try
         {
-            CreateProjectWithProgramCs(projectDir);
+            CreateProjectWithProgramCs(projectDir, includePackageJson: true);
 
-            var wwwRootLibs = Path.Combine(projectDir, "wwwroot/libs");
+            var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
 
-            // Act - Simulate directory creation from RunCommand.cs:237-241
+            // Act
             if (!Directory.Exists(wwwRootLibs))
             {
                 Directory.CreateDirectory(wwwRootLibs);
@@ -309,12 +467,12 @@ public class RunCommand_LibsCheckTests
 
         try
         {
-            CreateProjectWithProgramCs(projectDir);
+            CreateProjectWithProgramCs(projectDir, includePackageJson: true);
 
-            var wwwRootLibs = Path.Combine(projectDir, "wwwroot/libs");
+            var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
             Directory.CreateDirectory(wwwRootLibs);
 
-            // Act - Try to create again (should not fail)
+            // Act
             var action = () =>
             {
                 if (!Directory.Exists(wwwRootLibs))
@@ -342,14 +500,14 @@ public class RunCommand_LibsCheckTests
 
         try
         {
-            CreateProjectWithProgramCs(projectDir);
+            CreateProjectWithProgramCs(projectDir, includePackageJson: true);
 
-            var wwwRootLibs = Path.Combine(projectDir, "wwwroot/libs");
+            var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
             Directory.CreateDirectory(wwwRootLibs);
 
             var markerFile = Path.Combine(wwwRootLibs, "abplibs.installing");
 
-            // Act - Simulate marker file creation from RunCommand.cs:243-246
+            // Act
             if (!Directory.EnumerateFiles(wwwRootLibs).Any())
             {
                 File.WriteAllText(markerFile, string.Empty);
@@ -357,6 +515,37 @@ public class RunCommand_LibsCheckTests
 
             // Assert
             File.Exists(markerFile).Should().BeTrue("abplibs.installing marker file should be created");
+        }
+        finally
+        {
+            CleanupTestDirectory(testRootPath);
+        }
+    }
+
+    [Fact]
+    public void InstallLibs_SkipsProjectWithoutPackageJson_EvenWhenFlagIsSet()
+    {
+        // Arrange — simulates the execution loop guard from RunCommand
+        var testRootPath = Path.Combine(Path.GetTempPath(), $"AbpDevToolsTests_{Guid.NewGuid()}");
+        Directory.CreateDirectory(testRootPath);
+
+        try
+        {
+            var domainDir = Path.Combine(testRootPath, "MyProject.Domain");
+            CreateProjectWithProgramCs(domainDir, includePackageJson: false);
+
+            var csproj = new FileInfo(Path.Combine(domainDir, "MyProject.Domain.csproj"));
+            var shouldInstallLibs = true;
+            var installLibsTriggered = false;
+
+            // Act — replicate the guard: shouldInstallLibs && package.json exists
+            if (shouldInstallLibs && File.Exists(Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "package.json")))
+            {
+                installLibsTriggered = true;
+            }
+
+            // Assert
+            installLibsTriggered.Should().BeFalse("install-libs should not run for projects without package.json");
         }
         finally
         {
@@ -447,8 +636,9 @@ public class RunCommand_LibsCheckTests
 
     /// <summary>
     /// Creates a project file with Program.cs in the specified directory.
+    /// Optionally creates a package.json to simulate a frontend project.
     /// </summary>
-    private void CreateProjectWithProgramCs(string projectDir)
+    private void CreateProjectWithProgramCs(string projectDir, bool includePackageJson = false)
     {
         Directory.CreateDirectory(projectDir);
         var projectName = Path.GetFileName(projectDir);
@@ -473,6 +663,16 @@ public class Program
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 </Project>");
+
+        if (includePackageJson)
+        {
+            File.WriteAllText(Path.Combine(projectDir, "package.json"), @"{
+  ""version"": ""1.0.0"",
+  ""name"": ""my-app"",
+  ""private"": true,
+  ""dependencies"": {}
+}");
+        }
     }
 
     /// <summary>

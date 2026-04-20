@@ -186,7 +186,14 @@ public partial class RunCommand : ICommand
 
             foreach (var csproj in projectFiles)
             {
-                var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+                var projectDir = Path.GetDirectoryName(csproj.FullName)!;
+
+                if (!File.Exists(Path.Combine(projectDir, "package.json")))
+                {
+                    continue;
+                }
+
+                var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
 
                 if (!Directory.Exists(wwwRootLibs) || !Directory.EnumerateFileSystemEntries(wwwRootLibs).Any())
                 {
@@ -221,6 +228,8 @@ public partial class RunCommand : ICommand
             {
                 localConfigurationManager.TryLoad(csproj.FullName, out var localConfiguration);
 
+                var projectDir = Path.GetDirectoryName(csproj.FullName)!;
+
                 var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
                 var commandSuffix = BuildCommandSuffix(
                     localConfiguration?.Run?.NoBuild,
@@ -230,7 +239,7 @@ public partial class RunCommand : ICommand
                 var tools = toolsConfiguration.GetOptions();
                 var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
                 {
-                    WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                    WorkingDirectory = projectDir,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -252,9 +261,9 @@ public partial class RunCommand : ICommand
                     )
                 );
 
-                if (shouldInstallLibs)
+                if (shouldInstallLibs && File.Exists(Path.Combine(projectDir, "package.json")))
                 {
-                    var wwwRootLibs = Path.Combine(Path.GetDirectoryName(csproj.FullName)!, "wwwroot/libs");
+                    var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
                     if (!Directory.Exists(wwwRootLibs))
                     {
                         Directory.CreateDirectory(wwwRootLibs);
@@ -267,7 +276,7 @@ public partial class RunCommand : ICommand
 
                     var installLibsStartInfo = new ProcessStartInfo(tools["abp"], "install-libs")
                     {
-                        WorkingDirectory = Path.GetDirectoryName(csproj.FullName),
+                        WorkingDirectory = projectDir,
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
