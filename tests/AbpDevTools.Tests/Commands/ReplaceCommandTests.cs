@@ -329,6 +329,122 @@ public class ReplaceCommandTests : CommandTestBase
 
     #endregion
 
+    #region Wildcard File Pattern Tests
+
+    [Fact]
+    public void ReplaceCommand_Matches_Asterisk_Glob_File_Patterns()
+    {
+        var workingDirectory = CreateTempWorkingDirectory();
+
+        try
+        {
+            var rootProject = Path.Combine(workingDirectory, "RootProject.csproj");
+            var nestedDirectory = Path.Combine(workingDirectory, "src");
+            var nestedProject = Path.Combine(nestedDirectory, "NestedProject.csproj");
+            var textFile = Path.Combine(workingDirectory, "notes.txt");
+
+            Directory.CreateDirectory(nestedDirectory);
+            File.WriteAllText(rootProject, "<Version>1.0.0</Version>");
+            File.WriteAllText(nestedProject, "<Version>1.0.0</Version>");
+            File.WriteAllText(textFile, "<Version>1.0.0</Version>");
+
+            var command = new TestableReplaceCommand(CreateMockReplacementConfiguration(new Dictionary<string, ReplacementOption>()))
+            {
+                WorkingDirectory = workingDirectory
+            };
+
+            var matchingFiles = command.GetFilesMatchingPatternPublic("*.csproj");
+
+            matchingFiles.Count.ShouldBe(2);
+            matchingFiles.ShouldContain(rootProject);
+            matchingFiles.ShouldContain(nestedProject);
+            matchingFiles.ShouldNotContain(textFile);
+        }
+        finally
+        {
+            CleanupWorkingDirectory(workingDirectory);
+        }
+    }
+
+    [Fact]
+    public void ReplaceCommand_Replaces_Files_Matched_By_Asterisk_Glob()
+    {
+        var workingDirectory = CreateTempWorkingDirectory();
+
+        try
+        {
+            var rootProject = Path.Combine(workingDirectory, "RootProject.csproj");
+            var nestedDirectory = Path.Combine(workingDirectory, "src");
+            var nestedProject = Path.Combine(nestedDirectory, "NestedProject.csproj");
+            var textFile = Path.Combine(workingDirectory, "notes.txt");
+
+            Directory.CreateDirectory(nestedDirectory);
+            File.WriteAllText(rootProject, "<Version>1.0.0</Version>");
+            File.WriteAllText(nestedProject, "<Version>1.0.0</Version>");
+            File.WriteAllText(textFile, "<Version>1.0.0</Version>");
+
+            var command = new TestableReplaceCommand(CreateMockReplacementConfiguration(new Dictionary<string, ReplacementOption>()))
+            {
+                WorkingDirectory = workingDirectory
+            };
+            var option = new ReplacementOption
+            {
+                FilePattern = "*.csproj",
+                Find = "<Version>1.0.0</Version>",
+                Replace = "<Version>2.0.0</Version>"
+            };
+
+            var matchingFiles = command.GetFilesMatchingPatternPublic(option.FilePattern);
+            var affectedFileCount = command.ProcessFilesPublic(matchingFiles, option);
+
+            affectedFileCount.ShouldBe(2);
+            File.ReadAllText(rootProject).ShouldContain(option.Replace);
+            File.ReadAllText(nestedProject).ShouldContain(option.Replace);
+            File.ReadAllText(textFile).ShouldContain(option.Find);
+        }
+        finally
+        {
+            CleanupWorkingDirectory(workingDirectory);
+        }
+    }
+
+    [Fact]
+    public void ReplaceCommand_Still_Matches_Regex_File_Patterns()
+    {
+        var workingDirectory = CreateTempWorkingDirectory();
+
+        try
+        {
+            var rootJson = Path.Combine(workingDirectory, "appsettings.json");
+            var nestedDirectory = Path.Combine(workingDirectory, "config");
+            var nestedJson = Path.Combine(nestedDirectory, "appsettings.Development.json");
+            var textFile = Path.Combine(workingDirectory, "notes.txt");
+
+            Directory.CreateDirectory(nestedDirectory);
+            File.WriteAllText(rootJson, "{}");
+            File.WriteAllText(nestedJson, "{}");
+            File.WriteAllText(textFile, "{}");
+
+            var command = new TestableReplaceCommand(CreateMockReplacementConfiguration(new Dictionary<string, ReplacementOption>()))
+            {
+                WorkingDirectory = workingDirectory
+            };
+
+            var matchingFiles = command.GetFilesMatchingPatternPublic(@".*\.json");
+
+            matchingFiles.Count.ShouldBe(2);
+            matchingFiles.ShouldContain(rootJson);
+            matchingFiles.ShouldContain(nestedJson);
+            matchingFiles.ShouldNotContain(textFile);
+        }
+        finally
+        {
+            CleanupWorkingDirectory(workingDirectory);
+        }
+    }
+
+    #endregion
+
     #region Test Helper Classes
 
     /// <summary>
@@ -345,6 +461,40 @@ public class ReplaceCommandTests : CommandTestBase
         mock.GetOptions().Returns(options);
 
         return mock;
+    }
+
+    private static string CreateTempWorkingDirectory()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"abpdev-replace-tests-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+        return workingDirectory;
+    }
+
+    private static void CleanupWorkingDirectory(string workingDirectory)
+    {
+        if (Directory.Exists(workingDirectory))
+        {
+            Directory.Delete(workingDirectory, true);
+        }
+    }
+
+    [CliFx.Attributes.Command("test-replace")]
+    private sealed class TestableReplaceCommand : ReplaceCommand
+    {
+        public TestableReplaceCommand(ReplacementConfiguration replacementConfiguration)
+            : base(replacementConfiguration)
+        {
+        }
+
+        public List<string> GetFilesMatchingPatternPublic(string filePattern)
+        {
+            return GetFilesMatchingPattern(filePattern);
+        }
+
+        public int ProcessFilesPublic(IEnumerable<string> filesToProcess, ReplacementOption option)
+        {
+            return ProcessFiles(filesToProcess, option);
+        }
     }
 
     #endregion

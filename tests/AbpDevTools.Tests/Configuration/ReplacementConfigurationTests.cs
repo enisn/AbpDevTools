@@ -194,6 +194,28 @@ RecursivePattern:
         result["RecursivePattern"].FilePattern.ShouldBe("**/*.config");
     }
 
+    [Fact]
+    public void Should_Normalize_Unquoted_FilePattern_Starting_With_Asterisk()
+    {
+        // Arrange
+        var yaml = @"
+ProjectFile:
+  file-pattern: *.csproj
+  find: old
+  replace: new
+";
+        var configuration = new TestReplacementConfiguration(YamlDeserializer, YamlSerializer);
+
+        // Act
+        var normalizedYaml = configuration.NormalizeYamlForTest(yaml);
+        var result = DeserializeYaml<Dictionary<string, ReplacementOption>>(normalizedYaml);
+
+        // Assert
+        normalizedYaml.ShouldContain("file-pattern: \"*.csproj\"");
+        result.ShouldNotBeNull();
+        result["ProjectFile"].FilePattern.ShouldBe("*.csproj");
+    }
+
     #endregion
 
     #region Empty Replacements
@@ -487,4 +509,17 @@ DollarSignReplacement:
     }
 
     #endregion
+
+    private sealed class TestReplacementConfiguration : ReplacementConfiguration
+    {
+        public TestReplacementConfiguration(YamlDotNet.Serialization.IDeserializer yamlDeserializer, YamlDotNet.Serialization.ISerializer yamlSerializer)
+            : base(yamlDeserializer, yamlSerializer)
+        {
+        }
+
+        public string NormalizeYamlForTest(string yamlContent)
+        {
+            return NormalizeWildcardFilePatterns(yamlContent);
+        }
+    }
 }
