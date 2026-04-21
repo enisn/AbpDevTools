@@ -1,6 +1,7 @@
 ﻿using AbpDevTools.Configuration;
 using CliFx.Infrastructure;
 using Spectre.Console;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace AbpDevTools.Commands;
@@ -65,8 +66,7 @@ public class ReplaceCommand : ICommand
             {
                 // Use the union of all files matching any config's pattern
                 var allFiles = options.Values
-                    .SelectMany(opt => Directory.EnumerateFiles(WorkingDirectory!, "*.*", SearchOption.AllDirectories)
-                        .Where(x => Regex.IsMatch(x, opt.FilePattern)))
+                    .SelectMany(opt => GetFilesMatchingPattern(opt.FilePattern))
                     .Distinct()
                     .ToList();
                 var relToFull = allFiles.ToDictionary(
@@ -121,9 +121,7 @@ public class ReplaceCommand : ICommand
             await Task.Yield();
 
             ctx.Status($"[blue]{option.FilePattern}[/] file pattern executing.");
-            var allFiles = Directory.EnumerateFiles(WorkingDirectory!, "*.*", SearchOption.AllDirectories)
-                .Where(x => Regex.IsMatch(x, option.FilePattern))
-                .ToList();
+            var allFiles = GetFilesMatchingPattern(option.FilePattern);
 
             List<string> filesToProcess = allFiles;
 
@@ -158,20 +156,131 @@ public class ReplaceCommand : ICommand
 
             ctx.Status($"[green]{filesToProcess.Count}[/] file(s) selected for processing.");
 
-            int affectedFileCount = 0;
-            foreach (var file in filesToProcess)
-            {
-                var text = File.ReadAllText(file);
+            var affectedFileCount = ProcessFiles(filesToProcess, option, file => ctx.Status($"{file} updated."));
 
-                if (text.Contains(option.Find))
-                {
-                    File.WriteAllText(file, text.Replace(option.Find, option.Replace));
-                    ctx.Status($"{file} updated.");
-                    affectedFileCount++;
-                }
-            }
             AnsiConsole.MarkupLine($"Totally [green]{affectedFileCount}[/] files updated.");
         });
 
+    }
+
+    protected virtual List<string> GetFilesMatchingPattern(string filePattern)
+    {
+        return Directory.EnumerateFiles(WorkingDirectory!, "*.*", SearchOption.AllDirectories)
+            .Where(filePath => MatchesFilePattern(filePath, filePattern))
+            .ToList();
+    }
+
+    protected virtual int ProcessFiles(IEnumerable<string> filesToProcess, ReplacementOption option, Action<string>? onFileUpdated = null)
+    {
+        int affectedFileCount = 0;
+
+        foreach (var file in filesToProcess)
+        {
+            var text = File.ReadAllText(file);
+
+            if (!text.Contains(option.Find))
+            {
+                continue;
+            }
+
+            File.WriteAllText(file, text.Replace(option.Find, option.Replace));
+            onFileUpdated?.Invoke(file);
+            affectedFileCount++;
+        }
+
+        return affectedFileCount;
+    }
+
+    protected virtual bool MatchesFilePattern(string filePath, string filePattern)
+    {
+        if (LooksLikeRegex(filePattern))
+        {
+            var relativePath = NormalizePath(Path.GetRelativePath(WorkingDirectory!, filePath));
+            return Regex.IsMatch(relativePath, filePattern)
+                || Regex.IsMatch(Path.GetFileName(filePath), filePattern)
+                || Regex.IsMatch(filePath, filePattern);
+        }
+
+        var normalizedPattern = NormalizePath(filePattern);
+        var normalizedRelativePath = NormalizePath(Path.GetRelativePath(WorkingDirectory!, filePath));
+        var target = normalizedPattern.Contains('/')
+            ? normalizedRelativePath
+            : Path.GetFileName(filePath);
+
+        return Regex.IsMatch(target, ConvertGlobToRegex(normalizedPattern), RegexOptions.IgnoreCase);
+    }
+
+    private static bool LooksLikeRegex(string filePattern)
+    {
+        return filePattern.IndexOf('\\') >= 0
+            || filePattern.IndexOfAny(['^', '$', '+', '|', '(', ')', '[', ']']) >= 0;
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return path.Replace('\\', '/');
+    }
+
+    private static string ConvertGlobToRegex(string pattern)
+    {
+        var regex = new StringBuilder("^");
+
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            var character = pattern[i];
+
+            switch (character)
+            {
+                case '*':
+                    if (i + 1 < pattern.Length && pattern[i + 1] == '*')
+                    {
+                        var isDirectoryWildcard = i + 2 < pattern.Length && pattern[i + 2] == '/';
+
+                        if (isDirectoryWildcard)
+                        {
+                            regex.Append("(?:.*/)?");
+                            i += 2;
+                        }
+                        else
+                        {
+                            regex.Append(".*");
+                            i++;
+                        }
+                    }
+                    else
+                    {
+                        regex.Append("[^/]*");
+                    }
+                    break;
+                case '?':
+                    regex.Append("[^/]");
+                    break;
+                case '{':
+                    var closingBraceIndex = pattern.IndexOf('}', i + 1);
+
+                    if (closingBraceIndex > i)
+                    {
+                        var options = pattern[(i + 1)..closingBraceIndex]
+                            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                            .Select(Regex.Escape);
+
+                        regex.Append("(?:");
+                        regex.Append(string.Join('|', options));
+                        regex.Append(')');
+                        i = closingBraceIndex;
+                    }
+                    else
+                    {
+                        regex.Append("\\{");
+                    }
+                    break;
+                default:
+                    regex.Append(Regex.Escape(character.ToString()));
+                    break;
+            }
+        }
+
+        regex.Append('$');
+        return regex.ToString();
     }
 }

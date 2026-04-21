@@ -1,4 +1,5 @@
-﻿using YamlDotNet.Serialization;
+﻿using System.Text.RegularExpressions;
+using YamlDotNet.Serialization;
 
 namespace AbpDevTools.Configuration;
 
@@ -12,6 +13,21 @@ public class ReplacementConfiguration : ConfigurationBase<Dictionary<string, Rep
     public override string FileName => "replacements";
 
     protected override string LegacyJsonFilePath => Path.Combine(FolderPath, "replacements.json");
+
+    public override Dictionary<string, ReplacementOption> GetOptions()
+    {
+        NormalizeWildcardFilePatternsInConfig();
+        return base.GetOptions()!;
+    }
+
+    protected virtual string NormalizeWildcardFilePatterns(string yamlContent)
+    {
+        return Regex.Replace(
+            yamlContent,
+            "(?m)^(\\s*file-pattern\\s*:\\s*)(?!['\"])(\\*[^#\\r\\n]*)(\\s*(?:#.*)?)$",
+            match => $"{match.Groups[1].Value}\"{match.Groups[2].Value.TrimEnd()}\"{match.Groups[3].Value}"
+        );
+    }
 
     protected override Dictionary<string, ReplacementOption> GetDefaults()
     {
@@ -34,5 +50,21 @@ public class ReplacementConfiguration : ConfigurationBase<Dictionary<string, Rep
                 }
             }
         };
+    }
+
+    private void NormalizeWildcardFilePatternsInConfig()
+    {
+        if (!File.Exists(FilePath))
+        {
+            return;
+        }
+
+        var yamlContent = File.ReadAllText(FilePath);
+        var normalizedYamlContent = NormalizeWildcardFilePatterns(yamlContent);
+
+        if (!string.Equals(yamlContent, normalizedYamlContent, StringComparison.Ordinal))
+        {
+            File.WriteAllText(FilePath, normalizedYamlContent);
+        }
     }
 }
