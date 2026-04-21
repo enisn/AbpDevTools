@@ -339,7 +339,7 @@ This command performs the following operations:
 - **Configuration**: Creates `abpdev.yml` files with appropriate environment settings
 
 ## abpdev logs
-Finds given project under the current directory and shows logs of it.
+Finds a project under the current directory and prints the last log lines to the terminal by default. Use `--open` to keep the old file/folder opening behavior.
 
 ![abpdev logs](images/abpdevlogs.gif)
 ---
@@ -351,11 +351,13 @@ Finds given project under the current directory and shows logs of it.
   abpdev logs [command] [...]
 
 PARAMETERS
-  projectname       Determines the project to open logs of it.
+  projectname       Determines the project to show logs of.
 
 OPTIONS
   -p|--path         Working directory of the command. Probably solution directory. Default: . (CurrentDirectory)
   -i|--interactive  Options will be asked as prompt when this option used. Default: "False".
+  -n|--lines        Number of lines to print from the end of logs.txt. Default: 100.
+  -o|--open         Opens logs with the operating system default app instead of printing them.
   -h|--help         Shows help text.
 
 COMMANDS
@@ -364,9 +366,19 @@ COMMANDS
 
 ### Example commands
 
-- Show logs of the **.Web** project
+- Show the last 100 log lines of the **.Web** project
     ```bash
     abpdev logs Web
+    ```
+
+- Show the last 20 log lines
+    ```bash
+    abpdev logs Web -n 20
+    ```
+
+- Open the log file or folder with the operating system default app
+    ```bash
+    abpdev logs Web --open
     ```
 
 - Clear logs of the **.Web** project
