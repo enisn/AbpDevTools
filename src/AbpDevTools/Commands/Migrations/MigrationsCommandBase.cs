@@ -44,9 +44,17 @@ public abstract class MigrationsCommandBase : ICommand
         {
             projectFiles = projectFiles.Where(pf => Projects.Any(a => pf.FullName.Contains(a))).ToArray();
         }
-        else if (!RunAll && projectFiles.Length > 0)
+        else if (!RunAll && projectFiles.Length > 1)
         {
-            var chosenProjects = AnsiConsole.Prompt(new MultiSelectionPrompt<string>()
+            projectFiles = PromptForProjectSelection(projectFiles);
+        }
+
+        return projectFiles;
+    }
+
+    protected virtual FileInfo[] PromptForProjectSelection(FileInfo[] projectFiles)
+    {
+        var chosenProjects = AnsiConsole.Prompt(new MultiSelectionPrompt<FileInfo>()
                 .Title("Choose project to create migrations.")
                 .Required(true)
                 .PageSize(12)
@@ -55,20 +63,29 @@ public abstract class MigrationsCommandBase : ICommand
                 .InstructionsText(
                             "[grey](Press [mediumpurple2]<space>[/] to toggle a project, " +
                             "[green]<enter>[/] to accept)[/]")
-                .AddChoices(projectFiles
-                    .Select(p => Path.GetDirectoryName(p.FullName.Replace(WorkingDirectory, string.Empty)).Trim('\\'))
-                    .ToArray())
+                .UseConverter(GetProjectSelectionLabel)
+                .AddChoices(projectFiles)
             );
 
-            projectFiles = projectFiles.Where(p => chosenProjects.Any(cp => p.FullName.Contains(cp))).ToArray();
-        }
-
-        return projectFiles;
+        return chosenProjects.ToArray();
     }
 
-    async Task<FileInfo[]> GetEfCoreProjectsAsync()
+    protected virtual string GetProjectSelectionLabel(FileInfo projectFile)
+    {
+        if (string.IsNullOrWhiteSpace(WorkingDirectory))
+        {
+            return projectFile.Name;
+        }
+
+        var relativePath = Path.GetRelativePath(WorkingDirectory!, projectFile.FullName);
+        return string.IsNullOrWhiteSpace(relativePath) || relativePath == "."
+            ? projectFile.Name
+            : relativePath;
+    }
+
+    protected virtual Task<FileInfo[]> GetEfCoreProjectsAsync()
     {
         // Pass Projects filter to provider for early filtering to improve performance
-        return await entityFrameworkCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!, Projects.Length > 0 ? Projects : null);
+        return entityFrameworkCoreProjectsProvider.GetEfCoreProjectsAsync(WorkingDirectory!, Projects.Length > 0 ? Projects : null);
     }
 }
