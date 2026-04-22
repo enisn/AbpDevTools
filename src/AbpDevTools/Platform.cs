@@ -6,12 +6,12 @@ namespace AbpDevTools;
 [RegisterTransient]
 public class Platform
 {
-    public void Open(string filePath)
+    public virtual void Open(string filePath)
     {
         OpenProcess(filePath).WaitForExit();
     }
 
-    public Task OpenAsync(string filePath)
+    public virtual Task OpenAsync(string filePath)
     {
         return OpenProcess(filePath).WaitForExitAsync();
     }

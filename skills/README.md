@@ -6,7 +6,22 @@ Pre-built instruction sets that teach AI coding assistants how to use [AbpDevToo
 
 | Skill | Description |
 |-------|-------------|
-| [abpdev-references](abpdev-references/SKILL.md) | Switch between NuGet packages and local project references (`abpdev references to-local`, `to-package`, config) |
+| [abpdev-add-package](abpdev-add-package/SKILL.md) | Add NuGet packages from any source and automatically wire ABP module dependencies (`abpdev add-package`) |
+| [abpdev-workflow](abpdev-workflow/SKILL.md) | Core developer workflow commands (`abpdev build`, `migrate`, `run`, `test`, `prepare`, `logs`, `bundle`) |
+| [abpdev-environments](abpdev-environments/SKILL.md) | Virtual environments and infra apps (`abpdev env`, `envapp`, `switch-to-env`) |
+| [abpdev-migrations](abpdev-migrations/SKILL.md) | EF Core migration and database workflows (`abpdev migrations`, `database-drop`) |
+| [abpdev-maintenance](abpdev-maintenance/SKILL.md) | Maintenance/utilities (`abpdev clean`, `replace`, `logs clear`, `tools`, `update`, `find-port`, etc.) |
+| [abpdev-references](abpdev-references/SKILL.md) | Switch between NuGet packages and local project references (`abpdev references to-local`, `to-package`, `references config`, `local-sources`) |
+
+## Recommended Granularity
+
+Prefer **one skill per reusable command family**, not one skill per individual leaf command and not one giant all-in-one `abpdev` skill.
+
+Use this rule of thumb:
+
+1. Create a separate skill when a command area has its own config, workflows, caveats, and troubleshooting.
+2. Group closely related commands that are usually used together, such as `run/build/test/prepare` or `migrations/*`.
+3. Avoid monolithic skills because agents have to fetch/read more than necessary and the instructions become harder to maintain.
 
 > **Base URL for raw downloads:**
 > ```
@@ -27,30 +42,34 @@ Cursor natively supports skills as `SKILL.md` files.
 
 ```powershell
 # Windows (PowerShell)
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.cursor\skills\abpdev-references" | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" -OutFile "$env:USERPROFILE\.cursor\skills\abpdev-references\SKILL.md"
+$skill = "abpdev-references"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.cursor\skills\$skill" | Out-Null
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" -OutFile "$env:USERPROFILE\.cursor\skills\$skill\SKILL.md"
 ```
 
 ```bash
 # macOS / Linux
-mkdir -p ~/.cursor/skills/abpdev-references
-curl -fsSL -o ~/.cursor/skills/abpdev-references/SKILL.md \
-  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
+skill="abpdev-references"
+mkdir -p ~/.cursor/skills/$skill
+curl -fsSL -o ~/.cursor/skills/$skill/SKILL.md \
+  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md"
 ```
 
 **Project-level (shared via your repository):**
 
 ```powershell
 # Windows (PowerShell) -- run from your ABP project root
-New-Item -ItemType Directory -Force ".cursor\skills\abpdev-references" | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" -OutFile ".cursor\skills\abpdev-references\SKILL.md"
+$skill = "abpdev-references"
+New-Item -ItemType Directory -Force ".cursor\skills\$skill" | Out-Null
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" -OutFile ".cursor\skills\$skill\SKILL.md"
 ```
 
 ```bash
 # macOS / Linux
-mkdir -p .cursor/skills/abpdev-references
-curl -fsSL -o .cursor/skills/abpdev-references/SKILL.md \
-  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
+skill="abpdev-references"
+mkdir -p .cursor/skills/$skill
+curl -fsSL -o .cursor/skills/$skill/SKILL.md \
+  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md"
 ```
 
 ---
@@ -62,14 +81,16 @@ Claude Code reads `CLAUDE.md` files from the project root or `~/.claude/CLAUDE.m
 **Project-level (run from your ABP project root):**
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" >> CLAUDE.md
+skill="abpdev-references"
+curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" >> CLAUDE.md
 ```
 
 **Personal (all projects):**
 
 ```bash
 mkdir -p ~/.claude
-curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" >> ~/.claude/CLAUDE.md
+skill="abpdev-references"
+curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" >> ~/.claude/CLAUDE.md
 ```
 
 > If you have multiple skills, separate them with `---` or a heading.
@@ -82,15 +103,17 @@ Copilot reads instructions from `.github/instructions/*.instructions.md` in your
 
 ```powershell
 # Windows (PowerShell) -- run from your ABP project root
+$skill = "abpdev-references"
 New-Item -ItemType Directory -Force ".github\instructions" | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" -OutFile ".github\instructions\abpdev-references.instructions.md"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" -OutFile ".github\instructions\$skill.instructions.md"
 ```
 
 ```bash
 # macOS / Linux
+skill="abpdev-references"
 mkdir -p .github/instructions
-curl -fsSL -o .github/instructions/abpdev-references.instructions.md \
-  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
+curl -fsSL -o .github/instructions/$skill.instructions.md \
+  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md"
 ```
 
 ---
@@ -102,7 +125,8 @@ OpenCode reads `AGENTS.md` files from the project root.
 **Project-level (run from your ABP project root):**
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md" >> AGENTS.md
+skill="abpdev-references"
+curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" >> AGENTS.md
 ```
 
 ---
@@ -113,7 +137,7 @@ For any other AI agent (Windsurf, Cline, Aider, etc.) that supports custom instr
 
 1. Download the skill content:
    ```bash
-   curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/abpdev-references/SKILL.md"
+    curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/<skill-name>/SKILL.md"
    ```
 2. Paste it into your agent's rules file, custom instructions, or system prompt configuration.
 
@@ -153,7 +177,12 @@ Pre-built agent skills with detailed instructions for each `abpdev` command are 
 
 | Skill name | When to fetch |
 |------------|---------------|
-| `abpdev-references` | User asks about switching between NuGet packages and local project references, configuring `local-sources.yml`, or using `abpdev references` commands. |
+| `abpdev-add-package` | User asks about installing a NuGet package into an ABP project and automatically adding module dependencies with `abpdev add-package`. |
+| `abpdev-workflow` | User asks about building, migrating, running, testing, preparing, bundling, or opening logs with AbpDevTools. |
+| `abpdev-environments` | User asks about virtual environments, `abpdev env`, `envapp`, Docker-backed infra tools, or switching shells with environment variables. |
+| `abpdev-migrations` | User asks about EF Core migrations, recreating migrations, or dropping databases across multiple projects. |
+| `abpdev-maintenance` | User asks about cleanup, replacements, tool-path config, updates, notifications, occupied ports, file finding, or ABP Studio version switching. |
+| `abpdev-references` | User asks about switching between NuGet packages and local project references, configuring `local-sources.yml`, using `abpdev references` commands, or the `abpdev local-sources` alias. |
 
 When the user asks about an `abpdev` command covered by a skill, fetch and read that skill
 before responding. Use the raw GitHub URL pattern above.
@@ -167,7 +196,7 @@ before responding. Use the raw GitHub URL pattern above.
 
 ```powershell
 # Windows (PowerShell)
-$skills = @("abpdev-references")
+$skills = @("abpdev-add-package", "abpdev-workflow", "abpdev-environments", "abpdev-migrations", "abpdev-maintenance", "abpdev-references")
 foreach ($skill in $skills) {
     New-Item -ItemType Directory -Force "$env:USERPROFILE\.cursor\skills\$skill" | Out-Null
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/$skill/SKILL.md" -OutFile "$env:USERPROFILE\.cursor\skills\$skill\SKILL.md"
@@ -176,7 +205,7 @@ foreach ($skill in $skills) {
 
 ```bash
 # macOS / Linux
-for skill in abpdev-references; do
+for skill in abpdev-add-package abpdev-workflow abpdev-environments abpdev-migrations abpdev-maintenance abpdev-references; do
     mkdir -p ~/.cursor/skills/$skill
     curl -fsSL -o ~/.cursor/skills/$skill/SKILL.md \
       "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/$skill/SKILL.md"

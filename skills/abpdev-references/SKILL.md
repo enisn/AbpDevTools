@@ -4,7 +4,8 @@ description: >-
   Switch between NuGet package references and local project references using the
   abpdev CLI. Use when the user wants to configure local-sources.yml, convert
   packages to local project references, convert back to package references, debug
-  ABP source locally, or troubleshoot reference switching in ABP-based projects.
+  ABP source locally, use the local-sources config alias, or troubleshoot
+  reference switching in ABP-based projects.
 ---
 
 # abpdev references
@@ -23,9 +24,12 @@ dotnet tool update -g AbpDevTools
 
 | Command | Purpose |
 |---------|---------|
+| `abpdev local-sources` | Open the same local sources configuration file directly |
 | `abpdev references config` | Create (if missing) and open `local-sources.yml` in your default editor |
 | `abpdev references to-local [dir] [-s sources]` | PackageReference -> ProjectReference |
 | `abpdev references to-package [dir] [-s sources]` | ProjectReference -> PackageReference |
+
+`abpdev local-sources` and `abpdev references config` point to the same global configuration.
 
 - `dir` defaults to the current directory. All `.csproj` files are found recursively.
 - `-s` / `--sources` filters by source key (space-separated). Omit to process all configured sources.
@@ -38,7 +42,7 @@ dotnet tool update -g AbpDevTools
 %AppData%\abpdev\local-sources.yml
 ```
 
-Run `abpdev references config` to create the file with defaults and open it.
+Run `abpdev references config` or `abpdev local-sources` to create the file with defaults and open it.
 
 ### Format
 
@@ -153,6 +157,8 @@ What happens:
 ```bash
 # 1. One-time setup: configure your local source paths
 abpdev references config
+# or
+abpdev local-sources
 # Edit the YAML: set `path` to your local checkout
 
 # 2. Switch to local references for debugging / development
@@ -211,7 +217,7 @@ Source order matters when the same package appears in multiple sources -- first 
 **Package not converted to local:**
 - Verify a `.csproj` whose file name matches the package ID exists under the source `path`.
 - Verify the package name matches at least one entry in `packages`.
-- Run `abpdev references config` and check the `path` value.
+- Run `abpdev references config` or `abpdev local-sources` and check the `path` value.
 
 **Version not restored when switching back:**
 - `to-local` stores one version per source key, not per package. All packages from the same source share that version.
