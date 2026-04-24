@@ -27,6 +27,10 @@ public abstract class MigrationsCommandBase : ICommand
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
+        else
+        {
+            WorkingDirectory = Path.GetFullPath(WorkingDirectory);
+        }
 
         return default;
     }
@@ -77,7 +81,8 @@ public abstract class MigrationsCommandBase : ICommand
             return projectFile.Name;
         }
 
-        var relativePath = Path.GetRelativePath(WorkingDirectory!, projectFile.FullName);
+        var fullWorkingDirectory = Path.GetFullPath(WorkingDirectory);
+        var relativePath = Path.GetRelativePath(fullWorkingDirectory, projectFile.FullName);
         return string.IsNullOrWhiteSpace(relativePath) || relativePath == "."
             ? projectFile.Name
             : relativePath;

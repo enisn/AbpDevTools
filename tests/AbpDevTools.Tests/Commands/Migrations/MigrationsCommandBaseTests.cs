@@ -70,6 +70,24 @@ public class MigrationsCommandBaseTests
         label.Should().Be(Path.Combine("src", "MyApp.EntityFrameworkCore", "MyApp.EntityFrameworkCore.csproj"));
     }
 
+    [Fact]
+    public void GetProjectSelectionLabel_WithRelativeWorkingDirectory_ReturnsRelativeProjectPath()
+    {
+        // Arrange: use the actual current directory so "." resolves to a real full path
+        var absoluteWorkingDirectory = Directory.GetCurrentDirectory();
+        var project = new FileInfo(Path.Combine(absoluteWorkingDirectory, "src", "MyApp.EntityFrameworkCore", "MyApp.EntityFrameworkCore.csproj"));
+
+        // Supply WorkingDirectory as "." (a relative path) — GetFullPath(".")  == absoluteWorkingDirectory
+        var command = new TestMigrationsCommand(Array.Empty<FileInfo>())
+        {
+            WorkingDirectory = "."
+        };
+
+        var label = command.InvokeGetProjectSelectionLabel(project);
+
+        label.Should().Be(Path.Combine("src", "MyApp.EntityFrameworkCore", "MyApp.EntityFrameworkCore.csproj"));
+    }
+
     [CliFx.Attributes.Command("test-migrations-command")]
     private sealed class TestMigrationsCommand : MigrationsCommandBase
     {
