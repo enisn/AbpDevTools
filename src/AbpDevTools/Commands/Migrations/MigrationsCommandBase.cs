@@ -81,6 +81,7 @@ public abstract class MigrationsCommandBase : ICommand
             return projectFile.Name;
         }
 
+        // Normalize defensively: callers may bypass ExecuteAsync (e.g. unit tests).
         var fullWorkingDirectory = Path.GetFullPath(WorkingDirectory);
         var relativePath = Path.GetRelativePath(fullWorkingDirectory, projectFile.FullName);
         return string.IsNullOrWhiteSpace(relativePath) || relativePath == "."
