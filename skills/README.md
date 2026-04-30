@@ -1,6 +1,6 @@
 # AbpDevTools Skills for AI Agents
 
-Pre-built instruction sets that teach AI coding assistants how to use [AbpDevTools](https://github.com/enisn/AbpDevTools) commands. When installed, your AI agent will know how to run `abpdev` commands, configure local sources, switch references, and troubleshoot common issues -- without you having to explain the tool each time.
+Pre-built instruction sets that teach AI coding assistants how to use [AbpDevTools](https://github.com/enisn/AbpDevTools) commands. When installed or updated, your AI agent will know how to run `abpdev` commands, configure local sources, switch references, and troubleshoot common issues -- without you having to explain the tool each time.
 
 ## Available Skills
 
@@ -25,10 +25,16 @@ Use this rule of thumb:
 
 > **Base URL for raw downloads:**
 > ```
-> https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills
+> https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills
 > ```
 
-## Installation
+## Install or Update
+
+Unless otherwise noted, the commands below both install missing skills and update existing ones by overwriting the local `SKILL.md` with the latest upstream version.
+
+If your agent stores copied instructions inside a single rules file such as `CLAUDE.md` or `AGENTS.md`, update by replacing the existing skill block instead of appending a second copy.
+
+## Installation Targets
 
 Each AI agent has its own way of loading custom instructions. Pick your agent below.
 
@@ -78,6 +84,8 @@ curl -fsSL -o .cursor/skills/$skill/SKILL.md \
 
 Claude Code reads `CLAUDE.md` files from the project root or `~/.claude/CLAUDE.md` globally.
 
+Because Claude Code uses a shared instructions file rather than per-skill files, the commands below are best for first-time installation. To update a skill later, replace the existing pasted section instead of appending it again.
+
 **Project-level (run from your ABP project root):**
 
 ```bash
@@ -120,7 +128,28 @@ curl -fsSL -o .github/instructions/$skill.instructions.md \
 
 ### OpenCode
 
-OpenCode reads `AGENTS.md` files from the project root.
+OpenCode supports reusable skills as `SKILL.md` files under `~/.config/opencode/skills/<skill-name>/`. This is the recommended way to install or update personal/global skills.
+
+**Personal/global (available across all your projects):**
+
+```powershell
+# Windows (PowerShell)
+$skill = "abpdev-references"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.config\opencode\skills\$skill" | Out-Null
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" -OutFile "$env:USERPROFILE\.config\opencode\skills\$skill\SKILL.md"
+```
+
+```bash
+# macOS / Linux
+skill="abpdev-references"
+mkdir -p ~/.config/opencode/skills/$skill
+curl -fsSL -o ~/.config/opencode/skills/$skill/SKILL.md \
+  "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md"
+```
+
+> Re-run the same command any time you want to update that skill to the latest version.
+
+OpenCode also reads `AGENTS.md` files from the project root. This is useful for repo-specific instructions, but it is not as convenient for reusable global skills.
 
 **Project-level (run from your ABP project root):**
 
@@ -128,6 +157,8 @@ OpenCode reads `AGENTS.md` files from the project root.
 skill="abpdev-references"
 curl -fsSL "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" >> AGENTS.md
 ```
+
+> For updates, replace the existing skill section in `AGENTS.md` instead of appending the same skill again.
 
 ---
 
@@ -156,22 +187,29 @@ running, and managing ABP-based .NET projects.
 
 Pre-built agent skills with detailed instructions for each `abpdev` command are maintained at:
 
-    https://github.com/enisn/AbpDevTools/tree/main/skills
+    https://github.com/enisn/AbpDevTools/tree/master/skills
 
-### How to install a skill
+### How to install or update a skill
 
 1. Fetch the skill index to see available skills:
    ```
-   https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/README.md
+   https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/README.md
    ```
 
 2. Download the skill you need. Each skill lives in its own folder as a `SKILL.md` file:
    ```
-   https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/<skill-name>/SKILL.md
+   https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/<skill-name>/SKILL.md
    ```
 
-3. Read the downloaded content and follow the instructions within when the user asks about
+3. If the skill is already installed locally, overwrite the existing local `SKILL.md` with the downloaded content so the skill is updated in place.
+
+4. Read the downloaded content and follow the instructions within when the user asks about
    the relevant `abpdev` command.
+
+### Update behavior
+
+- For file-based skill systems, overwrite the existing `SKILL.md` file.
+- For single shared rules files such as `CLAUDE.md` or `AGENTS.md`, replace the existing pasted skill block instead of appending a duplicate copy.
 
 ### Currently available skills
 
@@ -199,7 +237,7 @@ before responding. Use the raw GitHub URL pattern above.
 $skills = @("abpdev-add-package", "abpdev-workflow", "abpdev-environments", "abpdev-migrations", "abpdev-maintenance", "abpdev-references")
 foreach ($skill in $skills) {
     New-Item -ItemType Directory -Force "$env:USERPROFILE\.cursor\skills\$skill" | Out-Null
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/$skill/SKILL.md" -OutFile "$env:USERPROFILE\.cursor\skills\$skill\SKILL.md"
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" -OutFile "$env:USERPROFILE\.cursor\skills\$skill\SKILL.md"
 }
 ```
 
@@ -208,11 +246,33 @@ foreach ($skill in $skills) {
 for skill in abpdev-add-package abpdev-workflow abpdev-environments abpdev-migrations abpdev-maintenance abpdev-references; do
     mkdir -p ~/.cursor/skills/$skill
     curl -fsSL -o ~/.cursor/skills/$skill/SKILL.md \
-      "https://raw.githubusercontent.com/enisn/AbpDevTools/main/skills/$skill/SKILL.md"
+      "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md"
 done
 ```
 
-As new skills are added, append their names to the list above.
+**OpenCode (personal/global):**
+
+```powershell
+# Windows (PowerShell)
+$skills = @("abpdev-add-package", "abpdev-workflow", "abpdev-environments", "abpdev-migrations", "abpdev-maintenance", "abpdev-references")
+foreach ($skill in $skills) {
+    New-Item -ItemType Directory -Force "$env:USERPROFILE\.config\opencode\skills\$skill" | Out-Null
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md" -OutFile "$env:USERPROFILE\.config\opencode\skills\$skill\SKILL.md"
+}
+```
+
+```bash
+# macOS / Linux
+for skill in abpdev-add-package abpdev-workflow abpdev-environments abpdev-migrations abpdev-maintenance abpdev-references; do
+    mkdir -p ~/.config/opencode/skills/$skill
+    curl -fsSL -o ~/.config/opencode/skills/$skill/SKILL.md \
+      "https://raw.githubusercontent.com/enisn/AbpDevTools/master/skills/$skill/SKILL.md"
+done
+```
+
+Re-run the same loop whenever you want to update all installed skills to the latest version.
+
+As new skills are added, append their names to the lists above.
 
 ---
 
