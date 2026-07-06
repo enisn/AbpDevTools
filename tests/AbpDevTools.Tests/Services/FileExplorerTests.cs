@@ -1,4 +1,4 @@
-using AbpDevTools.Services;
+using AbpDevTools;
 using FluentAssertions;
 using Xunit;
 
