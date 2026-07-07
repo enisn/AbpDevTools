@@ -375,10 +375,10 @@ public partial class RunCommand : ICommand
             var name = property[..separatorIndex].Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                throw new CommandException($"Invalid --msbuild-property value '{property}'. Property name can not be empty.");
+                throw new CommandException($"Invalid --msbuild-property value '{property}'. Property name cannot be empty.");
             }
 
-            properties[name] = property[(separatorIndex + 1)..];
+            properties[name] = property[(separatorIndex + 1)..].Trim();
         }
 
         return properties;
@@ -415,7 +415,7 @@ public partial class RunCommand : ICommand
             var name = property.Key.Trim();
             if (string.IsNullOrEmpty(name))
             {
-                throw new CommandException("Invalid run.msbuild-properties entry. Property name can not be empty.");
+                throw new CommandException("Invalid run.msbuild-properties entry. Property name cannot be empty.");
             }
 
             target[name] = property.Value;
