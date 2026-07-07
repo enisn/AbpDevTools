@@ -208,6 +208,7 @@ OPTIONS
   -i|--install-libs  Runs 'abp install-libs' command while running the project simultaneously. Default: "False".
   -g|--graphBuild   Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance. Default: "False".
   -p|--projects     (Array) Names or part of names of projects will be ran.
+  --msbuild-property MSBuild property passed to every selected dotnet run process. Use Name=Value and repeat for multiple properties.
   -c|--configuration
   -e| --env        Virtual Environment name. You can manage virtual environments by using 'abpdev env config'
   -h|--help         Shows help text.

@@ -3,6 +3,7 @@ using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
 using AbpDevTools.Services;
+using CliFx.Exceptions;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -38,6 +39,9 @@ public partial class RunCommand : ICommand
 
     [CommandOption("projects", 'p', Description = "(Array) Names or part of names of projects will be ran.")]
     public string[] Projects { get; set; } = Array.Empty<string>();
+
+    [CommandOption("msbuild-property", Description = "MSBuild property passed to every dotnet run process. Use Name=Value and repeat for multiple properties.")]
+    public string[] MsbuildProperties { get; set; } = Array.Empty<string>();
 
     [CommandOption("configuration", 'c')]
     public string? Configuration { get; set; }
@@ -114,6 +118,8 @@ public partial class RunCommand : ICommand
         {
             console.Output.WriteLine($"Loaded YAML configuration from '{YmlPath}' with environment '{localRootConfig?.Environment?.Name ?? "Default"}'.");
         }
+
+        var commandLineMsbuildProperties = ParseCommandLineMsbuildProperties();
 
         FileInfo[] csprojs = await AnsiConsole.Status()
             .StartAsync("Looking for projects", async ctx =>
@@ -234,7 +240,9 @@ public partial class RunCommand : ICommand
                 var commandSuffix = BuildCommandSuffix(
                     localConfiguration?.Run?.NoBuild,
                     localConfiguration?.Run?.GraphBuild,
-                    localConfiguration?.Run?.Configuration);
+                    localConfiguration?.Run?.Configuration,
+                    localConfiguration?.Run?.MsbuildProperties,
+                    commandLineMsbuildProperties);
 
                 var tools = toolsConfiguration.GetOptions();
                 var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
@@ -319,7 +327,12 @@ public partial class RunCommand : ICommand
         }
     }
 
-    private string BuildCommandSuffix(bool? noBuild = null, bool? graphBuild = null, string? configuration = null)
+    protected string BuildCommandSuffix(
+        bool? noBuild = null,
+        bool? graphBuild = null,
+        string? configuration = null,
+        IReadOnlyDictionary<string, string?>? localMsbuildProperties = null,
+        IReadOnlyDictionary<string, string?>? commandLineMsbuildProperties = null)
     {
         var commandSuffix = (NoBuild || noBuild == true) ? " --no-build" : string.Empty;
 
@@ -337,7 +350,86 @@ public partial class RunCommand : ICommand
             commandSuffix += $" --configuration {Configuration}";
         }
 
+        commandSuffix += BuildMsbuildPropertyArguments(localMsbuildProperties, commandLineMsbuildProperties);
+
         return commandSuffix;
+    }
+
+    protected IReadOnlyDictionary<string, string?> ParseCommandLineMsbuildProperties()
+    {
+        var properties = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var property in MsbuildProperties)
+        {
+            if (string.IsNullOrWhiteSpace(property))
+            {
+                throw new CommandException("Invalid --msbuild-property value. Use Name=Value.");
+            }
+
+            var separatorIndex = property.IndexOf('=');
+            if (separatorIndex <= 0)
+            {
+                throw new CommandException($"Invalid --msbuild-property value '{property}'. Use Name=Value.");
+            }
+
+            var name = property[..separatorIndex].Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new CommandException($"Invalid --msbuild-property value '{property}'. Property name can not be empty.");
+            }
+
+            properties[name] = property[(separatorIndex + 1)..];
+        }
+
+        return properties;
+    }
+
+    private static string BuildMsbuildPropertyArguments(
+        IReadOnlyDictionary<string, string?>? localMsbuildProperties,
+        IReadOnlyDictionary<string, string?>? commandLineMsbuildProperties)
+    {
+        var properties = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        AddMsbuildProperties(properties, localMsbuildProperties);
+        AddMsbuildProperties(properties, commandLineMsbuildProperties);
+
+        if (properties.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Concat(properties.Select(property => $" --property:{QuoteArgumentIfNeeded($"{property.Key}={property.Value ?? string.Empty}")}"));
+    }
+
+    private static void AddMsbuildProperties(
+        Dictionary<string, string?> target,
+        IReadOnlyDictionary<string, string?>? source)
+    {
+        if (source is null)
+        {
+            return;
+        }
+
+        foreach (var property in source)
+        {
+            var name = property.Key.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new CommandException("Invalid run.msbuild-properties entry. Property name can not be empty.");
+            }
+
+            target[name] = property.Value;
+        }
+    }
+
+    private static string QuoteArgumentIfNeeded(string value)
+    {
+        if (value.Length > 0 && value.All(c => !char.IsWhiteSpace(c) && c != '"'))
+        {
+            return value;
+        }
+
+        return $"\"{value.Replace("\"", "\\\"")}\"";
     }
 
     private string BuildCommandPrefix(bool? watchOverride)
