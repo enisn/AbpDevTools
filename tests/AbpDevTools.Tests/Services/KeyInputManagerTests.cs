@@ -92,6 +92,59 @@ public class KeyInputManagerTests
     }
 
     [Fact]
+    public async Task StartListening_WithBlockingRead_CapturesKeyWithoutPollingFirst()
+    {
+        // Arrange
+        using var keys = new System.Collections.Concurrent.BlockingCollection<ConsoleKeyInfo>();
+        using var manager = new KeyInputManager(
+            () => true,
+            () => false,
+            () => keys.Take(),
+            pollBeforeRead: false);
+
+        // Act
+        manager.StartListening();
+        await Task.Delay(50);
+        keys.Add(new ConsoleKeyInfo('l', ConsoleKey.L, shift: false, alt: false, control: false));
+
+        KeyPressEventArgs? key = null;
+        var timeoutAt = DateTime.UtcNow.AddSeconds(2);
+        while (key == null && DateTime.UtcNow < timeoutAt)
+        {
+            key = manager.TryGetNextKey();
+            await Task.Delay(20);
+        }
+
+        // Assert
+        key.Should().NotBeNull();
+        key!.Key.Should().Be(ConsoleKey.L);
+
+        manager.StopListening();
+        keys.Add(default);
+    }
+
+    [Fact]
+    public async Task StopListening_WithBlockingRead_MarksManagerAsNotListening()
+    {
+        // Arrange
+        using var keys = new System.Collections.Concurrent.BlockingCollection<ConsoleKeyInfo>();
+        using var manager = new KeyInputManager(
+            () => true,
+            () => false,
+            () => keys.Take(),
+            pollBeforeRead: false);
+
+        // Act
+        manager.StartListening();
+        await Task.Delay(50);
+        manager.StopListening();
+        keys.Add(default);
+
+        // Assert
+        manager.IsListening.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task StartListening_WhenKeyPollingFails_StopsGracefully()
     {
         // Arrange

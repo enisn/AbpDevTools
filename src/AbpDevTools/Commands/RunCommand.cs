@@ -249,6 +249,11 @@ public partial class RunCommand : ICommand
         void ProcessExitHandler(object? sender, EventArgs e) => KillRunningProcesses();
         AppDomain.CurrentDomain.ProcessExit += ProcessExitHandler;
 
+        if (canUseInteractiveConsole)
+        {
+            keyInputManager.StartListening();
+        }
+
         try
         {
             foreach (var runnableTarget in runnableTargets)
@@ -310,6 +315,7 @@ public partial class RunCommand : ICommand
             // Reset flag to ensure cleanup runs even if called before
             _processesKilled = false;
             KillRunningProcesses();
+            keyInputManager.StopListening();
             AppDomain.CurrentDomain.ProcessExit -= ProcessExitHandler;
         }
     }
@@ -383,8 +389,6 @@ public partial class RunCommand : ICommand
         {
             environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
         }
-
-        EnsureNpmProcessDoesNotStealDashboardShortcuts(startInfo);
 
         runningProjects.Add(
             new RunningNpmProjectItem(
@@ -492,16 +496,6 @@ public partial class RunCommand : ICommand
                      .Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             yield return executable + extension;
-        }
-    }
-
-    internal static void EnsureNpmProcessDoesNotStealDashboardShortcuts(ProcessStartInfo startInfo)
-    {
-        // Vite and similar dev servers bind stdin shortcuts when CI is not set.
-        // Keep abpdev's dashboard shortcuts responsive without redirecting stdin.
-        if (!startInfo.Environment.ContainsKey("CI"))
-        {
-            startInfo.Environment["CI"] = "true";
         }
     }
 
