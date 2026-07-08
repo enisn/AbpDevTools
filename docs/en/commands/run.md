@@ -5,7 +5,7 @@ title: Run Command
 
 # Run Command
 
-The `abpvdev run` command runs the solution in the current directory. It supports multiple solutions, multiple applications, and DbMigrator projects.
+The `abpvdev run` command runs the solution in the current directory. It supports multiple solutions, multiple .NET applications, npm web applications, and DbMigrator projects.
 
 ## Usage
 
@@ -106,10 +106,21 @@ AbpDevTools automatically detects these project types:
 
 | Type | Detection | Default Behavior |
 |------|-----------|------------------|
-| Web Host | Contains "HttpApi.Host" | Runs as web application |
-| Blazor WASM | Contains "Blazor" | Runs as Blazor client |
-| MAUI | Contains "Maui" or "Mobile" | Runs as mobile app |
+| .NET application | `.csproj` with sibling `Program.cs` | Runs with `dotnet run --project` |
 | DbMigrator | Contains "DbMigrator" | Runs before applications |
+| npm web app | `package.json` with `dev`, `serve`, or known web-server `start` script | Runs with the detected package manager |
+
+For npm apps, package manager detection uses the `packageManager` field first, then lockfiles such as `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`, and `package-lock.json`. If nothing is detected, it falls back to `npm`.
+
+Unknown `start` scripts are treated as ambiguous. They are available in interactive selection but skipped by `--all` unless explicitly selected with `--projects` or configured in `abpdev.yml`.
+
+```yaml
+run:
+  npm:
+    scripts:
+      - web
+      - start
+```
 
 ## Configuration
 

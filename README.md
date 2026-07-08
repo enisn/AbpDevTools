@@ -213,7 +213,17 @@ OPTIONS
   -h|--help         Shows help text.
 ```
 
-Convention: `*.csproj` files with specific names are considered as applications or dbmigrators.
+Convention: `*.csproj` files with `Program.cs` are considered runnable .NET applications or dbmigrators. `package.json` files are considered runnable npm applications when they define a `dev`, `serve`, or known web-server `start` script such as `ng serve`, `vite`, `react-scripts start`, or `vue-cli-service serve`.
+
+Unknown `start` scripts are shown during interactive selection but are skipped by `--all` unless they are explicitly selected with `--projects` or configured in `abpdev.yml`:
+
+```yaml
+run:
+  npm:
+    scripts:
+      - web
+      - start
+```
 
 > _Use `abpdev run config` command to change project name conventions according to your requirements_
 

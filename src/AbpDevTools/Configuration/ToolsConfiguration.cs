@@ -49,6 +49,10 @@ public class ToolsConfiguration : ConfigurationBase<ToolOption>
             { "powershell", "pwsh"},
             { "dotnet", "dotnet" },
             { "abp", "abp" },
+            { "npm", RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "npm.cmd" : "npm" },
+            { "pnpm", RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "pnpm.cmd" : "pnpm" },
+            { "yarn", RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "yarn.cmd" : "yarn" },
+            { "bun", "bun" },
         };
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
