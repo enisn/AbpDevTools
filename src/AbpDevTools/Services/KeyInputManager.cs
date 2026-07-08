@@ -10,28 +10,33 @@ public class KeyInputManager : IKeyInputManager, IDisposable
     private readonly Func<bool> _canReadConsoleInput;
     private readonly Func<bool> _isKeyAvailable;
     private readonly Func<ConsoleKeyInfo> _readKey;
+    private readonly bool _pollBeforeRead;
     private CancellationTokenSource _cancellationTokenSource = new();
     private Task? _listeningTask;
+    private volatile bool _isNotifyingKeyPress;
     private bool _disposed;
 
-    public bool IsListening => _listeningTask?.Status == TaskStatus.Running;
+    public bool IsListening => _listeningTask is { IsCompleted: false } && !_cancellationTokenSource.IsCancellationRequested;
 
     public KeyInputManager()
         : this(
             global::AbpDevTools.ConsoleSupport.CanReadConsoleInput,
             () => Console.KeyAvailable,
-            () => Console.ReadKey(true))
+            () => Console.ReadKey(true),
+            pollBeforeRead: false)
     {
     }
 
     internal KeyInputManager(
         Func<bool> canReadConsoleInput,
         Func<bool> isKeyAvailable,
-        Func<ConsoleKeyInfo> readKey)
+        Func<ConsoleKeyInfo> readKey,
+        bool pollBeforeRead = true)
     {
         _canReadConsoleInput = canReadConsoleInput;
         _isKeyAvailable = isKeyAvailable;
         _readKey = readKey;
+        _pollBeforeRead = pollBeforeRead;
     }
 
     public void StartListening()
@@ -51,7 +56,8 @@ public class KeyInputManager : IKeyInputManager, IDisposable
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         
-        _listeningTask = Task.Run(ListenForKeyPressesAsync, _cancellationTokenSource.Token);
+        var cancellationToken = _cancellationTokenSource.Token;
+        _listeningTask = Task.Run(() => ListenForKeyPressesAsync(cancellationToken), cancellationToken);
     }
 
     public void StopListening()
@@ -60,40 +66,68 @@ public class KeyInputManager : IKeyInputManager, IDisposable
             return;
 
         _cancellationTokenSource.Cancel();
-        _listeningTask?.Wait(1_000, _cancellationTokenSource.Token);
+        // Key handlers may stop the listener before it re-enters a blocking ReadKey call.
+        if (_isNotifyingKeyPress)
+        {
+            return;
+        }
+
+        try
+        {
+            _listeningTask?.Wait(1_000);
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(inner => inner is TaskCanceledException or OperationCanceledException))
+        {
+            // Expected when cancellation wins the wait race.
+        }
     }
 
-    private async Task ListenForKeyPressesAsync()
+    private async Task ListenForKeyPressesAsync(CancellationToken cancellationToken)
     {
         try
         {
-            while (!_cancellationTokenSource.Token.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                if (!TryGetKeyAvailable(out var keyAvailable))
+                if (_pollBeforeRead)
+                {
+                    if (!TryGetKeyAvailable(out var keyAvailable))
+                    {
+                        return;
+                    }
+
+                    if (!keyAvailable)
+                    {
+                        await Task.Delay(50, cancellationToken);
+                        continue;
+                    }
+                }
+
+                if (!TryReadKey(out var keyInfo) || cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
 
-                if (keyAvailable)
+                var keyEventArgs = new KeyPressEventArgs
                 {
-                    if (!TryReadKey(out var keyInfo))
-                    {
-                        return;
-                    }
-                    
-                    var keyEventArgs = new KeyPressEventArgs
-                    {
-                        Key = keyInfo.Key,
-                        CtrlPressed = (keyInfo.Modifiers & ConsoleModifiers.Control) != 0,
-                        ShiftPressed = (keyInfo.Modifiers & ConsoleModifiers.Shift) != 0,
-                        AltPressed = (keyInfo.Modifiers & ConsoleModifiers.Alt) != 0
-                    };
+                    Key = keyInfo.Key,
+                    CtrlPressed = (keyInfo.Modifiers & ConsoleModifiers.Control) != 0,
+                    ShiftPressed = (keyInfo.Modifiers & ConsoleModifiers.Shift) != 0,
+                    AltPressed = (keyInfo.Modifiers & ConsoleModifiers.Alt) != 0
+                };
 
-                    _keyQueue.Enqueue(keyEventArgs);
+                _keyQueue.Enqueue(keyEventArgs);
+
+                try
+                {
+                    _isNotifyingKeyPress = true;
                     KeyPressed?.Invoke(this, keyEventArgs);
                 }
-                
-                await Task.Delay(50, _cancellationTokenSource.Token); // Small delay to prevent high CPU usage
+                finally
+                {
+                    _isNotifyingKeyPress = false;
+                }
+
+                await Task.Delay(50, cancellationToken);
             }
         }
         catch (OperationCanceledException)

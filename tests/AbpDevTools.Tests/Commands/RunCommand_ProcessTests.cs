@@ -78,6 +78,58 @@ public class RunCommand_ProcessTests
     }
 
     [Fact]
+    public void ResolveExecutablePath_ReturnsAbsolutePathFromPathEnvironment()
+    {
+        // Arrange
+        var tempDirectory = Path.Combine(Path.GetTempPath(), $"AbpDevToolsTests_{Guid.NewGuid()}");
+        Directory.CreateDirectory(tempDirectory);
+        var npmPath = Path.Combine(tempDirectory, "npm.cmd");
+        File.WriteAllText(npmPath, string.Empty);
+
+        try
+        {
+            // Act
+            var result = RunCommand.ResolveExecutablePath("npm.cmd", tempDirectory);
+
+            // Assert
+            result.Should().Be(npmPath, "package-manager commands should be resolved before Process.Start uses the app working directory");
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ResolveExecutablePath_PreservesRootedExecutablePath()
+    {
+        // Arrange
+        var npmPath = Path.Combine(Path.GetTempPath(), "node", "npm.cmd");
+
+        // Act
+        var result = RunCommand.ResolveExecutablePath(npmPath, "C:\\OtherPath");
+
+        // Assert
+        result.Should().Be(npmPath);
+    }
+
+    [Fact]
+    public void CreateNpmProcessStartInfo_RedirectsStandardInput()
+    {
+        // Act
+        var startInfo = RunCommand.CreateNpmProcessStartInfo("npm", "dev", "C:\\Projects\\MyApp");
+
+        // Assert
+        startInfo.FileName.Should().Be("npm");
+        startInfo.Arguments.Should().Be("run \"dev\"");
+        startInfo.WorkingDirectory.Should().Be("C:\\Projects\\MyApp");
+        startInfo.UseShellExecute.Should().BeFalse();
+        startInfo.RedirectStandardOutput.Should().BeTrue();
+        startInfo.RedirectStandardError.Should().BeTrue();
+        startInfo.RedirectStandardInput.Should().BeTrue("npm dev servers must not compete with abpdev for terminal input");
+    }
+
+    [Fact]
     public void StartProcess_HandlesProcessStartFailure()
     {
         // Arrange

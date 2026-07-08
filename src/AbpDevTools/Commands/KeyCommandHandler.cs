@@ -206,7 +206,7 @@ public class KeyCommandHandler
         var newProcess = project.Restart();
         if (newProcess != null)
         {
-            project.Status = "Building...";
+            project.Status = project is RunningNpmProjectItem ? "Starting..." : "Building...";
         }
         else
         {

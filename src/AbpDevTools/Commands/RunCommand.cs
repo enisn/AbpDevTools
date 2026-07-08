@@ -115,19 +115,28 @@ public partial class RunCommand : ICommand
             console.Output.WriteLine($"Loaded YAML configuration from '{YmlPath}' with environment '{localRootConfig?.Environment?.Name ?? "Default"}'.");
         }
 
-        FileInfo[] csprojs = await AnsiConsole.Status()
-            .StartAsync("Looking for projects", async ctx =>
+        RunnableAppInfo[] runnableApps = await AnsiConsole.Status()
+            .StartAsync("Looking for runnable applications", async ctx =>
             {
                 ctx.Spinner(Spinner.Known.SimpleDotsScrolling);
 
                 await Task.Yield();
 
-                return runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
+                return runnableProjectsProvider.GetRunnableApplications(WorkingDirectory, localRootConfig?.Run?.Npm?.Scripts);
             });
 
-        await console.Output.WriteLineAsync($"{csprojs.Length} csproj file(s) found.");
+        var dotnetAppCount = runnableApps.Count(x => x.Type == RunnableAppType.DotNet);
+        var npmAppCount = runnableApps.Count(x => x.Type == RunnableAppType.Npm);
 
-        if (!SkipMigration && localRootConfig?.Run?.SkipMigrate != true)
+        await console.Output.WriteLineAsync($"{dotnetAppCount} csproj file(s), {npmAppCount} npm app(s) found.");
+
+        if (runnableApps.Length == 0)
+        {
+            await console.Output.WriteLineAsync("No runnable application found.");
+            return;
+        }
+
+        if (dotnetAppCount > 0 && !SkipMigration && localRootConfig?.Run?.SkipMigrate != true)
         {
             migrateCommand.WorkingDirectory = this.WorkingDirectory;
             migrateCommand.NoBuild = this.NoBuild;
@@ -140,42 +149,60 @@ public partial class RunCommand : ICommand
 
         await console.Output.WriteLineAsync("Starting projects...");
 
-        var projectFiles = csprojs.Where(x => !x.Name.Contains(".DbMigrator")).ToArray();
+        var runnableTargets = runnableApps
+            .Where(x => x.Type != RunnableAppType.DotNet || !x.Name.Contains(".DbMigrator"))
+            .ToArray();
 
-        if (!RunAll && projectFiles.Length > 1)
+        ApplyLocalProjects(localRootConfig);
+
+        if (Projects.Length > 0)
+        {
+            runnableTargets = runnableTargets
+                .Where(x => Projects.Any(project => MatchesProjectFilter(x, project)))
+                .ToArray();
+        }
+        else if (RunAll)
+        {
+            runnableTargets = FilterAutomaticallyRunnableTargets(runnableTargets);
+        }
+        else if (runnableTargets.Length > 1 || runnableTargets.Any(x => !x.IsRunByDefault))
         {
             await console.Output.WriteLineAsync($"\n");
 
-            ApplyLocalProjects(localRootConfig);
-
-            if (Projects.Length == 0)
+            if (canUseInteractiveConsole)
             {
-                if (canUseInteractiveConsole)
-                {
-                    var choosedProjects = AnsiConsole.Prompt(
-                        new MultiSelectionPrompt<string>()
-                            .Title("Choose [mediumpurple2]projects[/] to run.")
-                            .Required(true)
-                            .PageSize(12)
-                            .HighlightStyle(new Style(foreground: Color.MediumPurple2))
-                            .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
-                            .InstructionsText(
-                                "[grey](Press [mediumpurple2]<space>[/] to toggle a project, " +
-                                "[green]<enter>[/] to accept)[/]")
-                            .AddChoices(projectFiles.Select(s => s.Name)));
+                var selectedProjects = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<RunnableAppInfo>()
+                        .Title("Choose [mediumpurple2]projects[/] to run.")
+                        .Required(true)
+                        .PageSize(12)
+                        .HighlightStyle(new Style(foreground: Color.MediumPurple2))
+                        .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
+                        .InstructionsText(
+                            "[grey](Press [mediumpurple2]<space>[/] to toggle a project, " +
+                            "[green]<enter>[/] to accept)[/]")
+                        .UseConverter(GetRunnableAppDisplayName)
+                        .AddChoices(runnableTargets));
 
-                    projectFiles = projectFiles.Where(x => choosedProjects.Contains(x.Name)).ToArray();
-                }
-                else
-                {
-                    await console.Output.WriteLineAsync("Interactive project selection is unavailable; running all discovered projects. Use '--projects' to limit the selection.");
-                }
+                runnableTargets = selectedProjects.ToArray();
             }
             else
             {
-                projectFiles = projectFiles.Where(x => Projects.Any(y => x.FullName.Contains(y, StringComparison.InvariantCultureIgnoreCase))).ToArray();
+                await console.Output.WriteLineAsync("Interactive project selection is unavailable; running automatically detected projects. Use '--projects' to limit the selection or include ambiguous npm scripts.");
+                runnableTargets = FilterAutomaticallyRunnableTargets(runnableTargets);
             }
         }
+
+        if (runnableTargets.Length == 0)
+        {
+            await console.Output.WriteLineAsync("No runnable application selected.");
+            return;
+        }
+
+        var projectFiles = runnableTargets
+            .Where(x => x.Type == RunnableAppType.DotNet)
+            .Select(x => new FileInfo(x.FullName))
+            .ToArray();
 
         // Check for missing libs before starting projects
         bool shouldInstallLibs = InstallLibs; // Start with explicit flag
@@ -222,73 +249,57 @@ public partial class RunCommand : ICommand
         void ProcessExitHandler(object? sender, EventArgs e) => KillRunningProcesses();
         AppDomain.CurrentDomain.ProcessExit += ProcessExitHandler;
 
+        if (canUseInteractiveConsole)
+        {
+            keyInputManager.StartListening();
+        }
+
         try
         {
-            foreach (var csproj in projectFiles)
+            foreach (var runnableTarget in runnableTargets)
             {
-                localConfigurationManager.TryLoad(csproj.FullName, out var localConfiguration);
+                localConfigurationManager.TryLoad(runnableTarget.FullName, out var localConfiguration);
 
-                var projectDir = Path.GetDirectoryName(csproj.FullName)!;
-
-                var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
-                var commandSuffix = BuildCommandSuffix(
-                    localConfiguration?.Run?.NoBuild,
-                    localConfiguration?.Run?.GraphBuild,
-                    localConfiguration?.Run?.Configuration);
-
-                var tools = toolsConfiguration.GetOptions();
-                var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{csproj.FullName}\"" + commandSuffix)
+                if (runnableTarget.Type == RunnableAppType.DotNet)
                 {
-                    WorkingDirectory = projectDir,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                };
+                    StartDotNetProject(runnableTarget, localConfiguration);
 
-                localConfigurationManager.ApplyLocalEnvironmentForProcess(csproj.FullName, startInfo, localConfiguration);
-
-                if (!string.IsNullOrEmpty(EnvironmentName))
-                {
-                    environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
-                }
-
-                runningProjects.Add(
-                    new RunningCsProjItem(
-                        csproj.Name,
-                        Process.Start(startInfo)!,
-                        startInfo,
-                        verbose: Verbose
-                    )
-                );
-
-                if (shouldInstallLibs && File.Exists(Path.Combine(projectDir, "package.json")))
-                {
+                    var projectDir = runnableTarget.WorkingDirectory;
                     var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
-                    if (!Directory.Exists(wwwRootLibs))
+
+                    if (shouldInstallLibs && File.Exists(Path.Combine(projectDir, "package.json")))
                     {
-                        Directory.CreateDirectory(wwwRootLibs);
+                        if (!Directory.Exists(wwwRootLibs))
+                        {
+                            Directory.CreateDirectory(wwwRootLibs);
+                        }
+
+                        if (!Directory.EnumerateFiles(wwwRootLibs).Any())
+                        {
+                            File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
+                        }
+
+                        var tools = toolsConfiguration.GetOptions();
+                        var installLibsStartInfo = new ProcessStartInfo(tools["abp"], "install-libs")
+                        {
+                            WorkingDirectory = projectDir,
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                        };
+
+                        var installLibsRunninItem = new RunningInstallLibsItem(
+                            runnableTarget.Name.Replace(".csproj", " install-libs"),
+                            Process.Start(installLibsStartInfo)!,
+                            installLibsStartInfo
+                        );
+
+                        runningProjects.Add(installLibsRunninItem);
                     }
-
-                    if (!Directory.EnumerateFiles(wwwRootLibs).Any())
-                    {
-                        File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
-                    }
-
-                    var installLibsStartInfo = new ProcessStartInfo(tools["abp"], "install-libs")
-                    {
-                        WorkingDirectory = projectDir,
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                    };
-
-                    var installLibsRunninItem = new RunningInstallLibsItem(
-                        csproj.Name.Replace(".csproj", " install-libs"),
-                        Process.Start(installLibsStartInfo)!,
-                        installLibsStartInfo
-                    );
-
-                    runningProjects.Add(installLibsRunninItem);
+                }
+                else if (runnableTarget.Type == RunnableAppType.Npm)
+                {
+                    StartNpmProject(runnableTarget, localConfiguration);
                 }
             }
 
@@ -304,6 +315,7 @@ public partial class RunCommand : ICommand
             // Reset flag to ensure cleanup runs even if called before
             _processesKilled = false;
             KillRunningProcesses();
+            keyInputManager.StopListening();
             AppDomain.CurrentDomain.ProcessExit -= ProcessExitHandler;
         }
     }
@@ -316,6 +328,180 @@ public partial class RunCommand : ICommand
             {
                 Projects = localConfiguration.Run.Projects;
             }
+        }
+    }
+
+    private void StartDotNetProject(RunnableAppInfo runnableTarget, LocalConfiguration? localConfiguration)
+    {
+        var commandPrefix = BuildCommandPrefix(localConfiguration?.Run?.Watch);
+        var commandSuffix = BuildCommandSuffix(
+            localConfiguration?.Run?.NoBuild,
+            localConfiguration?.Run?.GraphBuild,
+            localConfiguration?.Run?.Configuration);
+
+        var tools = toolsConfiguration.GetOptions();
+        var startInfo = new ProcessStartInfo(tools["dotnet"], commandPrefix + $"run --project \"{runnableTarget.FullName}\"" + commandSuffix)
+        {
+            WorkingDirectory = runnableTarget.WorkingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        localConfigurationManager.ApplyLocalEnvironmentForProcess(runnableTarget.FullName, startInfo, localConfiguration);
+
+        if (!string.IsNullOrEmpty(EnvironmentName))
+        {
+            environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
+        }
+
+        runningProjects.Add(
+            new RunningCsProjItem(
+                runnableTarget.Name,
+                Process.Start(startInfo)!,
+                startInfo,
+                verbose: Verbose
+            )
+        );
+    }
+
+    private void StartNpmProject(RunnableAppInfo runnableTarget, LocalConfiguration? localConfiguration)
+    {
+        var packageManager = runnableTarget.PackageManager ?? "npm";
+        var script = runnableTarget.Script ?? throw new InvalidOperationException("Runnable npm target does not define a script.");
+        var tools = toolsConfiguration.GetOptions();
+        var executable = tools.TryGetValue(packageManager, out var configuredExecutable)
+            ? configuredExecutable
+            : packageManager;
+        executable = ResolveExecutablePath(executable);
+
+        var startInfo = CreateNpmProcessStartInfo(executable, script, runnableTarget.WorkingDirectory);
+
+        localConfigurationManager.ApplyLocalEnvironmentForProcess(runnableTarget.FullName, startInfo, localConfiguration);
+
+        if (!string.IsNullOrEmpty(EnvironmentName))
+        {
+            environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
+        }
+
+        runningProjects.Add(
+            new RunningNpmProjectItem(
+                GetRunnableAppDisplayName(runnableTarget),
+                Process.Start(startInfo)!,
+                startInfo,
+                verbose: Verbose
+            )
+        );
+    }
+
+    internal static ProcessStartInfo CreateNpmProcessStartInfo(string executable, string script, string workingDirectory)
+    {
+        return new ProcessStartInfo(executable, $"run {QuoteArgument(script)}")
+        {
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true,
+        };
+    }
+
+    private RunnableAppInfo[] FilterAutomaticallyRunnableTargets(RunnableAppInfo[] runnableTargets)
+    {
+        var skippedTargets = runnableTargets.Where(x => !x.IsRunByDefault).ToArray();
+        if (skippedTargets.Length > 0)
+        {
+            console?.Output.WriteLine("Skipping ambiguous npm script(s): " + string.Join(", ", skippedTargets.Select(GetRunnableAppDisplayName)) + ". Use '--projects' or abpdev.yml run:npm:scripts to include them.");
+        }
+
+        return runnableTargets.Where(x => x.IsRunByDefault).ToArray();
+    }
+
+    private bool MatchesProjectFilter(RunnableAppInfo runnableTarget, string filter)
+    {
+        return ContainsFilter(runnableTarget.Name, filter) ||
+               ContainsFilter(runnableTarget.FullName, filter) ||
+               ContainsFilter(runnableTarget.WorkingDirectory, filter) ||
+               ContainsFilter(GetRunnableAppDisplayName(runnableTarget), filter) ||
+               ContainsFilter(runnableTarget.Script, filter);
+    }
+
+    private string GetRunnableAppDisplayName(RunnableAppInfo runnableTarget)
+    {
+        if (runnableTarget.Type == RunnableAppType.DotNet)
+        {
+            return runnableTarget.Name;
+        }
+
+        var relativePath = Path.GetRelativePath(WorkingDirectory!, runnableTarget.WorkingDirectory);
+        if (relativePath == ".")
+        {
+            relativePath = Path.GetFileName(runnableTarget.WorkingDirectory);
+        }
+
+        return $"{NormalizePath(relativePath)}:{runnableTarget.Script}";
+    }
+
+    private static bool ContainsFilter(string? value, string filter)
+    {
+        return value?.Contains(filter, StringComparison.InvariantCultureIgnoreCase) == true;
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return path.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+    }
+
+    private static string QuoteArgument(string value)
+    {
+        return "\"" + value.Replace("\"", "\\\"") + "\"";
+    }
+
+    internal static string ResolveExecutablePath(string executable, string? pathValue = null)
+    {
+        if (string.IsNullOrWhiteSpace(executable))
+        {
+            return executable;
+        }
+
+        executable = executable.Trim('"');
+
+        if (Path.IsPathRooted(executable) ||
+            executable.Contains(Path.DirectorySeparatorChar) ||
+            executable.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return executable;
+        }
+
+        foreach (var path in (pathValue ?? Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            foreach (var candidateName in GetExecutableCandidateNames(executable))
+            {
+                var candidatePath = Path.Combine(path.Trim('"'), candidateName);
+                if (File.Exists(candidatePath))
+                {
+                    return candidatePath;
+                }
+            }
+        }
+
+        return executable;
+    }
+
+    private static IEnumerable<string> GetExecutableCandidateNames(string executable)
+    {
+        yield return executable;
+
+        if (!OperatingSystem.IsWindows() || Path.HasExtension(executable))
+        {
+            yield break;
+        }
+
+        foreach (var extension in (Environment.GetEnvironmentVariable("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
+                     .Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            yield return executable + extension;
         }
     }
 
@@ -358,121 +544,148 @@ public partial class RunCommand : ICommand
         }
 
         var keyCommandHandler = new KeyCommandHandler(runningProjects, console!, cancellationToken);
-
-        // Start key input listening
-        keyInputManager.StartListening();
-
-        var restartLive = false;
-        KeyPressEventArgs? pendingAction = null;
-        var exitRequested = false;
-
-        do
+        // Stop the dashboard reader as soon as shortcut keys are captured so nested prompts own keyboard input.
+        EventHandler<KeyPressEventArgs> stopListeningForLiveRestartKeys = (_, keyEvent) =>
         {
-            restartLive = false;
-            ClearConsoleIfNeeded();
+            if (keyCommandHandler.RequiresLiveRestart(keyEvent))
+            {
+                keyInputManager.StopListening();
+            }
+        };
 
-            var table = new Table().Border(TableBorder.Rounded);
+        keyInputManager.KeyPressed += stopListeningForLiveRestartKeys;
 
-            await AnsiConsole.Live(table)
-              .StartAsync(async ctx =>
-              {
-                  table.AddColumn("Project").AddColumn("Status");
+        try
+        {
+            // Start key input listening
+            keyInputManager.StartListening();
 
-                  foreach (var project in runningProjects)
+            var restartLive = false;
+            KeyPressEventArgs? pendingAction = null;
+            var exitRequested = false;
+
+            do
+            {
+                restartLive = false;
+                ClearConsoleIfNeeded();
+
+                var table = new Table().Border(TableBorder.Rounded);
+
+                await AnsiConsole.Live(table)
+                  .StartAsync(async ctx =>
                   {
-                      table.AddRow(project.Name!, project.Status!);
-                  }
-                  
-                  // Add help section
-                  table.AddRow("", "");
-                  table.AddRow(BuildHelpSection(keyCommandHandler), "");
-                  
-                  ctx.Refresh();
-
-                  while (!cancellationToken.IsCancellationRequested)
-                  {
-                      if (keyCommandHandler.IsInnerCommandInProgress)
-                      {
-                          continue;
-                      }
-
-                      // Check for key input
-                      var keyEvent = keyInputManager.TryGetNextKey();
-                      if (keyEvent != null)
-                      {
-                          var requiresLiveRestart = keyCommandHandler.RequiresLiveRestart(keyEvent);
-
-                          if (requiresLiveRestart)
-                          {
-                              // Defer handling until after Live ends to avoid interleaving
-                              pendingAction = keyEvent;
-                              restartLive = true;
-                              break;
-                          }
-
-                          var shouldContinue = await keyCommandHandler.HandleKeyPress(keyEvent);
-                          if (!shouldContinue)
-                          {
-                              exitRequested = true;
-                              break; // Exit requested by handler
-                          }
-                      }
-
-#if DEBUG
-                      await Task.Delay(100);
-#else
-                      await Task.Delay(500);
-#endif
-                      table.Rows.Clear();
-                      ClearConsoleIfNeeded();
+                      table.AddColumn("Project").AddColumn("Status");
 
                       foreach (var project in runningProjects)
                       {
-                          if (project.IsCompleted)
-                          {
-                              table.AddRow(project.Name!, $"[green]*[/] {project.Status}");
-                          }
-                          else
-                          {
-                              if (project.Process!.HasExited && !project.Queued)
-                              {
-                                  project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
-
-                                  if (Retry)
-                                  {
-                                      project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
-
-                                      _ = RestartProject(project, cancellationToken); // fire and forget
-                                  }
-                              }
-                              table.AddRow(project.Name!, project.Status!);
-                          }
+                          table.AddRow(project.Name!, project.Status!);
                       }
                       
-                      // Re-add help section
+                      // Add help section
                       table.AddRow("", "");
                       table.AddRow(BuildHelpSection(keyCommandHandler), "");
-
+                      
                       ctx.Refresh();
-                  }
-              });
 
-            if (exitRequested)
-            {
-                break;
-            }
+                      while (!cancellationToken.IsCancellationRequested)
+                      {
+                          if (keyCommandHandler.IsInnerCommandInProgress)
+                          {
+                              continue;
+                          }
 
-            if (restartLive && pendingAction is not null)
-            {
-                AnsiConsole.Clear();
-                await keyCommandHandler.HandleKeyPress(pendingAction);
-                pendingAction = null;
-            }
+                          // Check for key input
+                          var keyEvent = keyInputManager.TryGetNextKey();
+                          if (keyEvent != null)
+                          {
+                              var requiresLiveRestart = keyCommandHandler.RequiresLiveRestart(keyEvent);
 
-        } while (restartLive && !cancellationToken.IsCancellationRequested);
+                              if (requiresLiveRestart)
+                              {
+                                  // Defer handling until after Live ends to avoid interleaving
+                                  pendingAction = keyEvent;
+                                  restartLive = true;
+                                  break;
+                              }
 
-        // Stop key input listening
-        keyInputManager.StopListening();
+                              var shouldContinue = await keyCommandHandler.HandleKeyPress(keyEvent);
+                              if (!shouldContinue)
+                              {
+                                  exitRequested = true;
+                                  break; // Exit requested by handler
+                              }
+                          }
+
+#if DEBUG
+                          await Task.Delay(100);
+#else
+                          await Task.Delay(500);
+#endif
+                          table.Rows.Clear();
+                          ClearConsoleIfNeeded();
+
+                          foreach (var project in runningProjects)
+                          {
+                              if (project.IsCompleted)
+                              {
+                                  table.AddRow(project.Name!, $"[green]*[/] {project.Status}");
+                              }
+                              else
+                              {
+                                  if (project.Process!.HasExited && !project.Queued)
+                                  {
+                                      project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
+
+                                      if (Retry)
+                                      {
+                                          project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
+
+                                          _ = RestartProject(project, cancellationToken); // fire and forget
+                                      }
+                                  }
+                                  table.AddRow(project.Name!, project.Status!);
+                              }
+                          }
+
+                          // Re-add help section
+                          table.AddRow("", "");
+                          table.AddRow(BuildHelpSection(keyCommandHandler), "");
+
+                          ctx.Refresh();
+                      }
+                  });
+
+                if (exitRequested)
+                {
+                    break;
+                }
+
+                if (restartLive && pendingAction is not null)
+                {
+                    keyInputManager.StopListening();
+
+                    try
+                    {
+                        AnsiConsole.Clear();
+                        await keyCommandHandler.HandleKeyPress(pendingAction);
+                        pendingAction = null;
+                    }
+                    finally
+                    {
+                        if (!cancellationToken.IsCancellationRequested)
+                        {
+                            keyInputManager.StartListening();
+                        }
+                    }
+                }
+
+            } while (restartLive && !cancellationToken.IsCancellationRequested);
+        }
+        finally
+        {
+            keyInputManager.KeyPressed -= stopListeningForLiveRestartKeys;
+            keyInputManager.StopListening();
+        }
     }
 
     protected virtual async Task RenderProcessesWithoutInteractiveConsole(CancellationToken cancellationToken)
