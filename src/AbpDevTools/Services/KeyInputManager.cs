@@ -13,6 +13,7 @@ public class KeyInputManager : IKeyInputManager, IDisposable
     private readonly bool _pollBeforeRead;
     private CancellationTokenSource _cancellationTokenSource = new();
     private Task? _listeningTask;
+    private volatile bool _isNotifyingKeyPress;
     private bool _disposed;
 
     public bool IsListening => _listeningTask is { IsCompleted: false } && !_cancellationTokenSource.IsCancellationRequested;
@@ -65,6 +66,12 @@ public class KeyInputManager : IKeyInputManager, IDisposable
             return;
 
         _cancellationTokenSource.Cancel();
+        // Key handlers may stop the listener before it re-enters a blocking ReadKey call.
+        if (_isNotifyingKeyPress)
+        {
+            return;
+        }
+
         try
         {
             _listeningTask?.Wait(1_000);
@@ -109,7 +116,18 @@ public class KeyInputManager : IKeyInputManager, IDisposable
                 };
 
                 _keyQueue.Enqueue(keyEventArgs);
-                KeyPressed?.Invoke(this, keyEventArgs);
+
+                try
+                {
+                    _isNotifyingKeyPress = true;
+                    KeyPressed?.Invoke(this, keyEventArgs);
+                }
+                finally
+                {
+                    _isNotifyingKeyPress = false;
+                }
+
+                await Task.Delay(50, cancellationToken);
             }
         }
         catch (OperationCanceledException)

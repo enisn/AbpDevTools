@@ -114,6 +114,22 @@ public class RunCommand_ProcessTests
     }
 
     [Fact]
+    public void CreateNpmProcessStartInfo_RedirectsStandardInput()
+    {
+        // Act
+        var startInfo = RunCommand.CreateNpmProcessStartInfo("npm", "dev", "C:\\Projects\\MyApp");
+
+        // Assert
+        startInfo.FileName.Should().Be("npm");
+        startInfo.Arguments.Should().Be("run \"dev\"");
+        startInfo.WorkingDirectory.Should().Be("C:\\Projects\\MyApp");
+        startInfo.UseShellExecute.Should().BeFalse();
+        startInfo.RedirectStandardOutput.Should().BeTrue();
+        startInfo.RedirectStandardError.Should().BeTrue();
+        startInfo.RedirectStandardInput.Should().BeTrue("npm dev servers must not compete with abpdev for terminal input");
+    }
+
+    [Fact]
     public void StartProcess_HandlesProcessStartFailure()
     {
         // Arrange

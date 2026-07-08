@@ -375,13 +375,7 @@ public partial class RunCommand : ICommand
             : packageManager;
         executable = ResolveExecutablePath(executable);
 
-        var startInfo = new ProcessStartInfo(executable, $"run {QuoteArgument(script)}")
-        {
-            WorkingDirectory = runnableTarget.WorkingDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
+        var startInfo = CreateNpmProcessStartInfo(executable, script, runnableTarget.WorkingDirectory);
 
         localConfigurationManager.ApplyLocalEnvironmentForProcess(runnableTarget.FullName, startInfo, localConfiguration);
 
@@ -398,6 +392,18 @@ public partial class RunCommand : ICommand
                 verbose: Verbose
             )
         );
+    }
+
+    internal static ProcessStartInfo CreateNpmProcessStartInfo(string executable, string script, string workingDirectory)
+    {
+        return new ProcessStartInfo(executable, $"run {QuoteArgument(script)}")
+        {
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true,
+        };
     }
 
     private RunnableAppInfo[] FilterAutomaticallyRunnableTargets(RunnableAppInfo[] runnableTargets)
@@ -538,121 +544,148 @@ public partial class RunCommand : ICommand
         }
 
         var keyCommandHandler = new KeyCommandHandler(runningProjects, console!, cancellationToken);
-
-        // Start key input listening
-        keyInputManager.StartListening();
-
-        var restartLive = false;
-        KeyPressEventArgs? pendingAction = null;
-        var exitRequested = false;
-
-        do
+        // Stop the dashboard reader as soon as shortcut keys are captured so nested prompts own keyboard input.
+        EventHandler<KeyPressEventArgs> stopListeningForLiveRestartKeys = (_, keyEvent) =>
         {
-            restartLive = false;
-            ClearConsoleIfNeeded();
+            if (keyCommandHandler.RequiresLiveRestart(keyEvent))
+            {
+                keyInputManager.StopListening();
+            }
+        };
 
-            var table = new Table().Border(TableBorder.Rounded);
+        keyInputManager.KeyPressed += stopListeningForLiveRestartKeys;
 
-            await AnsiConsole.Live(table)
-              .StartAsync(async ctx =>
-              {
-                  table.AddColumn("Project").AddColumn("Status");
+        try
+        {
+            // Start key input listening
+            keyInputManager.StartListening();
 
-                  foreach (var project in runningProjects)
+            var restartLive = false;
+            KeyPressEventArgs? pendingAction = null;
+            var exitRequested = false;
+
+            do
+            {
+                restartLive = false;
+                ClearConsoleIfNeeded();
+
+                var table = new Table().Border(TableBorder.Rounded);
+
+                await AnsiConsole.Live(table)
+                  .StartAsync(async ctx =>
                   {
-                      table.AddRow(project.Name!, project.Status!);
-                  }
-                  
-                  // Add help section
-                  table.AddRow("", "");
-                  table.AddRow(BuildHelpSection(keyCommandHandler), "");
-                  
-                  ctx.Refresh();
-
-                  while (!cancellationToken.IsCancellationRequested)
-                  {
-                      if (keyCommandHandler.IsInnerCommandInProgress)
-                      {
-                          continue;
-                      }
-
-                      // Check for key input
-                      var keyEvent = keyInputManager.TryGetNextKey();
-                      if (keyEvent != null)
-                      {
-                          var requiresLiveRestart = keyCommandHandler.RequiresLiveRestart(keyEvent);
-
-                          if (requiresLiveRestart)
-                          {
-                              // Defer handling until after Live ends to avoid interleaving
-                              pendingAction = keyEvent;
-                              restartLive = true;
-                              break;
-                          }
-
-                          var shouldContinue = await keyCommandHandler.HandleKeyPress(keyEvent);
-                          if (!shouldContinue)
-                          {
-                              exitRequested = true;
-                              break; // Exit requested by handler
-                          }
-                      }
-
-#if DEBUG
-                      await Task.Delay(100);
-#else
-                      await Task.Delay(500);
-#endif
-                      table.Rows.Clear();
-                      ClearConsoleIfNeeded();
+                      table.AddColumn("Project").AddColumn("Status");
 
                       foreach (var project in runningProjects)
                       {
-                          if (project.IsCompleted)
-                          {
-                              table.AddRow(project.Name!, $"[green]*[/] {project.Status}");
-                          }
-                          else
-                          {
-                              if (project.Process!.HasExited && !project.Queued)
-                              {
-                                  project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
-
-                                  if (Retry)
-                                  {
-                                      project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
-
-                                      _ = RestartProject(project, cancellationToken); // fire and forget
-                                  }
-                              }
-                              table.AddRow(project.Name!, project.Status!);
-                          }
+                          table.AddRow(project.Name!, project.Status!);
                       }
                       
-                      // Re-add help section
+                      // Add help section
                       table.AddRow("", "");
                       table.AddRow(BuildHelpSection(keyCommandHandler), "");
-
+                      
                       ctx.Refresh();
-                  }
-              });
 
-            if (exitRequested)
-            {
-                break;
-            }
+                      while (!cancellationToken.IsCancellationRequested)
+                      {
+                          if (keyCommandHandler.IsInnerCommandInProgress)
+                          {
+                              continue;
+                          }
 
-            if (restartLive && pendingAction is not null)
-            {
-                AnsiConsole.Clear();
-                await keyCommandHandler.HandleKeyPress(pendingAction);
-                pendingAction = null;
-            }
+                          // Check for key input
+                          var keyEvent = keyInputManager.TryGetNextKey();
+                          if (keyEvent != null)
+                          {
+                              var requiresLiveRestart = keyCommandHandler.RequiresLiveRestart(keyEvent);
 
-        } while (restartLive && !cancellationToken.IsCancellationRequested);
+                              if (requiresLiveRestart)
+                              {
+                                  // Defer handling until after Live ends to avoid interleaving
+                                  pendingAction = keyEvent;
+                                  restartLive = true;
+                                  break;
+                              }
 
-        // Stop key input listening
-        keyInputManager.StopListening();
+                              var shouldContinue = await keyCommandHandler.HandleKeyPress(keyEvent);
+                              if (!shouldContinue)
+                              {
+                                  exitRequested = true;
+                                  break; // Exit requested by handler
+                              }
+                          }
+
+#if DEBUG
+                          await Task.Delay(100);
+#else
+                          await Task.Delay(500);
+#endif
+                          table.Rows.Clear();
+                          ClearConsoleIfNeeded();
+
+                          foreach (var project in runningProjects)
+                          {
+                              if (project.IsCompleted)
+                              {
+                                  table.AddRow(project.Name!, $"[green]*[/] {project.Status}");
+                              }
+                              else
+                              {
+                                  if (project.Process!.HasExited && !project.Queued)
+                                  {
+                                      project.Status = $"[red]*[/] Exited({project.Process.ExitCode})";
+
+                                      if (Retry)
+                                      {
+                                          project.Status = $"[orange1]*[/] Exited({project.Process.ExitCode})";
+
+                                          _ = RestartProject(project, cancellationToken); // fire and forget
+                                      }
+                                  }
+                                  table.AddRow(project.Name!, project.Status!);
+                              }
+                          }
+
+                          // Re-add help section
+                          table.AddRow("", "");
+                          table.AddRow(BuildHelpSection(keyCommandHandler), "");
+
+                          ctx.Refresh();
+                      }
+                  });
+
+                if (exitRequested)
+                {
+                    break;
+                }
+
+                if (restartLive && pendingAction is not null)
+                {
+                    keyInputManager.StopListening();
+
+                    try
+                    {
+                        AnsiConsole.Clear();
+                        await keyCommandHandler.HandleKeyPress(pendingAction);
+                        pendingAction = null;
+                    }
+                    finally
+                    {
+                        if (!cancellationToken.IsCancellationRequested)
+                        {
+                            keyInputManager.StartListening();
+                        }
+                    }
+                }
+
+            } while (restartLive && !cancellationToken.IsCancellationRequested);
+        }
+        finally
+        {
+            keyInputManager.KeyPressed -= stopListeningForLiveRestartKeys;
+            keyInputManager.StopListening();
+        }
     }
 
     protected virtual async Task RenderProcessesWithoutInteractiveConsole(CancellationToken cancellationToken)
