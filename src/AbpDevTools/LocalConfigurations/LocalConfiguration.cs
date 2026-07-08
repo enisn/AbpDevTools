@@ -1,4 +1,5 @@
 ﻿using AbpDevTools.Configuration;
+using YamlDotNet.Serialization;
 
 namespace AbpDevTools.LocalConfigurations;
 public class LocalConfiguration
@@ -20,5 +21,7 @@ public class LocalConfiguration
         public bool SkipMigrate { get; set; }
         public bool SkipCheckLibs { get; set; }
         public string[] Projects { get; set; } = Array.Empty<string>();
+        [YamlMember(Alias = "msbuild-properties", ApplyNamingConventions = false)]
+        public Dictionary<string, string?> MsbuildProperties { get; set; } = new();
     }
 }

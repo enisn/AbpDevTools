@@ -44,7 +44,13 @@ run:
   blazor:
     - "*Blazor.Web"
     - "*Blazor.Client"
+
+  # MSBuild properties passed to dotnet run for this configuration scope
+  msbuild-properties:
+    UseMudBlazor: true
 ```
+
+Place `abpdev.yml` beside a specific project file to apply `run.msbuild-properties` only to that project during batch runs.
 
 ### Build Configuration
 

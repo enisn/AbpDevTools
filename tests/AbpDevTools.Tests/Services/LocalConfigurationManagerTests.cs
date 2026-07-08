@@ -467,6 +467,34 @@ environment:
     }
 
     [Fact]
+    public void LocalConfiguration_MsbuildProperties_AreParsedCorrectly()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_testRootPath, "MyProject", "MyProject.csproj");
+        Directory.CreateDirectory(Path.GetDirectoryName(projectPath)!);
+
+        var yamlContent = @"run:
+  msbuild-properties:
+    UseMudBlazor: true
+    DefineConstants: ""FOO;BAR""
+";
+
+        var configPath = Path.Combine(Path.GetDirectoryName(projectPath)!, "abpdev.yml");
+        File.WriteAllText(configPath, yamlContent);
+
+        // Act
+        var result = _manager.TryLoad(projectPath, out var localConfiguration);
+
+        // Assert
+        result.Should().BeTrue();
+        localConfiguration.Should().NotBeNull();
+        localConfiguration!.Run.Should().NotBeNull();
+        localConfiguration.Run.MsbuildProperties.Should().ContainKey("UseMudBlazor");
+        localConfiguration.Run.MsbuildProperties["UseMudBlazor"].Should().Be("true");
+        localConfiguration.Run.MsbuildProperties["DefineConstants"].Should().Be("FOO;BAR");
+    }
+
+    [Fact]
     public void TryLoad_InParentDirectory_LoadsFromParent()
     {
         // Arrange

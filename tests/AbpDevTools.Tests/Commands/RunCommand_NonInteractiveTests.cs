@@ -3,6 +3,7 @@ using AbpDevTools.Commands;
 using AbpDevTools.Environments;
 using AbpDevTools.Notifications;
 using AbpDevTools.Services;
+using CliFx.Exceptions;
 using CliFx.Infrastructure;
 using FluentAssertions;
 using NSubstitute;
@@ -50,6 +51,67 @@ public class RunCommand_NonInteractiveTests
         output.Should().Contain("Building...");
     }
 
+    [Fact]
+    public void BuildCommandSuffix_AddsLocalAndCommandLineMsbuildProperties()
+    {
+        // Arrange
+        var command = new TestRunCommand
+        {
+            MsbuildProperties = new[] { "UseMudBlazor=false", "GlobalOnly=1" }
+        };
+
+        var localProperties = new Dictionary<string, string?>
+        {
+            ["UseMudBlazor"] = "true",
+            ["LocalOnly"] = "abc"
+        };
+
+        // Act
+        var suffix = command.InvokeBuildCommandSuffix(
+            localMsbuildProperties: localProperties,
+            commandLineMsbuildProperties: command.InvokeParseCommandLineMsbuildProperties());
+
+        // Assert
+        suffix.Should().Contain("--property:UseMudBlazor=false");
+        suffix.Should().Contain("--property:LocalOnly=abc");
+        suffix.Should().Contain("--property:GlobalOnly=1");
+        suffix.Should().NotContain("--property:UseMudBlazor=true");
+    }
+
+    [Fact]
+    public void BuildCommandSuffix_QuotesMsbuildPropertyValuesWithSpaces()
+    {
+        // Arrange
+        var command = new TestRunCommand();
+        var localProperties = new Dictionary<string, string?>
+        {
+            ["DisplayName"] = "Mud Blazor"
+        };
+
+        // Act
+        var suffix = command.InvokeBuildCommandSuffix(localMsbuildProperties: localProperties);
+
+        // Assert
+        suffix.Should().Contain("--property:\"DisplayName=Mud Blazor\"");
+    }
+
+    [Fact]
+    public void ParseCommandLineMsbuildProperties_RejectsValuesWithoutEqualsSign()
+    {
+        // Arrange
+        var command = new TestRunCommand
+        {
+            MsbuildProperties = new[] { "UseMudBlazor" }
+        };
+
+        // Act
+        var act = () => command.InvokeParseCommandLineMsbuildProperties();
+
+        // Assert
+        act.Should().Throw<CommandException>()
+            .WithMessage("*Name=Value*");
+    }
+
     [CliFx.Attributes.Command("test-run-command")]
     private sealed class TestRunCommand : RunCommand
     {
@@ -85,6 +147,21 @@ public class RunCommand_NonInteractiveTests
         public Task InvokeRenderProcessesWithoutInteractiveConsole(CancellationToken cancellationToken)
         {
             return RenderProcessesWithoutInteractiveConsole(cancellationToken);
+        }
+
+        public string InvokeBuildCommandSuffix(
+            bool? noBuild = null,
+            bool? graphBuild = null,
+            string? configuration = null,
+            IReadOnlyDictionary<string, string?>? localMsbuildProperties = null,
+            IReadOnlyDictionary<string, string?>? commandLineMsbuildProperties = null)
+        {
+            return BuildCommandSuffix(noBuild, graphBuild, configuration, localMsbuildProperties, commandLineMsbuildProperties);
+        }
+
+        public IReadOnlyDictionary<string, string?> InvokeParseCommandLineMsbuildProperties()
+        {
+            return ParseCommandLineMsbuildProperties();
         }
     }
 
