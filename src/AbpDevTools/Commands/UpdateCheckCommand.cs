@@ -134,25 +134,37 @@ public class UpdateCheckCommand : ICommand
 
     private async Task SpawnUpdateProcessAsync()
     {
-        var startInfo = GetUpdateProcessStartInfo();
+        var startInfo = CreateUpdateProcessStartInfo(Environment.ProcessId);
         
-         var process = Process.Start(startInfo);
+        var process = Process.Start(startInfo);
 
-         if (process is null)
-         {
+        if (process is null)
+        {
             throw new InvalidOperationException("Failed to start the update process.");
-         }
+        }
 
         await Task.CompletedTask;
     }
 
-    private ProcessStartInfo GetUpdateProcessStartInfo()
+    internal static ProcessStartInfo CreateUpdateProcessStartInfo(int currentProcessId)
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Wait-Process -Id {currentProcessId} -ErrorAction SilentlyContinue; dotnet tool update -g AbpDevTools; exit $LASTEXITCODE\"",
+                UseShellExecute = false,
+                CreateNoWindow = false,
+                WindowStyle = ProcessWindowStyle.Normal,
+            };
+        }
+
         return new ProcessStartInfo
         {
-            FileName = "dotnet",
-            Arguments = $"tool update -g AbpDevTools",
-            UseShellExecute = true,
+            FileName = "/bin/sh",
+            Arguments = $"-c \"while kill -0 {currentProcessId} 2>/dev/null; do sleep 1; done; dotnet tool update -g AbpDevTools\"",
+            UseShellExecute = false,
             CreateNoWindow = false,
             WindowStyle = ProcessWindowStyle.Normal,
         };
