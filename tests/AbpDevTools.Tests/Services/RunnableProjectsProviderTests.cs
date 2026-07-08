@@ -247,7 +247,7 @@ public class RunnableProjectsProviderTests : CommandTestBase
     }
 
     [Fact]
-    public void GetRunnableNpmProjects_UsesLockFileWhenPackageManagerFieldIsMissing()
+    public void GetRunnableNpmProjects_DefaultsToNpmWhenOnlyLockFileExists()
     {
         // Arrange
         var provider = CreateProvider();
@@ -265,7 +265,7 @@ public class RunnableProjectsProviderTests : CommandTestBase
 
         // Assert
         results.Should().HaveCount(1);
-        results[0].PackageManager.Should().Be("yarn");
+        results[0].PackageManager.Should().Be("npm", "lockfiles can be stale and should not override the default script runner");
     }
 
     [Fact]

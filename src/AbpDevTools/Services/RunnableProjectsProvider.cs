@@ -102,7 +102,7 @@ public class RunnableProjectsProvider
                 FullName = packageJsonPath,
                 WorkingDirectory = packageDirectory,
                 Script = selectedScript.Name,
-                PackageManager = DetectPackageManager(packageJson.RootElement, packageDirectory),
+                PackageManager = DetectPackageManager(packageJson.RootElement),
                 IsRunByDefault = selectedScript.IsRunByDefault
             };
         }
@@ -191,7 +191,7 @@ public class RunnableProjectsProvider
                command.Contains(" " + token + " --", StringComparison.Ordinal);
     }
 
-    private static string DetectPackageManager(JsonElement packageJson, string packageDirectory)
+    private static string DetectPackageManager(JsonElement packageJson)
     {
         var packageManager = TryGetStringProperty(packageJson, "packageManager");
         if (!string.IsNullOrWhiteSpace(packageManager))
@@ -201,22 +201,6 @@ public class RunnableProjectsProvider
             {
                 return name!;
             }
-        }
-
-        if (File.Exists(Path.Combine(packageDirectory, "pnpm-lock.yaml")))
-        {
-            return "pnpm";
-        }
-
-        if (File.Exists(Path.Combine(packageDirectory, "yarn.lock")))
-        {
-            return "yarn";
-        }
-
-        if (File.Exists(Path.Combine(packageDirectory, "bun.lockb")) ||
-            File.Exists(Path.Combine(packageDirectory, "bun.lock")))
-        {
-            return "bun";
         }
 
         return "npm";
