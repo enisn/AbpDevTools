@@ -367,6 +367,7 @@ public partial class RunCommand : ICommand
         var executable = tools.TryGetValue(packageManager, out var configuredExecutable)
             ? configuredExecutable
             : packageManager;
+        executable = ResolveExecutablePath(executable);
 
         var startInfo = new ProcessStartInfo(executable, $"run {QuoteArgument(script)}")
         {
@@ -442,6 +443,54 @@ public partial class RunCommand : ICommand
     private static string QuoteArgument(string value)
     {
         return "\"" + value.Replace("\"", "\\\"") + "\"";
+    }
+
+    internal static string ResolveExecutablePath(string executable, string? pathValue = null)
+    {
+        if (string.IsNullOrWhiteSpace(executable))
+        {
+            return executable;
+        }
+
+        executable = executable.Trim('"');
+
+        if (Path.IsPathRooted(executable) ||
+            executable.Contains(Path.DirectorySeparatorChar) ||
+            executable.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return executable;
+        }
+
+        foreach (var path in (pathValue ?? Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            foreach (var candidateName in GetExecutableCandidateNames(executable))
+            {
+                var candidatePath = Path.Combine(path.Trim('"'), candidateName);
+                if (File.Exists(candidatePath))
+                {
+                    return candidatePath;
+                }
+            }
+        }
+
+        return executable;
+    }
+
+    private static IEnumerable<string> GetExecutableCandidateNames(string executable)
+    {
+        yield return executable;
+
+        if (!OperatingSystem.IsWindows() || Path.HasExtension(executable))
+        {
+            yield break;
+        }
+
+        foreach (var extension in (Environment.GetEnvironmentVariable("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
+                     .Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            yield return executable + extension;
+        }
     }
 
     private string BuildCommandSuffix(bool? noBuild = null, bool? graphBuild = null, string? configuration = null)
