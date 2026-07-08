@@ -384,6 +384,8 @@ public partial class RunCommand : ICommand
             environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
         }
 
+        EnsureNpmProcessDoesNotStealDashboardShortcuts(startInfo);
+
         runningProjects.Add(
             new RunningNpmProjectItem(
                 GetRunnableAppDisplayName(runnableTarget),
@@ -490,6 +492,16 @@ public partial class RunCommand : ICommand
                      .Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             yield return executable + extension;
+        }
+    }
+
+    internal static void EnsureNpmProcessDoesNotStealDashboardShortcuts(ProcessStartInfo startInfo)
+    {
+        // Vite and similar dev servers bind stdin shortcuts when CI is not set.
+        // Keep abpdev's dashboard shortcuts responsive without redirecting stdin.
+        if (!startInfo.Environment.ContainsKey("CI"))
+        {
+            startInfo.Environment["CI"] = "true";
         }
     }
 

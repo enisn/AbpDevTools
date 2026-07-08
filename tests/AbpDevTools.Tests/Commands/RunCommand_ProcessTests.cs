@@ -114,6 +114,33 @@ public class RunCommand_ProcessTests
     }
 
     [Fact]
+    public void EnsureNpmProcessDoesNotStealDashboardShortcuts_SetsCiWhenMissing()
+    {
+        // Arrange
+        var startInfo = new ProcessStartInfo("npm.cmd", "run \"dev\"");
+
+        // Act
+        RunCommand.EnsureNpmProcessDoesNotStealDashboardShortcuts(startInfo);
+
+        // Assert
+        startInfo.Environment["CI"].Should().Be("true");
+    }
+
+    [Fact]
+    public void EnsureNpmProcessDoesNotStealDashboardShortcuts_PreservesConfiguredCi()
+    {
+        // Arrange
+        var startInfo = new ProcessStartInfo("npm.cmd", "run \"dev\"");
+        startInfo.Environment["CI"] = "false";
+
+        // Act
+        RunCommand.EnsureNpmProcessDoesNotStealDashboardShortcuts(startInfo);
+
+        // Assert
+        startInfo.Environment["CI"].Should().Be("false");
+    }
+
+    [Fact]
     public void StartProcess_HandlesProcessStartFailure()
     {
         // Arrange

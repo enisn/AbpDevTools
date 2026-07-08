@@ -14,7 +14,7 @@ public class KeyInputManager : IKeyInputManager, IDisposable
     private Task? _listeningTask;
     private bool _disposed;
 
-    public bool IsListening => _listeningTask?.Status == TaskStatus.Running;
+    public bool IsListening => _listeningTask is { IsCompleted: false };
 
     public KeyInputManager()
         : this(
@@ -60,7 +60,14 @@ public class KeyInputManager : IKeyInputManager, IDisposable
             return;
 
         _cancellationTokenSource.Cancel();
-        _listeningTask?.Wait(1_000, _cancellationTokenSource.Token);
+        try
+        {
+            _listeningTask?.Wait(1_000);
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(inner => inner is TaskCanceledException or OperationCanceledException))
+        {
+            // Expected when cancellation wins the wait race.
+        }
     }
 
     private async Task ListenForKeyPressesAsync()

@@ -75,6 +75,23 @@ public class KeyInputManagerTests
     }
 
     [Fact]
+    public async Task StartListening_WithAvailableConsoleInput_RemainsListeningWhilePolling()
+    {
+        // Arrange
+        using var manager = new KeyInputManager(
+            () => true,
+            () => false,
+            () => default);
+
+        // Act
+        manager.StartListening();
+        await Task.Delay(150);
+
+        // Assert
+        manager.IsListening.Should().BeTrue("the async listener is active while it waits between polling attempts");
+    }
+
+    [Fact]
     public async Task StartListening_WhenKeyPollingFails_StopsGracefully()
     {
         // Arrange
