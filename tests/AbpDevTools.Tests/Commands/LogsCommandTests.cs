@@ -148,6 +148,10 @@ public class LogsCommandTests : IDisposable
 
     private sealed class TestPlatform : Platform
     {
+        public TestPlatform() : base(new ToolsConfiguration(Substitute.For<IDeserializer>(), Substitute.For<ISerializer>()))
+        {
+        }
+
         public List<string> OpenedPaths { get; } = new();
 
         public override void Open(string filePath)
