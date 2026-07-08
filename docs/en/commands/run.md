@@ -5,7 +5,7 @@ title: Run Command
 
 # Run Command
 
-The `abpvdev run` command runs the solution in the current directory. It supports multiple solutions, multiple .NET applications, npm web applications, and DbMigrator projects.
+The `abpdev run` command runs the solution in the current directory. It supports multiple solutions, multiple .NET applications, npm web applications, and DbMigrator projects.
 
 ## Usage
 
