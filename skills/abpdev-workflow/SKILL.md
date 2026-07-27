@@ -108,6 +108,8 @@ run:
   skip-check-libs: false
   projects:
     - MyApp.HttpApi.Host
+  msbuild-properties:
+    UseMudBlazor: true
 
 environment:
   name: SqlServer

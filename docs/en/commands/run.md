@@ -30,6 +30,7 @@ abpvdev run <workingdirectory> [options]
 | `--install-libs` | `-i` | Run 'abp install-libs' while running |
 | `--graphBuild` | `-g` | Use /graphBuild for building |
 | `--projects` | `-p` | Names or part of names of projects to run |
+| `--msbuild-property` | | MSBuild property passed to every selected `dotnet run` process. Use `Name=Value`; repeat for multiple properties |
 | `--configuration` | `-c` | Build configuration (Debug/Release) |
 | `--env` | `-e` | Virtual environment name |
 | `--help` | `-h` | Shows help text |
@@ -99,6 +100,22 @@ abpvdev run --install-libs
 ```
 
 Runs `abp install-libs` automatically while starting the application.
+
+### Run with MSBuild Properties
+
+```bash
+abpdev run --msbuild-property UseMudBlazor=true
+```
+
+This passes `--property:UseMudBlazor=true` to every selected `dotnet run` process.
+
+For a property that should apply only to one project in a batch run, place an `abpdev.yml` file beside that project file:
+
+```yaml
+run:
+  msbuild-properties:
+    UseMudBlazor: true
+```
 
 ## Project Detection
 

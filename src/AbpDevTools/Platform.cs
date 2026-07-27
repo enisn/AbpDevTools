@@ -45,7 +45,7 @@ public class Platform
         {
             return tool;
         }
-        
+
         return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "explorer" : "open";
     }
 }
