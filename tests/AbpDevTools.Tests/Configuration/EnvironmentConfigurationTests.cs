@@ -484,4 +484,40 @@ duplicate-var-env:
     }
 
     #endregion
+
+    [Theory]
+    [InlineData(
+        EnvironmentConfiguration.SqlServer,
+        "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True")]
+    [InlineData(
+        EnvironmentConfiguration.PostgreSql,
+        "Server=localhost;Port=5432;Database={AppName}_{Today};User Id=postgres;Password=postgres;")]
+    [InlineData(
+        EnvironmentConfiguration.MySql,
+        "Server=localhost;Port=3306;Database={AppName}_{Today};User Id=root;Password=root;")]
+    [InlineData(
+        EnvironmentConfiguration.MongoDb,
+        "mongodb://localhost:27017/{AppName}_{Today}")]
+    public void EnvironmentConfiguration_Defaults_ShouldMatchEnvironmentAppCredentials(
+        string environmentName,
+        string expectedConnectionString)
+    {
+        // Arrange
+        var configuration = new TestEnvironmentConfiguration(YamlDeserializer, YamlSerializer);
+
+        // Act
+        var options = configuration.GetDefaultOptions();
+
+        // Assert
+        options[environmentName].Variables["ConnectionStrings__Default"]
+            .Should().Be(expectedConnectionString);
+    }
+
+    private sealed class TestEnvironmentConfiguration(
+        YamlDotNet.Serialization.IDeserializer yamlDeserializer,
+        YamlDotNet.Serialization.ISerializer yamlSerializer)
+        : EnvironmentConfiguration(yamlDeserializer, yamlSerializer)
+    {
+        public Dictionary<string, EnvironmentOption> GetDefaultOptions() => GetDefaults();
+    }
 }

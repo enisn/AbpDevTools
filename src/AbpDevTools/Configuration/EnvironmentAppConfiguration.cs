@@ -13,11 +13,40 @@ public class EnvironmentAppConfiguration : DictionaryConfigurationBase<Environme
     public const string Redis = "redis";
     public const string RabbitMq = "rabbitmq";
 
+    public const string SqlServerDefaultPassword = "yourStrong(!)Password";
+    public const string PostgreSqlDefaultPassword = "postgres";
+    public const string MySqlDefaultPassword = "root";
+
     public EnvironmentAppConfiguration(IDeserializer yamlDeserializer, ISerializer yamlSerializer) : base(yamlDeserializer, yamlSerializer)
     {
     }
 
     public override string FileName => "environment-tools";
+
+    public override Dictionary<string, EnvironmentToolOption> GetOptions()
+    {
+        var options = base.GetOptions();
+        var defaults = GetDefaults();
+        var shouldWrite = false;
+
+        foreach (var defaultOption in defaults)
+        {
+            if (options.TryGetValue(defaultOption.Key, out var option) &&
+                option.DefaultPassword is null &&
+                defaultOption.Value.DefaultPassword is not null)
+            {
+                option.DefaultPassword = defaultOption.Value.DefaultPassword;
+                shouldWrite = true;
+            }
+        }
+
+        if (shouldWrite)
+        {
+            SaveOptions(options);
+        }
+
+        return options;
+    }
 
     protected override Dictionary<string, EnvironmentToolOption> GetDefaults()
     {
@@ -27,30 +56,34 @@ public class EnvironmentAppConfiguration : DictionaryConfigurationBase<Environme
                 new[] 
                 { 
                     "docker start tmp-sqlserver", 
-                    "docker run --name tmp-sqlserver --restart unless-stopped -e \"ACCEPT_EULA=Y\" -e \"SA_PASSWORD=Passw0rd\" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-CU8-ubuntu" 
+                    "docker run --name tmp-sqlserver --restart unless-stopped -e \"ACCEPT_EULA=Y\" -e \"MSSQL_SA_PASSWORD=Passw0rd\" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-CU8-ubuntu"
                 }, 
-                new[] { "docker kill tmp-sqlserver", "docker rm tmp-sqlserver" }) },
+                new[] { "docker kill tmp-sqlserver", "docker rm tmp-sqlserver" },
+                SqlServerDefaultPassword) },
             { SqlServerEdge, new EnvironmentToolOption(
                 new[] 
                 { 
                     "docker start tmp-sqlserver-edge", 
                     "docker run --name tmp-sqlserver-edge --restart unless-stopped -d --cap-add SYS_PTRACE -e \"ACCEPT_EULA=1\" -e \"MSSQL_SA_PASSWORD=Passw0rd\" -p 1433:1433 mcr.microsoft.com/azure-sql-edge" 
                 }, 
-                new[] { "docker kill tmp-sqlserver-edge", "docker rm tmp-sqlserver-edge" }) },
+                new[] { "docker kill tmp-sqlserver-edge", "docker rm tmp-sqlserver-edge" },
+                SqlServerDefaultPassword) },
             { PostgreSql, new EnvironmentToolOption(
                 new[] 
                 { 
                     "docker start tmp-postgres", 
-                    "docker run --name tmp-postgres --restart unless-stopped -e POSTGRES_PASSWORD=Passw0rd -p 5432:5432 -d postgres" 
+                    "docker run --name tmp-postgres --restart unless-stopped -e \"POSTGRES_PASSWORD=Passw0rd\" -p 5432:5432 -d postgres"
                 }, 
-                new[] { "docker kill tmp-posgres", "docker rm tmp-posgres" }) },
+                new[] { "docker kill tmp-postgres", "docker rm tmp-postgres" },
+                PostgreSqlDefaultPassword) },
             { MySql, new EnvironmentToolOption(
                 new[] 
                 { 
                     "docker start tmp-mysql", 
                     "docker run --name tmp-mysql --restart unless-stopped -e \"MYSQL_ROOT_PASSWORD=Passw0rd\" -p 3306:3306 --platform linux/x86_64 -d mysql:5.7" 
                 }, 
-                new[] { "docker kill tmp-mysql", "docker rm tmp-mysql" }) },
+                new[] { "docker kill tmp-mysql", "docker rm tmp-mysql" },
+                MySqlDefaultPassword) },
             { MongoDb, new EnvironmentToolOption(
                 new[] 
                 { 
@@ -85,11 +118,15 @@ public class EnvironmentToolOption
     {
     }
 
-    public EnvironmentToolOption(string[] startCmds, string[] stopCmds)
+    public EnvironmentToolOption(string[] startCmds, string[] stopCmds, string? defaultPassword = null)
     {
         _startCmds = startCmds;
         _stopCmds = stopCmds;
+        DefaultPassword = defaultPassword;
     }
+
+    [YamlMember(Alias = "DefaultPassword")]
+    public string? DefaultPassword { get; set; }
 
     // Legacy string properties for backward compatibility with old YAML files
     [YamlMember(Alias = "StartCmd")]

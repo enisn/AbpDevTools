@@ -5,12 +5,12 @@ title: Prepare Command
 
 # Prepare Command
 
-The `abpvdev prepare` command prepares your ABP project for first-time running on your machine. It automatically detects project dependencies, starts required environment apps, installs ABP libraries, and creates local configuration files.
+The `abpdev prepare` command prepares your ABP project for first-time running on your machine. It automatically detects project dependencies, starts required environment apps, installs ABP libraries, and creates local configuration files.
 
 ## Usage
 
 ```
-abpvdev prepare <workingdirectory> [options]
+abpdev prepare <workingdirectory> [options]
 ```
 
 ## Parameters
@@ -23,7 +23,7 @@ abpvdev prepare <workingdirectory> [options]
 
 | Option | Shortcut | Description |
 |--------|----------|-------------|
-| `--no-config` | | Do not create local configuration file (abpvdev.yml) |
+| `--no-config` | | Do not create local configuration file (`abpdev.yml`) |
 | `--help` | `-h` | Shows help text |
 
 ## Examples
@@ -31,19 +31,19 @@ abpvdev prepare <workingdirectory> [options]
 ### Prepare Current Directory
 
 ```bash
-abpvdev prepare
+abpdev prepare
 ```
 
 ### Prepare Specific Path
 
 ```bash
-abpvdev prepare C:\Path\To\Projects
+abpdev prepare C:\Path\To\Projects
 ```
 
 ### Prepare Without Configuration
 
 ```bash
-abpvdev prepare --no-config
+abpdev prepare --no-config
 ```
 
 Use this when you don't want to create local configuration files.
@@ -81,11 +81,11 @@ Bundles Blazor WASM projects if detected.
 
 ### 5. Configuration
 
-Creates `abpvdev.yml` files with appropriate environment settings.
+Creates `abpdev.yml` files with appropriate environment settings.
 
 ## Configuration File
 
-After running prepare, you'll have an `abpvdev.yml` file in your project directory. This file contains:
+After running prepare, you'll have an `abpdev.yml` file in your project directory. This file contains:
 - Database connection strings
 - Environment variables
 - Custom settings
@@ -102,7 +102,7 @@ The configuration supports these placeholders:
 Example:
 ```json
 {
-  "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=12345678Aa;"
+  "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True"
 }
 ```
 
