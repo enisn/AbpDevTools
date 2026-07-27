@@ -44,6 +44,68 @@ environment:
 
 All property names use hyphen-case. Environment variable names and MSBuild property names keep their original casing.
 
+## Command-Line Equivalents
+
+Use `abpdev.yml` when you want commonly repeated `abpdev run` options to become project defaults.
+
+For example, this command:
+
+```bash
+abpdev run --skip-migrate
+```
+
+is equivalent to this root `abpdev.yml`:
+
+```yaml
+run:
+  skip-migrate: true
+```
+
+Multiple options can be stored together. This command:
+
+```bash
+abpdev run --skip-migrate --no-build --configuration Release --projects MyApp.Web
+```
+
+is equivalent to:
+
+```yaml
+run:
+  skip-migrate: true
+  no-build: true
+  configuration: Release
+  projects:
+    - MyApp.Web
+```
+
+The supported mappings are:
+
+| `abpdev run` option | `abpdev.yml` property |
+|---------------------|-----------------------|
+| `--watch` | `run.watch` |
+| `--skip-migrate` | `run.skip-migrate` |
+| `--no-build` | `run.no-build` |
+| `--skip-check-libs` | `run.skip-check-libs` |
+| `--graphBuild` | `run.graph-build` |
+| `--projects <name>` | `run.projects` |
+| `--msbuild-property Name=Value` | `run.msbuild-properties.Name` |
+| `--configuration <value>` | `run.configuration` |
+| `--env <name>` | `environment.name` |
+
+Command-line options are still useful for one-time changes. Precedence differs for some settings; see [Command-Line Precedence](#command-line-precedence).
+
+### CLI-Only Options
+
+These options do not have an `abpdev.yml` property:
+
+| Option | Purpose |
+|--------|---------|
+| `--all` | Runs all automatically runnable applications without prompting. |
+| `--install-libs` | Runs `abp install-libs` while starting the applications. |
+| `--retry` | Restarts applications when they exit. |
+| `--verbose` | Shows verbose application output. |
+| `--yml <path>` | Selects an alternate root YAML file rather than configuring run behavior. |
+
 ## File Lookup
 
 For `abpdev run <working-directory>`, AbpDevTools loads `<working-directory>/abpdev.yml` as the root configuration. It does not look for `.abpdev.yml` or a user-level `abpdev.yml`.
