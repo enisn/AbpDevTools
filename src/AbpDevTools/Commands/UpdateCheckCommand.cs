@@ -1,3 +1,4 @@
+using AbpDevTools.Configuration;
 using AbpDevTools.Notifications;
 using AbpDevTools.Services;
 using CliFx.Attributes;
@@ -23,11 +24,16 @@ public class UpdateCheckCommand : ICommand
 
     protected readonly UpdateChecker updateChecker;
     protected readonly INotificationManager notificationManager;
+    protected readonly ToolsConfiguration toolsConfiguration;
 
-    public UpdateCheckCommand(UpdateChecker updateChecker, INotificationManager notificationManager)
+    public UpdateCheckCommand(
+        UpdateChecker updateChecker,
+        INotificationManager notificationManager,
+        ToolsConfiguration toolsConfiguration)
     {
         this.updateChecker = updateChecker;
         this.notificationManager = notificationManager;
+        this.toolsConfiguration = toolsConfiguration;
     }
 
     public ValueTask SoftCheckAsync(IConsole console)
@@ -45,8 +51,6 @@ public class UpdateCheckCommand : ICommand
             return;
         }
 
-        var command = "dotnet tool update -g AbpDevTools";
-
         if (Force)
         {
             console.Output.WriteLine($"Checking for updates...");
@@ -61,6 +65,8 @@ public class UpdateCheckCommand : ICommand
 
         if (result.UpdateAvailable)
         {
+            var tools = toolsConfiguration.GetOptions();
+            var command = FormatManualUpdateCommand(tools["dotnet"]);
             var selfUpdateCommand = "abpdev update --apply";
 
             await notificationManager.SendAsync(
@@ -71,7 +77,7 @@ public class UpdateCheckCommand : ICommand
 
             AnsiConsole.Markup($"\n[blue]To update now, run:[/]\n");
             AnsiConsole.Markup($"  [black on green] {selfUpdateCommand} [/]\n");
-            AnsiConsole.Markup($"\n[grey]Or manually:[/] [yellow]{command}[/]");
+            AnsiConsole.Markup($"\n[grey]Or manually:[/] [yellow]{Markup.Escape(command)}[/]");
         }
         else
         {
@@ -127,34 +133,111 @@ public class UpdateCheckCommand : ICommand
         catch (Exception ex)
         {
             AnsiConsole.Markup($"[red]Failed to start update process: {ex.Message}[/]\n");
-            AnsiConsole.Markup($"[yellow]You can manually update by running: dotnet tool update -g AbpDevTools[/]\n");
+            var tools = toolsConfiguration.GetOptions();
+            AnsiConsole.Markup($"[yellow]You can manually update by running: {Markup.Escape(FormatManualUpdateCommand(tools["dotnet"]))}[/]\n");
             Environment.Exit(1);
         }
     }
 
     private async Task SpawnUpdateProcessAsync()
     {
-        var startInfo = GetUpdateProcessStartInfo();
+        var tools = toolsConfiguration.GetOptions();
+        var startInfo = CreateUpdateProcessStartInfo(Environment.ProcessId, tools["powershell"], tools["dotnet"]);
         
-         var process = Process.Start(startInfo);
+        var process = Process.Start(startInfo);
 
-         if (process is null)
-         {
+        if (process is null)
+        {
             throw new InvalidOperationException("Failed to start the update process.");
-         }
+        }
 
         await Task.CompletedTask;
     }
 
-    private ProcessStartInfo GetUpdateProcessStartInfo()
+    internal static ProcessStartInfo CreateUpdateProcessStartInfo(int currentProcessId, string powershell, string dotnet)
     {
-        return new ProcessStartInfo
+        var dotnetPath = ResolveExecutablePath(dotnet);
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            FileName = "dotnet",
-            Arguments = $"tool update -g AbpDevTools",
-            UseShellExecute = true,
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = ResolveExecutablePath(powershell),
+                UseShellExecute = false,
+                CreateNoWindow = false,
+                WindowStyle = ProcessWindowStyle.Normal,
+            };
+
+            startInfo.ArgumentList.Add("-NoProfile");
+            startInfo.ArgumentList.Add("-Command");
+            startInfo.ArgumentList.Add($"Wait-Process -Id {currentProcessId} -ErrorAction SilentlyContinue; & {QuotePowerShellLiteral(dotnetPath)} tool update -g AbpDevTools; exit $LASTEXITCODE");
+
+            return startInfo;
+        }
+
+        var shellStartInfo = new ProcessStartInfo
+        {
+            FileName = "/bin/sh",
+            UseShellExecute = false,
             CreateNoWindow = false,
             WindowStyle = ProcessWindowStyle.Normal,
         };
+
+        shellStartInfo.ArgumentList.Add("-c");
+        shellStartInfo.ArgumentList.Add($"while kill -0 {currentProcessId} 2>/dev/null; do sleep 1; done; {QuoteShellLiteral(dotnetPath)} tool update -g AbpDevTools");
+
+        return shellStartInfo;
+    }
+
+    private static string ResolveExecutablePath(string executable)
+    {
+        if (Path.IsPathRooted(executable) || executable.Contains(Path.DirectorySeparatorChar) || executable.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return executable;
+        }
+
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return executable;
+        }
+
+        var extensions = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            : [string.Empty];
+
+        foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            foreach (var extension in extensions)
+            {
+                var candidate = Path.Combine(directory, executable.EndsWith(extension, StringComparison.OrdinalIgnoreCase) ? executable : executable + extension);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return executable;
+    }
+
+    private static string FormatManualUpdateCommand(string dotnet)
+    {
+        return $"{QuoteCommandForDisplay(dotnet)} tool update -g AbpDevTools";
+    }
+
+    private static string QuoteCommandForDisplay(string value)
+    {
+        return value.Contains(' ') ? $"\"{value}\"" : value;
+    }
+
+    private static string QuotePowerShellLiteral(string value)
+    {
+        return $"'{value.Replace("'", "''")}'";
+    }
+
+    private static string QuoteShellLiteral(string value)
+    {
+        return $"'{value.Replace("'", "'\\''")}'";
     }
 }
