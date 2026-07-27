@@ -23,5 +23,11 @@ public class LocalConfiguration
         public string[] Projects { get; set; } = Array.Empty<string>();
         [YamlMember(Alias = "msbuild-properties", ApplyNamingConventions = false)]
         public Dictionary<string, string?> MsbuildProperties { get; set; } = new();
+        public LocalNpmRunOption? Npm { get; set; }
+    }
+
+    public class LocalNpmRunOption
+    {
+        public string[] Scripts { get; set; } = Array.Empty<string>();
     }
 }
