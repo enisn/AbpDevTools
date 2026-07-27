@@ -20,5 +20,11 @@ public class LocalConfiguration
         public bool SkipMigrate { get; set; }
         public bool SkipCheckLibs { get; set; }
         public string[] Projects { get; set; } = Array.Empty<string>();
+        public LocalNpmRunOption? Npm { get; set; }
+    }
+
+    public class LocalNpmRunOption
+    {
+        public string[] Scripts { get; set; } = Array.Empty<string>();
     }
 }

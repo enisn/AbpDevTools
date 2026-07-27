@@ -126,6 +126,200 @@ public class RunnableProjectsProviderTests : CommandTestBase
 
     #endregion
 
+    #region GetRunnableNpmProjects Tests
+
+    [Fact]
+    public void GetRunnableNpmProjects_WithDevScript_ReturnsNpmApp()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        var appDir = CreatePackageJson("apps/react", """
+        {
+          "name": "react-client",
+          "scripts": {
+            "dev": "vite --host 0.0.0.0"
+          }
+        }
+        """);
+
+        // Act
+        var results = provider.GetRunnableNpmProjects(_testRootPath);
+
+        // Assert
+        results.Should().HaveCount(1);
+        results[0].Type.Should().Be(RunnableAppType.Npm);
+        results[0].Name.Should().Be("react-client:dev");
+        results[0].FullName.Should().Be(Path.Combine(appDir, "package.json"));
+        results[0].WorkingDirectory.Should().Be(appDir);
+        results[0].Script.Should().Be("dev");
+        results[0].PackageManager.Should().Be("npm");
+        results[0].IsRunByDefault.Should().BeTrue();
+    }
+
+    [Fact]
+    public void GetRunnableNpmProjects_WithAngularStartScript_ReturnsDefaultRunnableApp()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        CreatePackageJson("angular", """
+        {
+          "scripts": {
+            "start": "ng serve --host 0.0.0.0"
+          }
+        }
+        """);
+
+        // Act
+        var results = provider.GetRunnableNpmProjects(_testRootPath);
+
+        // Assert
+        results.Should().HaveCount(1);
+        results[0].Name.Should().Be("angular:start");
+        results[0].Script.Should().Be("start");
+        results[0].IsRunByDefault.Should().BeTrue("ng serve is a known web server script");
+    }
+
+    [Fact]
+    public void GetRunnableNpmProjects_WithUnknownStartScript_ReturnsAmbiguousApp()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        CreatePackageJson("tools/worker", """
+        {
+          "scripts": {
+            "start": "node worker.js"
+          }
+        }
+        """);
+
+        // Act
+        var results = provider.GetRunnableNpmProjects(_testRootPath);
+
+        // Assert
+        results.Should().HaveCount(1);
+        results[0].Script.Should().Be("start");
+        results[0].IsRunByDefault.Should().BeFalse("unknown start scripts should require explicit selection");
+    }
+
+    [Fact]
+    public void GetRunnableNpmProjects_WithConfiguredScript_ReturnsCustomScript()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        CreatePackageJson("custom-client", """
+        {
+          "scripts": {
+            "web": "vite --host 0.0.0.0"
+          }
+        }
+        """);
+
+        // Act
+        var results = provider.GetRunnableNpmProjects(_testRootPath, new[] { "web" });
+
+        // Assert
+        results.Should().HaveCount(1);
+        results[0].Name.Should().Be("custom-client:web");
+        results[0].Script.Should().Be("web");
+        results[0].IsRunByDefault.Should().BeTrue("configured scripts are explicit opt-ins");
+    }
+
+    [Fact]
+    public void GetRunnableNpmProjects_UsesPackageManagerField()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        CreatePackageJson("vue", """
+        {
+          "packageManager": "pnpm@9.0.0",
+          "scripts": {
+            "serve": "vue-cli-service serve"
+          }
+        }
+        """);
+
+        // Act
+        var results = provider.GetRunnableNpmProjects(_testRootPath);
+
+        // Assert
+        results.Should().HaveCount(1);
+        results[0].PackageManager.Should().Be("pnpm");
+    }
+
+    [Fact]
+    public void GetRunnableNpmProjects_DefaultsToNpmWhenOnlyLockFileExists()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        var appDir = CreatePackageJson("yarn-client", """
+        {
+          "scripts": {
+            "dev": "vite"
+          }
+        }
+        """);
+        File.WriteAllText(Path.Combine(appDir, "yarn.lock"), string.Empty);
+
+        // Act
+        var results = provider.GetRunnableNpmProjects(_testRootPath);
+
+        // Assert
+        results.Should().HaveCount(1);
+        results[0].PackageManager.Should().Be("npm", "lockfiles can be stale and should not override the default script runner");
+    }
+
+    [Fact]
+    public void GetRunnableNpmProjects_IgnoresGeneratedPackageJsonFiles()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        CreatePackageJson(Path.Combine("node_modules", "vite"), """
+        {
+          "scripts": {
+            "dev": "vite"
+          }
+        }
+        """);
+        CreatePackageJson(Path.Combine("web", "wwwroot", "libs", "bootstrap"), """
+        {
+          "scripts": {
+            "dev": "vite"
+          }
+        }
+        """);
+
+        // Act
+        var results = provider.GetRunnableNpmProjects(_testRootPath);
+
+        // Assert
+        results.Should().BeEmpty("generated dependency folders should not be scanned as runnable apps");
+    }
+
+    [Fact]
+    public void GetRunnableApplications_ReturnsDotNetAndNpmApps()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        CreateProjectWithProgramCs("MyProject.HttpApi.Host");
+        CreatePackageJson("apps/angular", """
+        {
+          "scripts": {
+            "start": "ng serve"
+          }
+        }
+        """);
+
+        // Act
+        var results = provider.GetRunnableApplications(_testRootPath);
+
+        // Assert
+        results.Should().HaveCount(2);
+        results.Should().ContainSingle(x => x.Type == RunnableAppType.DotNet && x.Name == "MyProject.HttpApi.Host.csproj");
+        results.Should().ContainSingle(x => x.Type == RunnableAppType.Npm && x.Name == "angular:start");
+    }
+
+    #endregion
+
     #region GetRunnableProjectsWithMigrateDatabaseParameter Tests
 
     [Fact]
@@ -485,6 +679,17 @@ public class Program
         var projectPath = Path.Combine(projectDir, $"{projectName}.csproj");
         CreateProjectFileWithoutProgramCs(projectPath);
         return projectDir;
+    }
+
+    /// <summary>
+    /// Creates a package.json file in a relative directory.
+    /// </summary>
+    private string CreatePackageJson(string relativeDirectory, string content)
+    {
+        var packageDirectory = Path.GetFullPath(Path.Combine(_testRootPath, relativeDirectory));
+        Directory.CreateDirectory(packageDirectory);
+        File.WriteAllText(Path.Combine(packageDirectory, "package.json"), content);
+        return packageDirectory;
     }
 
     /// <summary>

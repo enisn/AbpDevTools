@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using Spectre.Console;
 
 namespace AbpDevTools.Commands;
@@ -117,6 +118,89 @@ public class RunningCsProjItem : RunningProjectItem
             AddLog($"[green]{log}[/]");
         }
         else if (log.Contains("dotnet watch ") && log.Contains(" Started"))
+        {
+            Status = log;
+            IsCompleted = true;
+            AddLog($"[green]{log}[/]");
+        }
+        else if (log.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+                 log.Contains("fail", StringComparison.OrdinalIgnoreCase))
+        {
+            AddLog($"[red]{log}[/]");
+        }
+        else if (log.Contains("warn", StringComparison.OrdinalIgnoreCase))
+        {
+            AddLog($"[yellow]{log}[/]");
+        }
+        else
+        {
+            AddLog(log);
+        }
+    }
+
+    private void ErrorReceived(object sender, DataReceivedEventArgs args)
+    {
+        if (args.Data == null) return;
+        AddLog($"[red]{Markup.Escape(args.Data)}[/]");
+    }
+}
+
+public class RunningNpmProjectItem : RunningProjectItem
+{
+    private static readonly Regex UrlRegex = new(@"https?://[^\s]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly string[] ReadyMarkers =
+    {
+        "ready in",
+        "compiled successfully",
+        "app running at",
+        "local:",
+        "network:"
+    };
+
+    public RunningNpmProjectItem(string name, Process process, ProcessStartInfo startInfo, string? status = null, bool verbose = false)
+    {
+        this.Name = name;
+        this.Process = process;
+        this.OriginalStartInfo = startInfo;
+        this.Status = status ?? "Starting...";
+        this.Verbose = verbose;
+        StartReadingOutput();
+    }
+
+    public override void StartReadingOutput()
+    {
+        Queued = false;
+        Process!.OutputDataReceived -= OutputReceived;
+        Process!.OutputDataReceived += OutputReceived;
+        Process!.BeginOutputReadLine();
+        Process!.ErrorDataReceived -= ErrorReceived;
+        Process!.ErrorDataReceived += ErrorReceived;
+        Process!.BeginErrorReadLine();
+    }
+
+    protected virtual void OutputReceived(object sender, DataReceivedEventArgs args)
+    {
+        if (args.Data == null)
+        {
+            return;
+        }
+
+        var log = Markup.Escape(args.Data);
+
+        if (!IsCompleted && Verbose)
+        {
+            Status = log;
+        }
+
+        var url = UrlRegex.Match(log);
+        if (url.Success)
+        {
+            Status = url.Value;
+            IsCompleted = true;
+            AddLog($"[green]{log}[/]");
+        }
+        else if (ReadyMarkers.Any(marker => log.Contains(marker, StringComparison.OrdinalIgnoreCase)))
         {
             Status = log;
             IsCompleted = true;
