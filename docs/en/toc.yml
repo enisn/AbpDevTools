@@ -41,7 +41,7 @@ items:
         href: environment/virtual-environments.md
       - name: Environment Apps
         href: environment/environment-apps.md
-  - name: Configuration
+  - name: abpdev.yml Configuration
     href: configuration.md
   - name: Notifications
     href: notifications.md
