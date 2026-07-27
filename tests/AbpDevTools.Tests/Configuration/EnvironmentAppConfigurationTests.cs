@@ -780,14 +780,71 @@ mysql-with-platform:
         // Arrange
         var startCmds = new[] { "docker start app", "docker run --name app -d image" };
         var stopCmds = new[] { "docker kill app", "docker rm app" };
+        const string defaultPassword = "default-password";
 
         // Act
-        var option = new EnvironmentToolOption(startCmds, stopCmds);
+        var option = new EnvironmentToolOption(startCmds, stopCmds, defaultPassword);
 
         // Assert
         option.StartCmds.Should().BeEquivalentTo(startCmds);
         option.StopCmds.Should().BeEquivalentTo(stopCmds);
+        option.DefaultPassword.Should().Be(defaultPassword);
+    }
+
+    [Theory]
+    [InlineData(EnvironmentAppConfiguration.SqlServer, EnvironmentAppConfiguration.SqlServerDefaultPassword)]
+    [InlineData(EnvironmentAppConfiguration.SqlServerEdge, EnvironmentAppConfiguration.SqlServerDefaultPassword)]
+    [InlineData(EnvironmentAppConfiguration.PostgreSql, EnvironmentAppConfiguration.PostgreSqlDefaultPassword)]
+    [InlineData(EnvironmentAppConfiguration.MySql, EnvironmentAppConfiguration.MySqlDefaultPassword)]
+    public void EnvironmentAppConfiguration_Defaults_ShouldUsePlatformSpecificPasswords(
+        string appName,
+        string expectedPassword)
+    {
+        // Arrange
+        var configuration = new TestEnvironmentAppConfiguration(YamlDeserializer, YamlSerializer);
+
+        // Act
+        var options = configuration.GetDefaultOptions();
+
+        // Assert
+        options[appName].DefaultPassword.Should().Be(expectedPassword);
+    }
+
+    [Fact]
+    public void EnvironmentAppConfiguration_Defaults_ShouldUseCurrentSqlServerPasswordVariable()
+    {
+        // Arrange
+        var configuration = new TestEnvironmentAppConfiguration(YamlDeserializer, YamlSerializer);
+
+        // Act
+        var command = configuration.GetDefaultOptions()[EnvironmentAppConfiguration.SqlServer].StartCmds[1];
+
+        // Assert
+        command.Should().Contain("MSSQL_SA_PASSWORD=Passw0rd");
+        command.Should().NotContain(" SA_PASSWORD=Passw0rd");
+    }
+
+    [Fact]
+    public void EnvironmentAppConfiguration_PostgreSqlStopCommands_ShouldUseCorrectContainerName()
+    {
+        // Arrange
+        var configuration = new TestEnvironmentAppConfiguration(YamlDeserializer, YamlSerializer);
+
+        // Act
+        var commands = configuration.GetDefaultOptions()[EnvironmentAppConfiguration.PostgreSql].StopCmds;
+
+        // Assert
+        commands.Should().OnlyContain(command => command.Contains("tmp-postgres"));
+        commands.Should().NotContain(command => command.Contains("tmp-posgres"));
     }
 
     #endregion
+
+    private sealed class TestEnvironmentAppConfiguration(
+        IDeserializer yamlDeserializer,
+        ISerializer yamlSerializer)
+        : EnvironmentAppConfiguration(yamlDeserializer, yamlSerializer)
+    {
+        public Dictionary<string, EnvironmentToolOption> GetDefaultOptions() => GetDefaults();
+    }
 }

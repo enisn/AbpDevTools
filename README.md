@@ -280,7 +280,7 @@ abpdev env config
 > {
 >  "SqlServer": {
 >    "Variables": {
->      "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=12345678Aa;TrustServerCertificate=True"
+>      "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True"
 >    }
 >  },
 >  "MongoDB": {
@@ -616,10 +616,20 @@ _You can extend the list or change environments of apps by using `abpdev envapp 
 
 ### Example commands
 
+- Start PostgreSQL with the default `postgres` / `postgres` development credentials
+    ```bash
+    abpdev envapp start postgresql
+    ```
+
 - Start SQL Server with custom SA password
     ```bash
     abpdev envapp start sqlserver -p myPassw0rd
     ```
+
+The database defaults are `sa` / `yourStrong(!)Password` for SQL Server,
+`postgres` / `postgres` for PostgreSQL, and `root` / `root` for MySQL.
+MongoDB and Redis use their images' passwordless defaults. Use `-p` or
+`--password` to override the configured password when creating a container.
 
 ## Switch ABP Studio Version
 Switches the locally installed **ABP Studio** to any published version/channel, ensuring directories exist, caching packages for reuse, and invoking the platform-specific updater with live log streaming and desktop notifications.

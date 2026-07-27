@@ -12,8 +12,8 @@ public class EnvironmentAppStartCommand : ICommand
     [CommandParameter(0, IsRequired = false, Description = "Name of the app.")]
     public string[] AppNames { get; set; } = Array.Empty<string>();
 
-    [CommandOption("password", 'p', Description = "Default password for sql images when applicable. Default: 12345678Aa")]
-    public string DefaultPassword { get; set; } = "12345678Aa";
+    [CommandOption("password", 'p', Description = "Overrides the configured default password for database images when applicable.")]
+    public string? DefaultPassword { get; set; }
 
     [CommandOption("verbose", 'v', Description = "Show detailed output from Docker commands.")]
     public bool Verbose { get; set; }
@@ -58,12 +58,20 @@ public class EnvironmentAppStartCommand : ICommand
             throw new CommandException($"ToolName '{appName}' couldn't be recognized. Try one of them: \n - " + string.Join("\n - ", configurations.Keys));
         }
 
-        if (string.IsNullOrEmpty(DefaultPassword))
+        var password = string.IsNullOrEmpty(DefaultPassword)
+            ? option.DefaultPassword
+            : DefaultPassword;
+
+        if (option.StartCmds.Any(cmd => cmd.Contains("Passw0rd", StringComparison.Ordinal)) &&
+            string.IsNullOrEmpty(password))
         {
-            DefaultPassword = "12345678Aa";
+            throw new CommandException(
+                $"No default password is configured for '{appName}'. Specify one with --password or -p.");
         }
 
-        var commands = option.StartCmds.Select(cmd => cmd.Replace("Passw0rd", DefaultPassword)).ToArray();
+        var commands = option.StartCmds
+            .Select(cmd => cmd.Replace("Passw0rd", password ?? string.Empty, StringComparison.Ordinal))
+            .ToArray();
         await RunCommandsAsync(appName,commands, useOrLogic: true);
     }
 
