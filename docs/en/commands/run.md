@@ -10,7 +10,7 @@ The `abpdev run` command runs the solution in the current directory. It supports
 ## Usage
 
 ```
-abpvdev run <workingdirectory> [options]
+abpdev run <workingdirectory> [options]
 ```
 
 ## Parameters
@@ -28,11 +28,15 @@ abpvdev run <workingdirectory> [options]
 | `--all` | `-a` | Run all projects without prompting |
 | `--no-build` | | Skip build before running |
 | `--install-libs` | `-i` | Run 'abp install-libs' while running |
+| `--skip-check-libs` | | Skip the `wwwroot/libs` check before running |
 | `--graphBuild` | `-g` | Use /graphBuild for building |
 | `--projects` | `-p` | Names or part of names of projects to run |
 | `--msbuild-property` | | MSBuild property passed to every selected `dotnet run` process. Use `Name=Value`; repeat for multiple properties |
 | `--configuration` | `-c` | Build configuration (Debug/Release) |
 | `--env` | `-e` | Virtual environment name |
+| `--retry` | `-r` | Restart an application when it exits |
+| `--verbose` | `-v` | Show verbose application output |
+| `--yml` | | Path to an alternate root YAML configuration |
 | `--help` | `-h` | Shows help text |
 
 ## Examples
@@ -40,31 +44,31 @@ abpvdev run <workingdirectory> [options]
 ### Run in Current Directory
 
 ```bash
-abpvdev run
+abpdev run
 ```
 
 ### Run in Specific Path
 
 ```bash
-abpvdev run C:\Path\To\Projects
+abpdev run C:\Path\To\Projects
 ```
 
 ### Run in Release Mode
 
 ```bash
-abpvdev run -c Release
+abpdev run -c Release
 ```
 
 ### Run All Projects Without Prompt
 
 ```bash
-abpvdev run -a
+abpdev run -a
 ```
 
 ### Skip Migration
 
 ```bash
-abpvdev run --skip-migrate
+abpdev run --skip-migrate
 ```
 
 Useful when you don't need to apply migrations.
@@ -72,7 +76,7 @@ Useful when you don't need to apply migrations.
 ### Watch Mode
 
 ```bash
-abpvdev run -w
+abpdev run -w
 ```
 
 Automatically rebuilds and restarts when source files change.
@@ -82,7 +86,7 @@ Automatically rebuilds and restarts when source files change.
 ### Run with Virtual Environment
 
 ```bash
-abpvdev run -e SqlServer
+abpdev run -e SqlServer
 ```
 
 Uses the SqlServer virtual environment configuration.
@@ -90,13 +94,13 @@ Uses the SqlServer virtual environment configuration.
 ### Run Specific Projects
 
 ```bash
-abpvdev run -p MyApp.Web.HttpApi.Host
+abpdev run -p MyApp.Web.HttpApi.Host
 ```
 
 ### Run with ABP Library Installation
 
 ```bash
-abpvdev run --install-libs
+abpdev run --install-libs
 ```
 
 Runs `abp install-libs` automatically while starting the application.
@@ -141,19 +145,16 @@ run:
       - start
 ```
 
-## Configuration
+## `abpdev.yml` Configuration
 
-Use the `abpvdev run config` command to customize:
-- Project name conventions
-- Default options
-- Environment variables
+Use [`abpdev.yml`](../configuration.md) to define default project selection, run options, npm scripts, MSBuild properties, and environment variables. A solution-root file can configure all applications, while a nearer file can override launch settings for one project.
 
 ## Multiple Solutions
 
 When multiple solutions exist in the directory:
 
 ```bash
-abpvdev run
+abpdev run
 ```
 
 You'll be prompted to select which solution to run.
@@ -164,7 +165,7 @@ You'll be prompted to select which solution to run.
 
 ### Application Doesn't Start
 
-1. Check that all dependencies are installed: `abpvdev prepare`
+1. Check that all dependencies are installed: `abpdev prepare`
 2. Verify database connections in configuration
 3. Check for port conflicts
 
@@ -174,4 +175,4 @@ Use the `--projects` option to run specific projects, or stop other running appl
 
 ### Missing Dependencies
 
-Run `abpvdev prepare` to install all required dependencies.
+Run `abpdev prepare` to install all required dependencies.
