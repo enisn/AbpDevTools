@@ -21,7 +21,7 @@
 
 ## Config And Discovery Quirks
 - Global tool config lives under `%AppData%/abpdev` as YAML files such as `tools-configuration.yml` and `replacements.yml`. Legacy JSON config is auto-migrated on read.
-- Repo/project-local overrides live in `abpdev.yml`. `PrepareCommand` creates it; `RunCommand` loads the root file from `WorkingDirectory`; per-project loads search ancestor folders via `LocalConfigurationManager`.
+- Repo/project-local overrides live in `abpdev.yml`. `PrepareCommand` creates it; `RunCommand` loads the nearest root file from `WorkingDirectory` or its parents; per-project loads also search ancestor folders via `LocalConfigurationManager`.
 - Do not build new behavior on `RunConfiguration`. It is `[Obsolete]`, and `RunnableProjectsProvider` deletes `run-configuration.yml` on startup.
 - Runnable project discovery is now heuristic-based: any `*.csproj` with sibling `Program.cs` is runnable. Migrate fallback also scans `Program.cs` and top-level `*Module.cs` for `--migrate-database`.
 
