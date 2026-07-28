@@ -66,11 +66,11 @@ Useful options:
 - `-e`, `--env`: apply a configured virtual environment
 - `-r`, `--retry`: retry when apps exit
 - `-v`, `--verbose`: show verbose project output
-- `--yml`: explicitly point to an `abpdev.yml`
+- `--yml`: explicitly point to an exact `abpdev.yml` path
 
 Behavior:
 
-- Loads `abpdev.yml` from the working directory when present
+- Loads the nearest `abpdev.yml` from the working directory or its parents
 - Runs migrators first unless skipped
 - Prompts for project selection when multiple runnable apps are found and interactive input is available
 - Can detect missing `wwwroot/libs` and offer to run `abp install-libs`

@@ -55,7 +55,7 @@ public partial class RunCommand : ICommand
     [CommandOption("verbose", 'v', Description = "Shows verbose output from the projects.")]
     public bool Verbose { get; set; }
 
-    [CommandOption("yml", Description = "Path to the yml file to be used for running the project.")]
+    [CommandOption("yml", Description = "Exact path to the root yml file to be used for running the project.")]
     public string? YmlPath { get; set; }
 
     protected IConsole? console;
@@ -107,16 +107,11 @@ public partial class RunCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        if (string.IsNullOrEmpty(YmlPath))
-        {
-            YmlPath = Path.Combine(WorkingDirectory, "abpdev.yml");
-        }
-
         var cancellationToken = console.RegisterCancellationHandler();
 
-        if (localConfigurationManager.TryLoad(YmlPath!, out var localRootConfig, FileSearchDirection.OnlyCurrent))
+        if (TryLoadRootConfiguration(out var localRootConfig, out var loadedYmlPath))
         {
-            console.Output.WriteLine($"Loaded YAML configuration from '{YmlPath}' with environment '{localRootConfig?.Environment?.Name ?? "Default"}'.");
+            console.Output.WriteLine($"Loaded YAML configuration from '{loadedYmlPath}' with environment '{localRootConfig?.Environment?.Name ?? "Default"}'.");
         }
 
         var commandLineMsbuildProperties = ParseCommandLineMsbuildProperties();
@@ -324,6 +319,38 @@ public partial class RunCommand : ICommand
             keyInputManager.StopListening();
             AppDomain.CurrentDomain.ProcessExit -= ProcessExitHandler;
         }
+    }
+
+    protected bool TryLoadRootConfiguration(
+        out LocalConfiguration? localConfiguration,
+        out string? loadedPath)
+    {
+        var hasExplicitYmlPath = !string.IsNullOrEmpty(YmlPath);
+        var configurationPath = hasExplicitYmlPath
+            ? YmlPath!
+            : Path.Combine(WorkingDirectory!, "abpdev.yml");
+        var searchDirection = hasExplicitYmlPath
+            ? FileSearchDirection.OnlyCurrent
+            : FileSearchDirection.Ascendants;
+
+        if (localConfigurationManager.TryLoad(
+            configurationPath,
+            out localConfiguration,
+            out loadedPath,
+            searchDirection))
+        {
+            YmlPath = loadedPath;
+            return true;
+        }
+
+        YmlPath = configurationPath;
+
+        if (hasExplicitYmlPath)
+        {
+            throw new CommandException($"YAML configuration file '{configurationPath}' was not found.");
+        }
+
+        return false;
     }
 
     private void ApplyLocalProjects(LocalConfiguration? localConfiguration)

@@ -36,7 +36,7 @@ abpdev run <workingdirectory> [options]
 | `--env` | `-e` | Virtual environment name |
 | `--retry` | `-r` | Restart an application when it exits |
 | `--verbose` | `-v` | Show verbose application output |
-| `--yml` | | Path to an alternate root YAML configuration |
+| `--yml` | | Exact path to an alternate root YAML configuration |
 | `--help` | `-h` | Shows help text |
 
 ## Examples
@@ -148,6 +148,8 @@ run:
 ## `abpdev.yml` Configuration
 
 Use [`abpdev.yml`](../configuration.md) to define default project selection, run options, npm scripts, MSBuild properties, and environment variables. A solution-root file can configure all applications, while a nearer file can override launch settings for one project.
+
+Without `--yml`, root configuration lookup starts in the working directory and continues through its parents. The nearest `abpdev.yml` is used. Files are not merged.
 
 ## Multiple Solutions
 

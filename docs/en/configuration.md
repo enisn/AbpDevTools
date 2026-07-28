@@ -108,7 +108,7 @@ These options do not have an `abpdev.yml` property:
 
 ## File Lookup
 
-For `abpdev run <working-directory>`, AbpDevTools loads `<working-directory>/abpdev.yml` as the root configuration. It does not look for `.abpdev.yml` or a user-level `abpdev.yml`.
+For `abpdev run <working-directory>`, AbpDevTools searches for `abpdev.yml` in the working directory and then each parent directory. The nearest file is used as the root configuration. It does not look for `.abpdev.yml` or use a separate user-level configuration location.
 
 When each application is launched, AbpDevTools searches for the nearest `abpdev.yml`, starting in the application's directory and continuing through its parent directories. The first file found is used for that application. Files are not merged, so a nearer project file replaces the root file for project launch and environment settings.
 
@@ -148,13 +148,13 @@ Because files are not merged, repeat any root launch or environment settings tha
 
 ### Alternate Root File
 
-The `--yml` option loads an alternate root configuration:
+The `--yml` option loads an alternate root configuration by its exact path:
 
 ```bash
 abpdev run --yml profiles/development.yml
 ```
 
-The alternate file controls root-scoped settings such as `projects`, `skip-migrate`, `skip-check-libs`, and `npm.scripts`. Application launch settings still use the nearest file named `abpdev.yml`.
+The alternate file controls root-scoped settings such as `projects`, `skip-migrate`, `skip-check-libs`, and `npm.scripts`. Application launch settings still use the nearest file named `abpdev.yml`. The command fails when the explicitly selected file does not exist.
 
 ## `run` Section
 
