@@ -109,7 +109,8 @@ public partial class RunCommand : ICommand
 
         var cancellationToken = console.RegisterCancellationHandler();
 
-        if (TryLoadRootConfiguration(out var localRootConfig, out var loadedYmlPath))
+        var rootConfigurationLoaded = TryLoadRootConfiguration(out var localRootConfig, out var loadedYmlPath);
+        if (rootConfigurationLoaded)
         {
             console.Output.WriteLine($"Loaded YAML configuration from '{loadedYmlPath}' with environment '{localRootConfig?.Environment?.Name ?? "Default"}'.");
         }
@@ -145,7 +146,7 @@ public partial class RunCommand : ICommand
             migrateCommand.RunAll = this.RunAll;
             migrateCommand.Projects = this.Projects;
 
-            await migrateCommand.ExecuteAsync(console);
+            await migrateCommand.ExecuteAsync(console, localRootConfig, rootConfigurationLoaded);
         }
 
         await console.Output.WriteLineAsync("Starting projects...");

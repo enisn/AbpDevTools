@@ -51,7 +51,15 @@ public class MigrateCommand : ICommand
         this.runnableProjectsProvider = runnableProjectsProvider;
     }
 
-    public async ValueTask ExecuteAsync(IConsole console)
+    public ValueTask ExecuteAsync(IConsole console)
+    {
+        return ExecuteAsync(console, localRootConfiguration: null, rootConfigurationLoaded: false);
+    }
+
+    internal async ValueTask ExecuteAsync(
+        IConsole console,
+        LocalConfiguration? localRootConfiguration,
+        bool rootConfigurationLoaded)
     {
         this.console = console;
         if (string.IsNullOrEmpty(WorkingDirectory))
@@ -59,21 +67,23 @@ public class MigrateCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
-        var dbMigrators = Directory.EnumerateFiles(WorkingDirectory, "*.csproj", SearchOption.AllDirectories)
-           .Where(IsDbMigrator)
-           .Select(x => new FileInfo(x))
-           .ToList();
+        LoadLocalConfiguration(console, localRootConfiguration, rootConfigurationLoaded);
+
+        var dbMigrators = FindDbMigrators(out var discoveredDbMigratorCount);
 
         var cancellationToken = console.RegisterCancellationHandler();
 
-        if (dbMigrators.Count == 0)
+        if (dbMigrators.Length == 0)
         {
-            await console.Output.WriteLineAsync($"No migrator(s) found in this folder. Migration not applied.");
+            var message = discoveredDbMigratorCount > 0
+                ? "No db migrator matched the specified project filters."
+                : "No migrator(s) found in this folder. Migration not applied.";
+            await console.Output.WriteLineAsync(message);
             await RunParameterMigrationFallbackAsync();
             return;
         }
 
-        await console.Output.WriteLineAsync($"{dbMigrators.Count} db migrator(s) found.");
+        await console.Output.WriteLineAsync($"{dbMigrators.Length} db migrator(s) found.");
 
         var commandPostFix = NoBuild ? " --no-build" : string.Empty;
 
@@ -117,6 +127,65 @@ public class MigrateCommand : ICommand
         KillRunningProcesses();
     }
 
+    protected void LoadLocalConfiguration(
+        IConsole console,
+        LocalConfiguration? localRootConfiguration = null,
+        bool rootConfigurationLoaded = false)
+    {
+        if (!rootConfigurationLoaded &&
+            TryLoadRootConfiguration(out localRootConfiguration, out var loadedYmlPath))
+        {
+            console.Output.WriteLine($"Loaded YAML configuration from '{loadedYmlPath}' with environment '{localRootConfiguration?.Environment?.Name ?? "Default"}'.");
+        }
+
+        ApplyLocalProjects(localRootConfiguration);
+    }
+
+    protected bool TryLoadRootConfiguration(
+        out LocalConfiguration? localConfiguration,
+        out string? loadedPath)
+    {
+        return localConfigurationManager.TryLoad(
+            Path.Combine(WorkingDirectory!, "abpdev.yml"),
+            out localConfiguration,
+            out loadedPath);
+    }
+
+    private void ApplyLocalProjects(LocalConfiguration? localConfiguration)
+    {
+        if (Projects.Length == 0 && localConfiguration?.Run?.Projects.Length > 0)
+        {
+            Projects = localConfiguration.Run.Projects;
+        }
+    }
+
+    protected FileInfo[] FindDbMigrators(out int discoveredCount)
+    {
+        var dbMigrators = Directory
+            .EnumerateFiles(WorkingDirectory!, "*.csproj", SearchOption.AllDirectories)
+            .Where(IsDbMigrator)
+            .Select(path => new FileInfo(path))
+            .ToArray();
+
+        discoveredCount = dbMigrators.Length;
+        return FilterProjects(dbMigrators);
+    }
+
+    private FileInfo[] FilterProjects(IEnumerable<FileInfo> projectFiles)
+    {
+        var projects = projectFiles.ToArray();
+
+        if (RunAll || Projects.Length == 0)
+        {
+            return projects;
+        }
+
+        return projects
+            .Where(project => Projects.Any(filter =>
+                project.FullName.Contains(filter, StringComparison.InvariantCultureIgnoreCase)))
+            .ToArray();
+    }
+
     protected async Task RunParameterMigrationFallbackAsync()
     {
         var canUseInteractiveConsole = global::AbpDevTools.ConsoleSupport.SupportsInteractiveConsole(console);
@@ -146,35 +215,34 @@ public class MigrateCommand : ICommand
             return;
         }
 
-        var projectFiles = csprojs;
+        var projectFiles = FilterProjects(csprojs);
 
-        if (!RunAll && projectFiles.Length > 1)
+        if (projectFiles.Length == 0)
         {
-            if (Projects.Length == 0)
-            {
-                if (canUseInteractiveConsole)
-                {
-                    var selectedProjects = AnsiConsole.Prompt(
-                        new MultiSelectionPrompt<FileInfo>()
-                            .Title("Select project(s) to run with '--migrate-database' parameter")
-                            .Required(true)
-                            .PageSize(10)
-                            .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
-                            .InstructionsText("[grey](Press [blue]<space>[/] to toggle a project, [green]<enter>[/] to accept)[/]")
-                            .UseConverter(file => Path.GetRelativePath(WorkingDirectory!, file.FullName))
-                            .AddChoices(csprojs)
-                    );
+            await console!.Output.WriteLineAsync("No project matched the specified project filters.");
+            return;
+        }
 
-                    projectFiles = selectedProjects.ToArray();
-                }
-                else
-                {
-                    await console!.Output.WriteLineAsync("Interactive migration project selection is unavailable; running all matching '--migrate-database' projects.");
-                }
+        if (!RunAll && Projects.Length == 0 && projectFiles.Length > 1)
+        {
+            if (canUseInteractiveConsole)
+            {
+                var selectedProjects = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<FileInfo>()
+                        .Title("Select project(s) to run with '--migrate-database' parameter")
+                        .Required(true)
+                        .PageSize(10)
+                        .MoreChoicesText("[grey](Move up and down to reveal more projects)[/]")
+                        .InstructionsText("[grey](Press [blue]<space>[/] to toggle a project, [green]<enter>[/] to accept)[/]")
+                        .UseConverter(file => Path.GetRelativePath(WorkingDirectory!, file.FullName))
+                        .AddChoices(projectFiles)
+                );
+
+                projectFiles = selectedProjects.ToArray();
             }
             else
             {
-                projectFiles = projectFiles.Where(x => Projects.Any(y => x.FullName.Contains(y, StringComparison.InvariantCultureIgnoreCase))).ToArray();
+                await console!.Output.WriteLineAsync("Interactive migration project selection is unavailable; running all matching '--migrate-database' projects.");
             }
         }
 
