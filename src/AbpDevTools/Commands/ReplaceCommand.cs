@@ -1,4 +1,4 @@
-﻿using AbpDevTools.Configuration;
+using AbpDevTools.Configuration;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Text;
@@ -31,6 +31,11 @@ public class ReplaceCommand : ICommand
     public async ValueTask ExecuteAsync(IConsole console)
     {
         WorkingDirectory ??= Directory.GetCurrentDirectory();
+
+        if (InteractiveMode && !ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            InteractiveMode = false;
+        }
 
         var options = replacementConfiguration.GetOptions();
         List<string>? filesToProcess = null;

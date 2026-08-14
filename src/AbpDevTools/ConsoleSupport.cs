@@ -81,6 +81,18 @@ internal static class ConsoleSupport
     {
         getEnvironmentVariable ??= Environment.GetEnvironmentVariable;
 
+        var abpDevInteractive = getEnvironmentVariable("ABPDEV_INTERACTIVE")?.Trim();
+        if (IsTrueOrOne(abpDevInteractive))
+        {
+            return false;
+        }
+
+        var abpDevNonInteractive = getEnvironmentVariable("ABPDEV_NON_INTERACTIVE")?.Trim();
+        if (IsFalseOrZero(abpDevNonInteractive))
+        {
+            return false;
+        }
+
         return NonInteractiveRules.Any(rule =>
         {
             var value = getEnvironmentVariable(rule.Variable)?.Trim();
@@ -88,11 +100,11 @@ internal static class ConsoleSupport
         });
     }
 
-    private static bool IsTrueOrOne(string value) =>
-        value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1";
+    private static bool IsTrueOrOne(string? value) =>
+        !string.IsNullOrEmpty(value) && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1");
 
-    private static bool IsFalseOrZero(string value) =>
-        value.Equals("false", StringComparison.OrdinalIgnoreCase) || value == "0";
+    private static bool IsFalseOrZero(string? value) =>
+        !string.IsNullOrEmpty(value) && (value.Equals("false", StringComparison.OrdinalIgnoreCase) || value == "0");
 
     public static bool TryGetWindowWidth(IConsole? console, out int windowWidth)
     {

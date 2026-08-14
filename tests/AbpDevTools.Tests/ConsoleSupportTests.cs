@@ -88,6 +88,26 @@ public class ConsoleSupportTests
         result.Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData("ABPDEV_INTERACTIVE", "true")]
+    [InlineData("ABPDEV_INTERACTIVE", "1")]
+    [InlineData("ABPDEV_NON_INTERACTIVE", "false")]
+    [InlineData("ABPDEV_NON_INTERACTIVE", "0")]
+    public void IsNonInteractiveEnvironment_WhenExplicitInteractiveOverrideSet_OverridesCIEnvironment(string overrideKey, string overrideValue)
+    {
+        // Act: CI is set to true, but explicit interactive override is provided
+        var result = ConsoleSupport.IsNonInteractiveEnvironment(varName =>
+        {
+            if (string.Equals(varName, overrideKey, StringComparison.OrdinalIgnoreCase)) return overrideValue;
+            if (string.Equals(varName, "CI", StringComparison.OrdinalIgnoreCase)) return "true";
+            if (string.Equals(varName, "TERM", StringComparison.OrdinalIgnoreCase)) return "dumb";
+            return null;
+        });
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
     [Fact]
     public void SupportsInteractiveConsole_WhenNonInteractiveEnvVarSet_ReturnsFalseEvenIfStreamsUnredirected()
     {

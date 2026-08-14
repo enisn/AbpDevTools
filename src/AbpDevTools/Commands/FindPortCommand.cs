@@ -43,6 +43,28 @@ public class FindPortCommand : ICommand
             return;
         }
 
+        if (!ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            var table = new Table()
+                .Border(TableBorder.Rounded)
+                .AddColumn("[grey]#[/]")
+                .AddColumn("[grey]PID[/]")
+                .AddColumn("[grey]Process Name[/]");
+
+            foreach (var (process, index) in processes.Select((p, i) => (p, i)))
+            {
+                table.AddRow(
+                    $"{index + 1}",
+                    $"[mediumpurple2]{process.Pid}[/]",
+                    $"[green]{process.ProcessName}[/]"
+                );
+            }
+
+            AnsiConsole.Write(table);
+            await console.Output.WriteLineAsync("Interactive menu is unavailable. Pass '--kill' ('-k') to terminate the found process directly.");
+            return;
+        }
+
         while (true)
         {
             AnsiConsole.Clear();

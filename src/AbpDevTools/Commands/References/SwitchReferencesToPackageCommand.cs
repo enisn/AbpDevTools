@@ -228,7 +228,7 @@ public class SwitchReferencesToPackageCommand : ICommand
                 if (!DoesProjectMatchAnyPattern(projectName, sourceConfig.Packages)) continue;
 
                 // Get version (from backup or prompt user)
-                var version = GetVersionForSource(doc, sourceKey, promptedVersions);
+                var version = GetVersionForSource(doc, sourceKey, promptedVersions, console);
                 if (string.IsNullOrEmpty(version)) continue;
 
                 // Convert to PackageReference
@@ -308,7 +308,7 @@ public class SwitchReferencesToPackageCommand : ICommand
         return false;
     }
 
-    private string? GetVersionForSource(XDocument doc, string sourceKey, Dictionary<string, string> promptedVersions)
+    private string? GetVersionForSource(XDocument doc, string sourceKey, Dictionary<string, string> promptedVersions, IConsole console)
     {
         // First, try to get from backed-up version
         var backedUpVersion = csprojService.GetBackedUpVersion(doc, sourceKey);
@@ -321,6 +321,12 @@ public class SwitchReferencesToPackageCommand : ICommand
         if (promptedVersions.TryGetValue(sourceKey, out var cachedVersion))
         {
             return cachedVersion;
+        }
+
+        if (!ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            console.Output.WriteLine($"Interactive prompt unavailable; cannot determine version for source '{sourceKey}'. Skipping.");
+            return null;
         }
 
         // Prompt user for version
@@ -341,6 +347,12 @@ public class SwitchReferencesToPackageCommand : ICommand
         
         AnsiConsole.MarkupLine($"[yellow]Source '{sourceKey}' is empty or doesn't exist at:[/] {sourceConfig.Path}");
         
+        if (!ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            console.Output.WriteLine($"Interactive prompt unavailable; skipping missing source '{sourceKey}'.");
+            return SourceAction.Skip;
+        }
+
         var choices = new List<string>
         {
             "Skip this source",
