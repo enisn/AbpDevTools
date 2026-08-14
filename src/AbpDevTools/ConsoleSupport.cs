@@ -66,62 +66,33 @@ internal static class ConsoleSupport
         }
     }
 
+    private static readonly (string Variable, Func<string, bool> IsMatch)[] NonInteractiveRules =
+    [
+        ("ABPDEV_NON_INTERACTIVE", IsTrueOrOne),
+        ("ABPDEV_INTERACTIVE", IsFalseOrZero),
+        ("NONINTERACTIVE", IsTrueOrOne),
+        ("NON_INTERACTIVE", IsTrueOrOne),
+        ("CI", IsTrueOrOne),
+        ("DEBIAN_FRONTEND", v => v.Equals("noninteractive", StringComparison.OrdinalIgnoreCase)),
+        ("TERM", v => v.Equals("dumb", StringComparison.OrdinalIgnoreCase)),
+    ];
+
     public static bool IsNonInteractiveEnvironment(Func<string, string?>? getEnvironmentVariable = null)
     {
         getEnvironmentVariable ??= Environment.GetEnvironmentVariable;
 
-        var abpDevNonInteractive = getEnvironmentVariable("ABPDEV_NON_INTERACTIVE");
-        if (IsTrueOrOne(abpDevNonInteractive))
+        return NonInteractiveRules.Any(rule =>
         {
-            return true;
-        }
-
-        var abpDevInteractive = getEnvironmentVariable("ABPDEV_INTERACTIVE");
-        if (IsFalseOrZero(abpDevInteractive))
-        {
-            return true;
-        }
-
-        var nonInteractive = getEnvironmentVariable("NONINTERACTIVE");
-        if (IsTrueOrOne(nonInteractive))
-        {
-            return true;
-        }
-
-        var nonInteractiveUnderscore = getEnvironmentVariable("NON_INTERACTIVE");
-        if (IsTrueOrOne(nonInteractiveUnderscore))
-        {
-            return true;
-        }
-
-        var ci = getEnvironmentVariable("CI");
-        if (IsTrueOrOne(ci))
-        {
-            return true;
-        }
-
-        var debianFrontend = getEnvironmentVariable("DEBIAN_FRONTEND");
-        if (string.Equals(debianFrontend?.Trim(), "noninteractive", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var term = getEnvironmentVariable("TERM");
-        if (string.Equals(term?.Trim(), "dumb", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return false;
+            var value = getEnvironmentVariable(rule.Variable)?.Trim();
+            return !string.IsNullOrEmpty(value) && rule.IsMatch(value);
+        });
     }
 
-    private static bool IsTrueOrOne(string? value) =>
-        string.Equals(value?.Trim(), "true", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(value?.Trim(), "1", StringComparison.OrdinalIgnoreCase);
+    private static bool IsTrueOrOne(string value) =>
+        value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1";
 
-    private static bool IsFalseOrZero(string? value) =>
-        string.Equals(value?.Trim(), "false", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(value?.Trim(), "0", StringComparison.OrdinalIgnoreCase);
+    private static bool IsFalseOrZero(string value) =>
+        value.Equals("false", StringComparison.OrdinalIgnoreCase) || value == "0";
 
     public static bool TryGetWindowWidth(IConsole? console, out int windowWidth)
     {
