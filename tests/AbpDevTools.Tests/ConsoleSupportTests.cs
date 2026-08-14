@@ -53,6 +53,66 @@ public class ConsoleSupportTests
         console.GetOutput().Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("ABPDEV_NON_INTERACTIVE", "true", true)]
+    [InlineData("ABPDEV_NON_INTERACTIVE", "1", true)]
+    [InlineData("ABPDEV_NON_INTERACTIVE", "True", true)]
+    [InlineData("ABPDEV_NON_INTERACTIVE", "false", false)]
+    [InlineData("ABPDEV_NON_INTERACTIVE", "0", false)]
+    [InlineData("ABPDEV_INTERACTIVE", "false", true)]
+    [InlineData("ABPDEV_INTERACTIVE", "0", true)]
+    [InlineData("ABPDEV_INTERACTIVE", "False", true)]
+    [InlineData("ABPDEV_INTERACTIVE", "true", false)]
+    [InlineData("ABPDEV_INTERACTIVE", "1", false)]
+    [InlineData("NONINTERACTIVE", "true", true)]
+    [InlineData("NONINTERACTIVE", "1", true)]
+    [InlineData("NON_INTERACTIVE", "true", true)]
+    [InlineData("NON_INTERACTIVE", "1", true)]
+    [InlineData("CI", "true", true)]
+    [InlineData("CI", "1", true)]
+    [InlineData("CI", "false", false)]
+    [InlineData("CI", "0", false)]
+    [InlineData("DEBIAN_FRONTEND", "noninteractive", true)]
+    [InlineData("DEBIAN_FRONTEND", "dialog", false)]
+    [InlineData("TERM", "dumb", true)]
+    [InlineData("TERM", "DUMB", true)]
+    [InlineData("TERM", "xterm-256color", false)]
+    [InlineData("OTHER_VAR", "value", false)]
+    public void IsNonInteractiveEnvironment_ReturnsExpectedResult(string key, string value, bool expected)
+    {
+        // Act
+        var result = ConsoleSupport.IsNonInteractiveEnvironment(varName =>
+            string.Equals(varName, key, StringComparison.OrdinalIgnoreCase) ? value : null);
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public void SupportsInteractiveConsole_WhenNonInteractiveEnvVarSet_ReturnsFalseEvenIfStreamsUnredirected()
+    {
+        // Arrange
+        var console = new TestConsole(isInputRedirected: false, isOutputRedirected: false, isErrorRedirected: false);
+
+        // Act
+        var result = ConsoleSupport.SupportsInteractiveConsole(
+            console,
+            varName => varName == "CI" ? "true" : null);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CanReadConsoleInput_WhenNonInteractiveEnvVarSet_ReturnsFalse()
+    {
+        // Act
+        var result = ConsoleSupport.CanReadConsoleInput(varName => varName == "NONINTERACTIVE" ? "1" : null);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
     private sealed class TestConsole : IConsole
     {
         private readonly MemoryStream _inputStream = new();
