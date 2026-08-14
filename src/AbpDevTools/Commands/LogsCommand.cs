@@ -42,6 +42,11 @@ public class LogsCommand : ICommand
 
         var csprojs = runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
 
+        if (Interactive && !ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            Interactive = false;
+        }
+
         if (string.IsNullOrEmpty(ProjectName))
         {
             if (Interactive)

@@ -1,4 +1,4 @@
-﻿using AbpDevTools.Services;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 
@@ -21,8 +21,11 @@ public abstract class MigrationsCommandBase : ICommand
         this.entityFrameworkCoreProjectsProvider = entityFrameworkCoreProjectsProvider;
     }
 
+    protected IConsole? console;
+
     public virtual ValueTask ExecuteAsync(IConsole console)
     {
+        this.console = console;
         if (string.IsNullOrEmpty(WorkingDirectory))
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
@@ -58,6 +61,12 @@ public abstract class MigrationsCommandBase : ICommand
 
     protected virtual FileInfo[] PromptForProjectSelection(FileInfo[] projectFiles)
     {
+        if (console != null && !ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            console.Output.WriteLine("Interactive project selection is unavailable; running for all detected EF Core projects. Pass '--projects' to specify.");
+            return projectFiles;
+        }
+
         var chosenProjects = AnsiConsole.Prompt(new MultiSelectionPrompt<FileInfo>()
                 .Title("Choose project to create migrations.")
                 .Required(true)

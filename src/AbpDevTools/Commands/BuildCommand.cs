@@ -22,6 +22,7 @@ public class BuildCommand : ICommand
     [CommandOption("configuration", 'c')]
     public string? Configuration { get; set; }
 
+    protected IConsole? console;
     Process? runningProcess;
     protected readonly INotificationManager notificationManager;
     protected readonly ToolsConfiguration toolsConfiguration;
@@ -34,6 +35,7 @@ public class BuildCommand : ICommand
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
+        this.console = console;
         if (string.IsNullOrEmpty(WorkingDirectory))
         {
             WorkingDirectory = Directory.GetCurrentDirectory();
@@ -208,7 +210,7 @@ public class BuildCommand : ICommand
                     return fileInfos;
                 });
 
-        if (Interactive && files.Length > 1)
+        if (Interactive && ConsoleSupport.SupportsInteractiveConsole(console) && files.Length > 1)
         {
             var fileChoices = files.Select(s => s.FullName.Replace(WorkingDirectory!, ".")).ToArray();
             

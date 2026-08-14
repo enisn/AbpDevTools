@@ -61,6 +61,12 @@ public class AddPackageCommand : ICommand
 
         if (projectFiles.Length > 1 && !AddToAll && string.IsNullOrEmpty(ProjectPath))
         {
+            if (!ConsoleSupport.SupportsInteractiveConsole(console))
+            {
+                await console.Output.WriteLineAsync("Interactive project selection is unavailable; specify a project with '--project' or pass '--all' to add the package to all projects.");
+                return;
+            }
+
             var chosenProjects = AnsiConsole.Prompt(new MultiSelectionPrompt<string>()
                 .Title("Choose projects to add the package.")
                 .Required(true)
