@@ -209,6 +209,7 @@ OPTIONS
   -g|--graphBuild   Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance. Default: "False".
   -p|--projects     (Array) Names or part of names of projects will be ran.
   --msbuild-property MSBuild property passed to every selected dotnet run process. Use Name=Value and repeat for multiple properties.
+  -d|--detach       Starts applications in the centralized runner and returns immediately.
   -c|--configuration
   -e| --env        Virtual Environment name. You can manage virtual environments by using 'abpdev env config'
   -h|--help         Shows help text.
@@ -265,6 +266,31 @@ run:
     abpdev run -w
     ```
     > Please note that we cannot print URL's because dotnet does give any output.
+
+- Start in the background
+    ```bash
+    abpdev run --detach
+    ```
+
+### Centralized runner
+
+`abpdev run` always delegates process ownership and stdout/stderr capture to a per-user runner. Without `--detach`, the command remains attached to the interactive status dashboard, so the default experience stays familiar. The runner starts automatically and exits shortly after its final application stops.
+
+```bash
+# List active apps from every directory context
+abpdev ps
+
+# Reopen the dashboard for the current context
+abpdev attach
+
+# Stop only this directory/YAML context
+abpdev stop
+
+# Stop matching apps in this context
+abpdev stop -p MyApp.Web
+```
+
+Each context is identified by its canonical working directory and resolved root `abpdev.yml`. Repeating `abpdev run` reconciles with existing applications instead of creating duplicate processes. In the dashboard, `Q` detaches, `S` stops the selected app, `Ctrl+S` stops the context, and `A` toggles combined logs.
 
 ## Virtual Environments
 Virtual environments are used to run multiple solutions with different configurations. For example, you can run different solutions with different environments _(connectionstrings etc.)_.
@@ -369,6 +395,8 @@ OPTIONS
   -p|--path         Working directory of the command. Probably solution directory. Default: . (CurrentDirectory)
   -i|--interactive  Options will be asked as prompt when this option used. Default: "False".
   -n|--lines        Number of lines to print from the end of logs.txt. Default: 100.
+  -f|--follow       Follows stdout and stderr captured by the centralized runner.
+  --managed         Uses runner-captured logs; without a project, combines the context's logs.
   -o|--open         Opens logs with the operating system default app instead of printing them.
   -h|--help         Shows help text.
 
@@ -391,6 +419,16 @@ COMMANDS
 - Open the log file or folder with the operating system default app
     ```bash
     abpdev logs Web --open
+    ```
+
+- Follow output captured by the centralized runner
+    ```bash
+    abpdev logs Web --follow
+    ```
+
+- Show combined managed logs for the current context
+    ```bash
+    abpdev logs --managed --lines 200
     ```
 
 - Clear logs of the **.Web** project

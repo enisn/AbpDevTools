@@ -2,6 +2,7 @@ using AbpDevTools.Configuration;
 using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
+using AbpDevTools.Runner;
 using AbpDevTools.Services;
 using CliFx.Exceptions;
 using CliFx.Infrastructure;
@@ -58,6 +59,9 @@ public partial class RunCommand : ICommand
     [CommandOption("yml", Description = "Exact path to the root yml file to be used for running the project.")]
     public string? YmlPath { get; set; }
 
+    [CommandOption("detach", 'd', Description = "Starts the selected applications in the centralized runner and returns immediately.")]
+    public bool Detach { get; set; }
+
     protected IConsole? console;
 
     protected readonly List<RunningProjectItem> runningProjects = new();
@@ -73,6 +77,8 @@ public partial class RunCommand : ICommand
     protected readonly FileExplorer fileExplorer;
     private readonly LocalConfigurationManager localConfigurationManager;
     private readonly IKeyInputManager keyInputManager;
+    private readonly IRunnerClient runnerClient;
+    private readonly IRunnerDashboard runnerDashboard;
     private int lastWindowWidth = 0;
 
     public RunCommand(
@@ -84,7 +90,9 @@ public partial class RunCommand : ICommand
         ToolsConfiguration toolsConfiguration,
         FileExplorer fileExplorer,
         LocalConfigurationManager localConfigurationManager,
-        IKeyInputManager keyInputManager)
+        IKeyInputManager keyInputManager,
+        IRunnerClient runnerClient,
+        IRunnerDashboard runnerDashboard)
     {
         this.notificationManager = notificationManager;
         this.migrateCommand = migrateCommand;
@@ -95,6 +103,8 @@ public partial class RunCommand : ICommand
         this.fileExplorer = fileExplorer;
         this.localConfigurationManager = localConfigurationManager;
         this.keyInputManager = keyInputManager;
+        this.runnerClient = runnerClient;
+        this.runnerDashboard = runnerDashboard;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -247,79 +257,107 @@ public partial class RunCommand : ICommand
             }
         }
 
-        // Register cleanup handlers for all exit scenarios
-        void ProcessExitHandler(object? sender, EventArgs e) => KillRunningProcesses();
-        AppDomain.CurrentDomain.ProcessExit += ProcessExitHandler;
-
-        if (canUseInteractiveConsole)
+        var launchPlan = new List<RunnerApplicationSpec>();
+        foreach (var runnableTarget in runnableTargets)
         {
-            keyInputManager.StartListening();
-        }
+            localConfigurationManager.TryLoad(runnableTarget.FullName, out var localConfiguration);
 
-        try
-        {
-            foreach (var runnableTarget in runnableTargets)
+            if (runnableTarget.Type == RunnableAppType.DotNet)
             {
-                localConfigurationManager.TryLoad(runnableTarget.FullName, out var localConfiguration);
+                launchPlan.Add(CreateDotNetApplicationSpec(
+                    runnableTarget,
+                    localConfiguration,
+                    commandLineMsbuildProperties));
 
-                if (runnableTarget.Type == RunnableAppType.DotNet)
+                var projectDir = runnableTarget.WorkingDirectory;
+                var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
+
+                if (shouldInstallLibs && File.Exists(Path.Combine(projectDir, "package.json")))
                 {
-                    StartDotNetProject(runnableTarget, localConfiguration, commandLineMsbuildProperties);
-
-                    var projectDir = runnableTarget.WorkingDirectory;
-                    var wwwRootLibs = Path.Combine(projectDir, "wwwroot", "libs");
-
-                    if (shouldInstallLibs && File.Exists(Path.Combine(projectDir, "package.json")))
+                    if (!Directory.Exists(wwwRootLibs))
                     {
-                        if (!Directory.Exists(wwwRootLibs))
-                        {
-                            Directory.CreateDirectory(wwwRootLibs);
-                        }
-
-                        if (!Directory.EnumerateFiles(wwwRootLibs).Any())
-                        {
-                            File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
-                        }
-
-                        var tools = toolsConfiguration.GetOptions();
-                        var installLibsStartInfo = new ProcessStartInfo(tools["abp"], "install-libs")
-                        {
-                            WorkingDirectory = projectDir,
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                        };
-
-                        var installLibsRunninItem = new RunningInstallLibsItem(
-                            runnableTarget.Name.Replace(".csproj", " install-libs"),
-                            Process.Start(installLibsStartInfo)!,
-                            installLibsStartInfo
-                        );
-
-                        runningProjects.Add(installLibsRunninItem);
+                        Directory.CreateDirectory(wwwRootLibs);
                     }
-                }
-                else if (runnableTarget.Type == RunnableAppType.Npm)
-                {
-                    StartNpmProject(runnableTarget, localConfiguration);
+
+                    if (!Directory.EnumerateFiles(wwwRootLibs).Any())
+                    {
+                        File.WriteAllText(Path.Combine(wwwRootLibs, "abplibs.installing"), string.Empty);
+                    }
+
+                    launchPlan.Add(CreateInstallLibsApplicationSpec(runnableTarget));
                 }
             }
-
-            cancellationToken.Register(KillRunningProcesses);
-
-            await RenderProcesses(cancellationToken, canUseInteractiveConsole);
-
-            await updateCheckCommand.SoftCheckAsync(console);
+            else if (runnableTarget.Type == RunnableAppType.Npm)
+            {
+                launchPlan.Add(CreateNpmApplicationSpec(runnableTarget, localConfiguration));
+            }
         }
-        finally
+
+        var contextDescriptor = RunnerContextIdentity.Create(WorkingDirectory, loadedYmlPath);
+        RunnerResponse startResponse;
+        try
         {
-            // Always kill processes on exit, regardless of how we exit
-            // Reset flag to ensure cleanup runs even if called before
-            _processesKilled = false;
-            KillRunningProcesses();
-            keyInputManager.StopListening();
-            AppDomain.CurrentDomain.ProcessExit -= ProcessExitHandler;
+            startResponse = await runnerClient.StartAsync(
+                new RunnerStartContextRequest
+                {
+                    ContextKey = contextDescriptor.ContextKey,
+                    DisplayName = contextDescriptor.DisplayName,
+                    WorkingDirectory = contextDescriptor.WorkingDirectory,
+                    ConfigurationPath = contextDescriptor.ConfigurationPath,
+                    ConfigurationHash = contextDescriptor.ConfigurationHash,
+                    Applications = launchPlan.ToArray()
+                },
+                cancellationToken);
         }
+        catch (RunnerClientException ex)
+        {
+            throw new CommandException(ex.Message);
+        }
+
+        if (!startResponse.Success)
+        {
+            throw new CommandException(startResponse.Error ?? "The centralized runner could not start the selected applications.");
+        }
+
+        foreach (var message in startResponse.Messages)
+        {
+            await console.Output.WriteLineAsync(message);
+        }
+
+        if (Detach)
+        {
+            await console.Output.WriteLineAsync(
+                $"Applications are running in the background. Use 'abpdev attach \"{contextDescriptor.WorkingDirectory}\"' to open the dashboard.");
+            await updateCheckCommand.SoftCheckAsync(console);
+            return;
+        }
+
+        var dashboardResult = await runnerDashboard.RunAsync(
+            contextDescriptor.ContextKey,
+            console,
+            cancellationToken);
+
+        if (dashboardResult == RunnerDashboardResult.Cancelled)
+        {
+            var stopResponse = await runnerClient.StopAsync(
+                contextDescriptor.ContextKey,
+                Array.Empty<string>(),
+                CancellationToken.None);
+            foreach (var message in stopResponse?.Messages ?? Array.Empty<string>())
+            {
+                await console.Output.WriteLineAsync(message);
+            }
+        }
+        else if (dashboardResult == RunnerDashboardResult.Detached)
+        {
+            await console.Output.WriteLineAsync("Dashboard detached; applications remain managed in the background.");
+        }
+        else if (dashboardResult == RunnerDashboardResult.Unavailable)
+        {
+            await console.Error.WriteLineAsync("The centralized runner became unavailable.");
+        }
+
+        await updateCheckCommand.SoftCheckAsync(console);
     }
 
     protected bool TryLoadRootConfiguration(
@@ -365,7 +403,7 @@ public partial class RunCommand : ICommand
         }
     }
 
-    private void StartDotNetProject(
+    private RunnerApplicationSpec CreateDotNetApplicationSpec(
         RunnableAppInfo runnableTarget,
         LocalConfiguration? localConfiguration,
         IReadOnlyDictionary<string, string?> commandLineMsbuildProperties)
@@ -394,17 +432,22 @@ public partial class RunCommand : ICommand
             environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
         }
 
-        runningProjects.Add(
-            new RunningCsProjItem(
-                runnableTarget.Name,
-                Process.Start(startInfo)!,
-                startInfo,
-                verbose: Verbose
-            )
+        return RunnerApplicationSpec.FromProcessStartInfo(
+            RunnerContextIdentity.CreateApplicationId(runnableTarget.FullName),
+            runnableTarget.Name,
+            GetRunnableAppDisplayName(runnableTarget),
+            RunnerApplicationType.DotNet,
+            runnableTarget.FullName,
+            script: null,
+            startInfo,
+            retry: Retry,
+            verbose: Verbose
         );
     }
 
-    private void StartNpmProject(RunnableAppInfo runnableTarget, LocalConfiguration? localConfiguration)
+    private RunnerApplicationSpec CreateNpmApplicationSpec(
+        RunnableAppInfo runnableTarget,
+        LocalConfiguration? localConfiguration)
     {
         var packageManager = runnableTarget.PackageManager ?? "npm";
         var script = runnableTarget.Script ?? throw new InvalidOperationException("Runnable npm target does not define a script.");
@@ -423,14 +466,41 @@ public partial class RunCommand : ICommand
             environmentManager.SetEnvironmentForProcess(EnvironmentName, startInfo);
         }
 
-        runningProjects.Add(
-            new RunningNpmProjectItem(
-                GetRunnableAppDisplayName(runnableTarget),
-                Process.Start(startInfo)!,
-                startInfo,
-                verbose: Verbose
-            )
+        return RunnerApplicationSpec.FromProcessStartInfo(
+            RunnerContextIdentity.CreateApplicationId(runnableTarget.FullName, script),
+            runnableTarget.Name,
+            GetRunnableAppDisplayName(runnableTarget),
+            RunnerApplicationType.Npm,
+            runnableTarget.FullName,
+            script,
+            startInfo,
+            retry: Retry,
+            verbose: Verbose
         );
+    }
+
+    private RunnerApplicationSpec CreateInstallLibsApplicationSpec(RunnableAppInfo runnableTarget)
+    {
+        var projectDir = runnableTarget.WorkingDirectory;
+        var tools = toolsConfiguration.GetOptions();
+        var startInfo = new ProcessStartInfo(tools["abp"], "install-libs")
+        {
+            WorkingDirectory = projectDir,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        return RunnerApplicationSpec.FromProcessStartInfo(
+            RunnerContextIdentity.CreateApplicationId(runnableTarget.FullName, discriminator: "install-libs"),
+            runnableTarget.Name.Replace(".csproj", " install-libs"),
+            runnableTarget.Name.Replace(".csproj", " install-libs"),
+            RunnerApplicationType.InstallLibs,
+            runnableTarget.FullName,
+            script: null,
+            startInfo,
+            retry: false,
+            verbose: Verbose);
     }
 
     internal static ProcessStartInfo CreateNpmProcessStartInfo(string executable, string script, string workingDirectory)
