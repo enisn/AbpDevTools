@@ -5,12 +5,12 @@ title: Switch ABP Studio Version
 
 # Switch ABP Studio Version
 
-The `abpvdev abp-studio switch` command allows you to switch the locally installed ABP Studio to any published version or channel. This is useful when you need to work with specific ABP Studio versions.
+The `abpdev abp-studio switch` command switches an existing ABP Studio installation to a published version and channel. Windows and macOS use the platform updater. Linux replaces the installed AppImage from the official package and requires an application restart.
 
 ## Usage
 
 ```
-abpvdev abp-studio switch <version> [options]
+abpdev abp-studio switch <version> [options]
 ```
 
 ## Parameters
@@ -25,7 +25,7 @@ abpvdev abp-studio switch <version> [options]
 |--------|----------|-------------|
 | `--channel` | `-c` | Channel to download from. Default: "stable" |
 | `--force` | `-f` | Forces re-download even if package exists |
-| `--install-dir` | `-i` | Custom install directory |
+| `--install-dir` | `-i` | Custom install directory. On Linux, pass the AppImage file or its containing directory |
 | `--packages-dir` | `-p` | Custom cache directory for packages |
 | `--help` | `-h` | Shows help text |
 
@@ -43,66 +43,87 @@ abpvdev abp-studio switch <version> [options]
 ### Switch to Stable Version
 
 ```bash
-abpvdev abp-studio switch 2.0.1
+abpdev abp-studio switch 2.0.1
 ```
 
 ### Switch to Beta Channel
 
 ```bash
-abpvdev abp-studio switch 1.1.0 -c beta
+abpdev abp-studio switch 1.1.0 -c beta
 ```
 
 ### Force Redownload
 
 ```bash
-abpvdev abp-studio switch 0.9.0 -f
+abpdev abp-studio switch 0.9.0 -f
 ```
 
 ### Use Custom Cache Directory
 
 ```bash
-abpvdev abp-studio switch 1.0.0 -p D:\abp-studio-cache
+abpdev abp-studio switch 1.0.0 -p D:\abp-studio-cache
 ```
 
 This is useful for:
+
 - Faster switching between versions (only apply step needed)
 - Sharing cache across machines
 - Using a fast SSD for downloads
 
-## How It Works
+### Select a Linux AppImage
+
+On Linux, `--install-dir` accepts either the exact AppImage path or a directory containing it:
+
+```bash
+abpdev abp-studio switch 3.0.10 --install-dir ~/Applications/AbpStudio.AppImage
+```
+
+When the option is omitted, the command searches in this order:
+
+1. The `APPIMAGE` environment variable.
+2. `abp-studio.desktop` in the configured XDG application directories.
+3. `~/.local/opt/abp-studio/AbpStudio.AppImage`.
+4. `~/Applications/AbpStudio.AppImage`.
+5. `/opt/abp-studio/AbpStudio.AppImage`.
+
+An explicit directory may contain `AbpStudio.AppImage`, `AbpStudio-stable.AppImage`, or one unambiguous `AbpStudio*.AppImage` file.
+
+## Switch Workflow
 
 The command performs these steps:
 
 ### 1. Detect Platform
 
-Detects your OS and CPU architecture:
+Detects the OS and CPU architecture:
+
 - Windows x64
 - Windows ARM
 - macOS Intel
 - macOS ARM
-- Linux
+- Linux x64, using release alias `linux`
+- Linux ARM64, using release alias `linux-arm64`
 
 ### 2. Prepare Directories
 
-Creates or uses the specified directories:
-- **Install directory**: Where ABP Studio is installed
-  - Windows: `%LOCALAPPDATA%\abp-studio`
-  - macOS: `~/Applications`
-- **Packages directory**: Where packages are cached
+Creates or uses the package cache directory. Linux uses `~/.abpdev/cache/AbpStudio/packages`; the complete default cache hierarchy is private to the current user. Use `--packages-dir` to override it, and only use a custom cache you trust.
+
+On Windows, the default installation directory is `%LOCALAPPDATA%\abp-studio`. On macOS, the command uses `/Applications/ABP Studio.app` or `~/Applications/ABP Studio.app`. Linux uses the existing AppImage discovered above and does not create a new installation location.
 
 ### 3. Download Package
 
-Downloads `abp-studio-{version}-{channel}-full.nupkg` with progress streaming.
+Downloads the full package with progress streaming:
 
-### 4. Verify Updater
+- Linux: `AbpStudio-{version}-{channel}-full.nupkg`
+- Windows and macOS: `abp-studio-{version}-{channel}-full.nupkg`
 
-Checks that the platform updater exists:
-- Windows: `Update.exe`
-- macOS: `UpdateMac`
+### 4. Apply the Package
 
-### 5. Apply Package
+On Linux, the command validates the package metadata and architecture, extracts `lib/app/AbpStudio.AppImage` to a staged file beside the installed AppImage, restores executable permissions, and atomically replaces the installed file. Close and reopen ABP Studio to run the selected version.
 
-Runs the updater with `apply --package <path>` to install the version.
+On Windows and macOS, the command verifies and runs the existing platform updater:
+
+- Windows: `Update.exe apply --package <path>`
+- macOS: `UpdateMac apply --package <path>`
 
 ## Use Cases
 
@@ -111,7 +132,7 @@ Runs the updater with `apply --package <path>` to install the version.
 Some projects require specific ABP Studio versions:
 
 ```bash
-abpvdev abp-studio switch 1.5.0
+abpdev abp-studio switch 1.5.0
 ```
 
 ### Create Project with Specific Version
@@ -119,7 +140,7 @@ abpvdev abp-studio switch 1.5.0
 When you need to create a new project with an older version:
 
 ```bash
-abpvdev abp-studio switch 0.8.0
+abpdev abp-studio switch 0.8.0
 abp new MyProject -v 0.8.0
 ```
 
@@ -128,12 +149,12 @@ abp new MyProject -v 0.8.0
 If you encounter issues with a newer version:
 
 ```bash
-abpvdev abp-studio switch 1.0.0
+abpdev abp-studio switch 1.0.0
 ```
 
-## Important Notes
+## Installation Constraints
 
-### Does NOT Install First Time
+### Existing Installation Required
 
 This command doesn't install ABP Studio for the first time. Use the official installer for initial installation.
 
@@ -147,17 +168,17 @@ Using a shared packages directory makes switching nearly instant:
 
 ```bash
 # First time (download + apply)
-abpvdev abp-studio switch 2.0.0 -p D:\abp-studio-cache
+abpdev abp-studio switch 2.0.0 -p D:\abp-studio-cache
 
 # Second time (only apply - much faster)
-abpvdev abp-studio switch 1.9.0 -p D:\abp-studio-cache
+abpdev abp-studio switch 1.9.0 -p D:\abp-studio-cache
 ```
 
 ## Troubleshooting
 
-### Updater Not Found
+### Installation Not Found
 
-Make sure ABP Studio is installed first using the official installer.
+Make sure ABP Studio is installed first using the official installer. On Linux, pass the AppImage path or its containing directory with `--install-dir` if automatic discovery cannot find it.
 
 ### Download Failed
 
@@ -172,7 +193,7 @@ Check that you have write permissions to the install directory.
 Verify the version exists in the specified channel:
 
 ```bash
-abpvdev abp-studio switch 1.0.0 -c beta
+abpdev abp-studio switch 1.0.0 -c beta
 ```
 
 ## Next Steps
