@@ -660,7 +660,8 @@ _You can extend the list or change environments of apps by using `abpdev envapp 
     ```
 
 ## Switch ABP Studio Version
-Switches the locally installed **ABP Studio** to any published version/channel, ensuring directories exist, caching packages for reuse, and invoking the platform-specific updater with live log streaming and desktop notifications.
+
+Switches an existing **ABP Studio** installation to a published version and channel. Windows and macOS use the platform updater; Linux replaces the installed AppImage from the official package.
 
 ```bash
 abpdev abp-studio switch <version> [options]
@@ -673,30 +674,31 @@ PARAMETERS
 OPTIONS
   -c|--channel       Channel to download from. Default: "stable".
   -f|--force         Forces re-download even if the package already exists.
-  -i|--install-dir   Custom install directory. Default: %LOCALAPPDATA%\abp-studio (Windows) or OS equivalent.
+  -i|--install-dir   Custom install directory. On Linux, an AppImage file or its containing directory.
   -p|--packages-dir  Custom cache directory for downloaded packages.
   -h|--help          Shows help text.
 ```
 
 The command:
 
-- Detects your OS/CPU (Windows x64/ARM, macOS Intel/ARM, Linux) to pick the right package suffix.
-- Creates/uses the requested install and packages directories _(defaults to `%LOCALAPPDATA%\abp-studio` on Windows, `/Applications` or `~/Applications` on macOS)_.
-- Streams download progress while fetching `abp-studio-{version}-{channel}-full.nupkg`; `--force` wipes existing packages first.
-- Verifies that the platform updater (`Update.exe` on Windows or `UpdateMac` on macOS) exists before applying `apply --package <path>`.
-- Applies the downloaded package to the installed ABP Studio by using official updater. 
+- Selects the release feed from the OS and architecture. Linux x64 uses `linux`; Linux ARM64 uses `linux-arm64`.
+- Downloads `AbpStudio-{version}-{channel}-full.nupkg` on Linux. Windows and macOS packages retain the `abp-studio-{version}-{channel}-full.nupkg` name.
+- Caches Linux packages in `~/.abpdev/cache/AbpStudio/packages` by default. The complete default cache hierarchy is private to the current user. `--packages-dir` overrides the cache on every platform; only use a custom cache you trust.
+- Locates the installed Linux AppImage from `--install-dir` (a file or directory), `APPIMAGE`, an `abp-studio.desktop` entry, or a standard install location, in that order.
+- On Linux, extracts `lib/app/AbpStudio.AppImage` from the package and atomically replaces the installed AppImage. Close and reopen ABP Studio afterward.
+- On Windows and macOS, applies the package with the existing platform updater (`Update.exe` or `UpdateMac`).
 
-> ⚠️ This command doesn't add any custom DLL or executable files to your system. It only applies **official** ABP Studio nuget packages to the existing installation.
+> ⚠️ This command doesn't add any custom DLL or executable files to your system. It only applies **official** ABP Studio NuGet packages to the existing installation.
 
 Using a shared packages directory (for example on a fast SSD or network drive) makes switching between versions nearly instant because only the apply step needs to run.
 
-### When to use?
+### Common Use Cases
 
 - You're working on a project that requires a specific version of ABP Studio.
 - You need to create a new project with a specific version of ABP Studio.
 - You have a critical bug in a specific version of ABP Studio and you need to **rollback** to a previous version.
 
-> ❌ Don't use this command to install ABP Studio for the first time. Use the official installer instead. This command is only for switching between versions by applying nuget package updates.
+> ❌ Don't use this command to install ABP Studio for the first time. Use the official installer instead. This command is only for switching between versions by applying NuGet package updates.
 
 ### Example commands
 
