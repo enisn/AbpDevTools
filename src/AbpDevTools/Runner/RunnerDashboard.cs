@@ -25,6 +25,8 @@ public interface IRunnerDashboard
 public sealed class RunnerDashboard : IRunnerDashboard
 {
     private const int DashboardLogLimit = 500;
+    private const int MinimumLogPanelHeight = 3;
+    private const int PanelHorizontalChrome = 4;
     private readonly IRunnerClient _runnerClient;
     private readonly IKeyInputManager _keyInputManager;
 
@@ -57,6 +59,7 @@ public sealed class RunnerDashboard : IRunnerDashboard
         long latestLogSequence = 0;
         var consecutiveConnectionFailures = 0;
 
+        ClearInteractiveSurface(console);
         _keyInputManager.StartListening();
         try
         {
@@ -257,7 +260,9 @@ public sealed class RunnerDashboard : IRunnerDashboard
         IReadOnlyList<RunnerLogEntry> logs,
         IConsole console)
     {
-        var compact = GetWindowWidth(console) < 100;
+        var windowWidth = Math.Max(1, GetWindowWidth(console));
+        var windowHeight = Math.Max(1, GetWindowHeight(console));
+        var compact = windowWidth < 100;
         var table = new Table()
             .Border(TableBorder.Rounded)
             .Title($"Managed context: {Markup.Escape(context.DisplayName)}")
@@ -295,16 +300,30 @@ public sealed class RunnerDashboard : IRunnerDashboard
             table.AddRow(cells.ToArray());
         }
 
-        var availableLogLines = Math.Max(5, GetWindowHeight(console) - context.Applications.Length - 12);
-        var logRows = logs
-            .TakeLast(availableLogLines)
-            .Select(log => (IRenderable)new Text(
-                $"{log.Timestamp.ToLocalTime():HH:mm:ss} {log.ApplicationName} [{log.Stream}] {log.Message}"))
-            .ToArray();
-        if (logRows.Length == 0)
+        var help = new Text(
+            "↑/↓ or J/K Select | A All logs | R Restart | S Stop selected | Ctrl+S Stop context | Q/Esc Detach");
+
+        if (windowHeight <= MinimumLogPanelHeight)
         {
-            logRows = new IRenderable[] { new Text("No captured output yet.") };
+            return new Rows(table, help);
         }
+
+        var renderOptions = CreateRenderOptions(windowWidth, windowHeight);
+        var measuredTableHeight = MeasureRenderableHeight(table, renderOptions, windowWidth);
+        var measuredHelpHeight = MeasureRenderableHeight(help, renderOptions, windowWidth);
+        var fixedRegionBudget = windowHeight - MinimumLogPanelHeight;
+        var tableHeight = Math.Min(measuredTableHeight, Math.Max(1, fixedRegionBudget));
+        var helpHeight = Math.Min(
+            measuredHelpHeight,
+            Math.Max(0, fixedRegionBudget - tableHeight));
+        var logPanelHeight = windowHeight - tableHeight - helpHeight;
+        var logContentHeight = Math.Max(1, logPanelHeight - 2);
+        var logContentWidth = Math.Max(1, windowWidth - PanelHorizontalChrome);
+        var logRows = BuildVisibleLogRows(
+            logs,
+            logContentHeight,
+            logContentWidth,
+            renderOptions);
 
         var logTitle = showAllLogs
             ? "Logs: all applications"
@@ -313,12 +332,81 @@ public sealed class RunnerDashboard : IRunnerDashboard
         {
             Header = new PanelHeader(Markup.Escape(logTitle)),
             Border = BoxBorder.Rounded,
-            Expand = true
+            Expand = true,
+            Height = logPanelHeight
         };
 
-        var help = new Text(
-            "↑/↓ or J/K Select | A All logs | R Restart | S Stop selected | Ctrl+S Stop context | Q/Esc Detach");
-        return new Rows(table, panel, help);
+        var regions = new List<Layout>
+        {
+            new(table) { Size = tableHeight },
+            new(panel) { Size = logPanelHeight }
+        };
+        if (helpHeight > 0)
+        {
+            regions.Add(new Layout(help) { Size = helpHeight });
+        }
+
+        return new Layout().SplitRows(regions.ToArray());
+    }
+
+    private static IRenderable[] BuildVisibleLogRows(
+        IReadOnlyList<RunnerLogEntry> logs,
+        int availableHeight,
+        int availableWidth,
+        RenderOptions renderOptions)
+    {
+        if (logs.Count == 0)
+        {
+            return new IRenderable[] { new Text("No captured output yet.") };
+        }
+
+        var rows = new List<IRenderable>();
+        var remainingHeight = availableHeight;
+        for (var index = logs.Count - 1; index >= 0 && remainingHeight > 0; index--)
+        {
+            var log = logs[index];
+            var row = new Text(
+                $"{log.Timestamp.ToLocalTime():HH:mm:ss} {log.ApplicationName} [{log.Stream}] {log.Message}");
+            var rowHeight = MeasureRenderableHeight(row, renderOptions, availableWidth);
+            if (rowHeight > remainingHeight && rows.Count > 0)
+            {
+                break;
+            }
+
+            rows.Add(row);
+            remainingHeight -= Math.Min(rowHeight, remainingHeight);
+        }
+
+        rows.Reverse();
+        return rows.ToArray();
+    }
+
+    private static RenderOptions CreateRenderOptions(int width, int height)
+    {
+        return new RenderOptions(
+            AnsiConsole.Console.Profile.Capabilities,
+            new Size(width, height));
+    }
+
+    private static int MeasureRenderableHeight(
+        IRenderable renderable,
+        RenderOptions renderOptions,
+        int width)
+    {
+        return Math.Max(
+            1,
+            Segment.SplitLines(renderable.Render(renderOptions, width), width).Count);
+    }
+
+    internal static void ClearInteractiveSurface(IConsole console)
+    {
+        try
+        {
+            console.Clear();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+        }
     }
 
     private static IRenderable BuildUnavailableView(int attempt)

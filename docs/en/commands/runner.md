@@ -56,6 +56,8 @@ abpdev attach [workingdirectory]
 
 `attach` opens the same state-and-log dashboard used by a foreground `abpdev run`. If the current directory does not match and only one context is active, that context is selected automatically. With multiple active contexts, an interactive terminal offers a context picker.
 
+The dashboard clears the terminal once when it opens. Its status table remains at the top, while the log panel is constrained to the rows left in the current viewport and recalculated when the terminal size changes.
+
 Quitting or pressing `Ctrl+C` from `attach` only disconnects the dashboard; it does not stop applications. Use `S`, `Ctrl+S`, or `abpdev stop` for explicit process control.
 
 ## Context and Reconciliation Rules
