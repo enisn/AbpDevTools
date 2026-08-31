@@ -1,9 +1,9 @@
 ---
 name: abpdev-workflow
 description: >-
-  Run the core AbpDevTools developer workflow commands: build, run, test,
-  prepare, logs, and bundle. Use when the user wants to build or run ABP
-  solutions, prepare a machine, inspect logs, or handle Blazor WASM bundling.
+  Run and manage the core AbpDevTools developer workflow: build, migrate,
+  launch, inspect, log, stop, test, prepare, and bundle ABP applications. Use
+  for foreground or agent-managed background application workflows.
 ---
 
 # abpdev workflow
@@ -16,10 +16,13 @@ Use this skill for the day-to-day application workflow commands.
 |---|---|
 | `abpdev build` | Recursively build solutions/projects |
 | `abpdev migrate` | Run `.DbMigrator` projects or fallback `--migrate-database` apps |
-| `abpdev run` | Run app projects and optionally migrators |
+| `abpdev run` | Run app projects through the centralized runner and optionally run migrators |
+| `abpdev ps` | List applications managed across active runner contexts |
+| `abpdev stop` | Stop all or selected applications in one resolved context |
+| `abpdev attach` | Open the interactive state-and-log dashboard for a context |
 | `abpdev test` | Recursively run `dotnet test` |
 | `abpdev prepare` | Prepare the project on a new machine |
-| `abpdev logs` | Open the selected project's `Logs` folder or `logs.txt` |
+| `abpdev logs` | Return captured process logs, with filesystem fallback |
 | `abpdev bundle` | Run `abp bundle` for Blazor WASM projects |
 | `abpdev bundle list` | List Blazor WASM projects that need bundling |
 
@@ -67,6 +70,7 @@ Useful options:
 - `-r`, `--retry`: retry when apps exit
 - `-v`, `--verbose`: show verbose project output
 - `--yml`: explicitly point to an exact `abpdev.yml` path
+- `-d`, `--detach`: launch through the centralized runner and return immediately
 
 Behavior:
 
@@ -74,6 +78,27 @@ Behavior:
 - Runs migrators first unless skipped
 - Prompts for project selection when multiple runnable apps are found and interactive input is available
 - Can detect missing `wwwroot/libs` and offer to run `abp install-libs`
+- Always delegates application ownership and output capture to the per-user centralized runner
+- Opens the interactive dashboard by default; `--detach` leaves applications running and returns control to the caller
+
+## Centralized runner lifecycle
+
+```bash
+abpdev ps
+abpdev ps --current --json
+abpdev stop [working-directory] -p MyApp.HttpApi.Host
+abpdev attach [working-directory]
+```
+
+Behavior:
+
+- The runner starts on demand and exits shortly after its last application stops.
+- A context is the canonical working directory plus the resolved root `abpdev.yml` path.
+- `abpdev ps` lists active applications from every context by default. Use `--current` or a positional directory to scope it, `--all` to include inactive entries, and `--json` for machine-readable state when the runner is available. If no runner exists, the command returns a plain explanatory message.
+- `abpdev stop` affects only the resolved directory/YAML context. Without `-p`, it stops that context's active applications; repeated `-p`/`--projects` selectors restrict the operation.
+- If `run` used an explicit `--yml`, pass that same path to scoped `ps`, `stop`, or `attach` commands so they resolve the same context identity.
+- Starting an already active application does not create a duplicate process.
+- `abpdev attach` opens the interactive dashboard. Leaving an attached dashboard does not stop its applications; use `abpdev stop` for explicit lifecycle control.
 
 ## migrate
 
@@ -159,15 +184,20 @@ Behavior:
 ```bash
 abpdev logs <project-name> -p <working-directory>
 abpdev logs -i -p <working-directory>
-abpdev logs <project-name> -n 20
+abpdev logs <project-name> --lines 20
+abpdev logs <project-name> --follow
+abpdev logs --managed --lines 200
 abpdev logs <project-name> --open
 ```
 
 Behavior:
 
-- Finds runnable projects
-- Prints the last 100 lines from `<project>/Logs/logs.txt` by default
-- `-n`, `--lines` controls how many lines are printed
+- For a named project with an active managed process, returns captured stdout/stderr.
+- If no matching process is active, explicitly reports the fallback and reads `<project>/Logs/logs.txt`.
+- Prints at most the last 100 lines by default and exits immediately.
+- `-n`, `--lines` controls the maximum returned lines for managed and filesystem logs.
+- `-f`, `--follow` follows managed output until cancellation; avoid it for bounded agent checks.
+- `--managed` without a project combines captured logs for the current context.
 - `-o`, `--open` opens the log file or folder with the OS default app instead
 
 ## bundle
@@ -189,6 +219,10 @@ Behavior:
 - Use `abpdev run --yml <path>` when the repo has multiple startup contexts.
 - Use `abpdev bundle list` before `abpdev bundle` if the user only wants discovery.
 - Prefer explicit `--projects` filters in large monorepos to avoid launching unrelated apps.
+- For agent work, use `abpdev run --detach` so the launch command returns, then poll `abpdev ps --current --json` for state/readiness. A successful launch request does not by itself mean every application is ready.
+- Use `abpdev logs <project> --lines <count>` for bounded diagnostics. It is non-interactive and automatically chooses active runner output or filesystem fallback.
+- Use `abpdev stop -p <project>` for a selected app or unfiltered `abpdev stop` only when the user intends to stop the entire current context.
+- Do not use `abpdev attach` in non-interactive automation; it is the human dashboard.
 
 ## Typical workflows
 
@@ -196,8 +230,14 @@ Behavior:
 # First-time setup on a machine
 abpdev prepare
 
-# Daily development run
+# Human-attached daily development run
 abpdev run -e SqlServer
+
+# Agent-managed run, readiness check, bounded logs, and scoped stop
+abpdev run --detach --skip-migrate -p MyApp.HttpApi.Host
+abpdev ps --current --json
+abpdev logs MyApp.HttpApi.Host --lines 200
+abpdev stop -p MyApp.HttpApi.Host
 
 # Run only database migrations
 abpdev migrate -e SqlServer
