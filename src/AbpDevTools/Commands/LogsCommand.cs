@@ -5,7 +5,7 @@ using Spectre.Console;
 
 namespace AbpDevTools.Commands;
 
-[Command("logs", Description = "Print the last lines of project logs or open them with the operating system default app.")]
+[Command("logs", Description = "Print recent logs from a running managed application, with filesystem fallback, or open filesystem logs.")]
 public class LogsCommand : ICommand
 {
     private const int DefaultTailLineCount = 100;
@@ -22,13 +22,13 @@ public class LogsCommand : ICommand
     [CommandOption("open", 'o', Description = "Open the log file or folder with the operating system default app instead of printing log lines.")]
     public bool OpenWithDefaultApp { get; set; }
 
-    [CommandOption("lines", 'n', Description = "Number of lines to print from the end of logs.txt when not using --open. Default: 100.")]
+    [CommandOption("lines", 'n', Description = "Maximum number of recent log lines to print. Default: 100.")]
     public int Lines { get; set; } = DefaultTailLineCount;
 
     [CommandOption("follow", 'f', Description = "Follow stdout and stderr captured by the centralized runner.")]
     public bool Follow { get; set; }
 
-    [CommandOption("managed", Description = "Read logs captured by the centralized runner, including all applications when no project is supplied.")]
+    [CommandOption("managed", Description = "Without a project, combine logs captured by the centralized runner for the current context.")]
     public bool Managed { get; set; }
 
     protected readonly RunnableProjectsProvider runnableProjectsProvider;
@@ -180,6 +180,12 @@ public class LogsCommand : ICommand
 
         if (context is null)
         {
+            if (!string.IsNullOrWhiteSpace(ProjectName))
+            {
+                await WriteFilesystemFallbackAsync(console);
+                return false;
+            }
+
             if (Managed || Follow)
             {
                 await console.Output.WriteLineAsync(
@@ -212,9 +218,14 @@ public class LogsCommand : ICommand
                     return true;
                 }
 
-                return Managed || Follow
-                    ? await WriteNoManagedProjectAsync(console)
-                    : false;
+                await WriteFilesystemFallbackAsync(console);
+                return false;
+            }
+
+            if (!selectedApplication.IsActive)
+            {
+                await WriteFilesystemFallbackAsync(console);
+                return false;
             }
         }
         else if (!Managed && !Follow)
@@ -290,10 +301,11 @@ public class LogsCommand : ICommand
         return true;
     }
 
-    private async Task<bool> WriteNoManagedProjectAsync(IConsole console)
+    private async Task WriteFilesystemFallbackAsync(IConsole console)
     {
-        await console.Output.WriteLineAsync($"No managed application found with the name '{ProjectName}'.");
-        return true;
+        await console.Output.WriteLineAsync(
+            $"No active managed process was found for '{ProjectName}'. " +
+            "Falling back to filesystem logs (Logs/logs.txt).");
     }
 
     private static string FormatManagedLog(RunnerLogEntry entry)

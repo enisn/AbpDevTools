@@ -28,9 +28,11 @@ abpdev logs [command] [...]
 | `--interactive` | `-i` | Options will be asked as prompt |
 | `--lines` | `-n` | Number of recent lines to print. Default: `100` |
 | `--follow` | `-f` | Follow stdout/stderr captured by the centralized runner |
-| `--managed` | | Force runner-captured logs; without a project, combine logs for the context |
+| `--managed` | | Without a project, combine runner-captured logs for the current context |
 | `--open` | `-o` | Open the application log file/folder instead of printing it |
 | `--help` | `-h` | Shows help text |
+
+Except for `--follow` and the explicitly requested `--interactive` mode, the command prints the requested lines and exits immediately. This makes `--lines` suitable for scripts and AI agents.
 
 ## Commands
 
@@ -47,6 +49,16 @@ abpdev logs Web
 ```
 
 Shows logs for the project containing "Web" in its name.
+
+If the project is actively managed, these lines come from its captured stdout/stderr. Otherwise, the command reports that it is falling back and reads the project's `Logs/logs.txt` file.
+
+### Read a Bounded Log Tail
+
+```bash
+abpdev logs Web --lines 200
+```
+
+Returns at most 200 recent lines and exits without opening the dashboard or an interactive prompt.
 
 ### Follow Managed Output
 
@@ -89,8 +101,8 @@ Opens an interactive prompt to select the project.
 ## How It Works
 
 1. Resolves the same working-directory/YAML context used by `abpdev run`
-2. Prefers captured runner output when the requested project is managed
-3. Falls back to the application's `Logs/logs.txt` when no managed match exists
+2. Uses captured runner output when the requested project's managed process is active
+3. Otherwise, reports the source change and falls back to the application's `Logs/logs.txt`
 
 Runner output is also written to the per-user `abpdev/runner/logs` directory. Each file is rotated at 5 MB and one previous segment is retained.
 
