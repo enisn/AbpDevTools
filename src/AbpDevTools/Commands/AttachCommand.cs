@@ -80,7 +80,8 @@ public sealed class AttachCommand : ICommand
         var dashboardResult = await _runnerDashboard.RunAsync(context.ContextKey, console, cancellationToken);
         if (dashboardResult is RunnerDashboardResult.Detached or RunnerDashboardResult.Cancelled)
         {
-            await console.Output.WriteLineAsync("Dashboard detached; applications remain managed in the background.");
+            await console.Output.WriteLineAsync("Dashboard detached. Applications continue running in the background.");
+            await console.Output.WriteLineAsync("Run 'abpdev attach' to reopen the dashboard.");
         }
         else if (dashboardResult == RunnerDashboardResult.Unavailable)
         {

@@ -112,7 +112,8 @@ public sealed class RunnerCommandTests : IDisposable
             console,
             Arg.Any<CancellationToken>());
         await _runnerClient.DidNotReceiveWithAnyArgs().StopAsync(default!, default!, default);
-        console.GetOutput().ShouldContain("applications remain managed");
+        console.GetOutput().ShouldContain("Applications continue running in the background.");
+        console.GetOutput().ShouldContain("Run 'abpdev attach' to reopen the dashboard.");
     }
 
     public void Dispose()

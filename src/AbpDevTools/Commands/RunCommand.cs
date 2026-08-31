@@ -350,7 +350,8 @@ public partial class RunCommand : ICommand
         }
         else if (dashboardResult == RunnerDashboardResult.Detached)
         {
-            await console.Output.WriteLineAsync("Dashboard detached; applications remain managed in the background.");
+            await console.Output.WriteLineAsync("Dashboard detached. Applications continue running in the background.");
+            await console.Output.WriteLineAsync("Run 'abpdev attach' to reopen the dashboard.");
         }
         else if (dashboardResult == RunnerDashboardResult.Unavailable)
         {
