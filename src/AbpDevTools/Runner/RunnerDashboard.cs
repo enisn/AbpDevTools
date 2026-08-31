@@ -24,11 +24,11 @@ public interface IRunnerDashboard
 [RegisterTransient]
 public sealed class RunnerDashboard : IRunnerDashboard
 {
-    private const int DashboardLogLimit = 5_000;
+    private const int DashboardLogLimit = 500;
+    private const int PlainLogInitialLimit = 1_000;
+    private const int PlainLogFollowBatchLimit = 500;
     private const int MinimumLogPanelHeight = 3;
     private const int PanelHorizontalChrome = 4;
-    private const string LogViewerHelp =
-        "↑/↓ or J/K Scroll | PgUp/PgDn Page | Home/End Oldest/Newest | F Follow | L/Q/Esc Back";
     private readonly IRunnerClient _runnerClient;
     private readonly IKeyInputManager _keyInputManager;
 
@@ -56,180 +56,186 @@ public sealed class RunnerDashboard : IRunnerDashboard
         var result = RunnerDashboardResult.Completed;
         var selectedIndex = 0;
         var showAllLogs = false;
-        var showLogViewer = false;
-        var logScrollOffset = 0;
         var logs = new List<RunnerLogEntry>();
         string? logApplicationId = null;
         long latestLogSequence = 0;
         var consecutiveConnectionFailures = 0;
+        var openPlainLogViewer = false;
+        string? plainLogApplicationId = null;
+        var plainLogDisplayName = string.Empty;
 
         ClearInteractiveSurface(console);
         _keyInputManager.StartListening();
         try
         {
-            await AnsiConsole.Live(new Text("Connecting to the centralized runner..."))
-                .StartAsync(async liveContext =>
-                {
-                    while (true)
+            do
+            {
+                openPlainLogViewer = false;
+                plainLogApplicationId = null;
+                plainLogDisplayName = string.Empty;
+
+                await AnsiConsole.Live(new Text("Connecting to the centralized runner..."))
+                    .StartAsync(async liveContext =>
                     {
-                        if (cancellationToken.IsCancellationRequested)
+                        while (true)
                         {
-                            result = RunnerDashboardResult.Cancelled;
-                            break;
-                        }
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                result = RunnerDashboardResult.Cancelled;
+                                break;
+                            }
 
-                        var listResponse = await _runnerClient.ListAsync(
-                            contextKey,
-                            includeInactive: true,
-                            cancellationToken);
-                        var context = listResponse?.Success == true
-                            ? listResponse.Contexts.FirstOrDefault()
-                            : null;
+                            var listResponse = await _runnerClient.ListAsync(
+                                contextKey,
+                                includeInactive: true,
+                                cancellationToken);
+                            var context = listResponse?.Success == true
+                                ? listResponse.Contexts.FirstOrDefault()
+                                : null;
 
-                        if (context is null)
-                        {
-                            consecutiveConnectionFailures++;
-                            liveContext.UpdateTarget(BuildUnavailableView(consecutiveConnectionFailures));
+                            if (context is null)
+                            {
+                                consecutiveConnectionFailures++;
+                                liveContext.UpdateTarget(BuildUnavailableView(consecutiveConnectionFailures));
+                                liveContext.Refresh();
+
+                                if (consecutiveConnectionFailures >= 5)
+                                {
+                                    result = RunnerDashboardResult.Unavailable;
+                                    break;
+                                }
+
+                                await DelayAsync(cancellationToken);
+                                continue;
+                            }
+
+                            consecutiveConnectionFailures = 0;
+                            var applications = context.Applications;
+                            if (applications.Length == 0)
+                            {
+                                liveContext.UpdateTarget(BuildEmptyView(context));
+                                liveContext.Refresh();
+                                result = RunnerDashboardResult.Completed;
+                                break;
+                            }
+
+                            selectedIndex = Math.Clamp(selectedIndex, 0, applications.Length - 1);
+                            var selectedApplication = applications[selectedIndex];
+                            var requestedLogApplicationId = showAllLogs ? null : selectedApplication.Id;
+                            if (!string.Equals(logApplicationId, requestedLogApplicationId, StringComparison.Ordinal))
+                            {
+                                logApplicationId = requestedLogApplicationId;
+                                latestLogSequence = 0;
+                                logs.Clear();
+                            }
+
+                            var logsResponse = await _runnerClient.GetLogsAsync(
+                                contextKey,
+                                logApplicationId,
+                                latestLogSequence,
+                                DashboardLogLimit,
+                                cancellationToken);
+                            if (logsResponse?.Success == true && logsResponse.Logs.Length > 0)
+                            {
+                                logs.AddRange(logsResponse.Logs);
+                                latestLogSequence = logsResponse.Logs[^1].Sequence;
+                                if (logs.Count > DashboardLogLimit)
+                                {
+                                    logs.RemoveRange(0, logs.Count - DashboardLogLimit);
+                                }
+                            }
+
+                            liveContext.UpdateTarget(BuildView(context, selectedIndex, showAllLogs, logs, console));
                             liveContext.Refresh();
 
-                            if (consecutiveConnectionFailures >= 5)
+                            var key = _keyInputManager.TryGetNextKey();
+                            if (key is not null)
                             {
-                                result = RunnerDashboardResult.Unavailable;
+                                if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
+                                {
+                                    result = RunnerDashboardResult.Detached;
+                                    break;
+                                }
+
+                                if (key.Key is ConsoleKey.UpArrow or ConsoleKey.K)
+                                {
+                                    selectedIndex = selectedIndex == 0 ? applications.Length - 1 : selectedIndex - 1;
+                                }
+                                else if (key.Key is ConsoleKey.DownArrow or ConsoleKey.J)
+                                {
+                                    selectedIndex = (selectedIndex + 1) % applications.Length;
+                                }
+                                else if (key.Key == ConsoleKey.A)
+                                {
+                                    showAllLogs = !showAllLogs;
+                                }
+                                else if (key.Key == ConsoleKey.L)
+                                {
+                                    plainLogApplicationId = requestedLogApplicationId;
+                                    plainLogDisplayName = showAllLogs
+                                        ? $"{context.DisplayName} (all applications)"
+                                        : selectedApplication.DisplayName;
+                                    openPlainLogViewer = true;
+                                    break;
+                                }
+                                else if (key.Key == ConsoleKey.R)
+                                {
+                                    await _runnerClient.RestartAsync(
+                                        contextKey,
+                                        selectedApplication.Id,
+                                        cancellationToken: cancellationToken);
+                                }
+                                else if (key.Key == ConsoleKey.S && key.CtrlPressed)
+                                {
+                                    await _runnerClient.StopAsync(
+                                        contextKey,
+                                        Array.Empty<string>(),
+                                        cancellationToken);
+                                }
+                                else if (key.Key == ConsoleKey.S)
+                                {
+                                    await _runnerClient.StopAsync(
+                                        contextKey,
+                                        new[] { selectedApplication.Id },
+                                        cancellationToken);
+                                }
+                            }
+
+                            if (!applications.Any(x => x.IsActive))
+                            {
+                                result = RunnerDashboardResult.Completed;
                                 break;
                             }
 
                             await DelayAsync(cancellationToken);
-                            continue;
                         }
+                    });
 
-                        consecutiveConnectionFailures = 0;
-                        var applications = context.Applications;
-                        if (applications.Length == 0)
-                        {
-                            liveContext.UpdateTarget(BuildEmptyView(context));
-                            liveContext.Refresh();
-                            result = RunnerDashboardResult.Completed;
-                            break;
-                        }
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    result = RunnerDashboardResult.Cancelled;
+                    break;
+                }
 
-                        selectedIndex = Math.Clamp(selectedIndex, 0, applications.Length - 1);
-                        var selectedApplication = applications[selectedIndex];
-                        var requestedLogApplicationId = showAllLogs ? null : selectedApplication.Id;
-                        if (!string.Equals(logApplicationId, requestedLogApplicationId, StringComparison.Ordinal))
-                        {
-                            logApplicationId = requestedLogApplicationId;
-                            latestLogSequence = 0;
-                            logScrollOffset = 0;
-                            logs.Clear();
-                        }
-
-                        var logsResponse = await _runnerClient.GetLogsAsync(
-                            contextKey,
-                            logApplicationId,
-                            latestLogSequence,
-                            DashboardLogLimit,
-                            cancellationToken);
-                        if (logsResponse?.Success == true && logsResponse.Logs.Length > 0)
-                        {
-                            if (showLogViewer && logScrollOffset > 0)
-                            {
-                                logScrollOffset += logsResponse.Logs.Length;
-                            }
-
-                            logs.AddRange(logsResponse.Logs);
-                            latestLogSequence = logsResponse.Logs[^1].Sequence;
-                            if (logs.Count > DashboardLogLimit)
-                            {
-                                logs.RemoveRange(0, logs.Count - DashboardLogLimit);
-                            }
-                        }
-
-                        logScrollOffset = ClampLogScrollOffset(logScrollOffset, logs, console);
-                        liveContext.UpdateTarget(
-                            showLogViewer
-                                ? BuildLogView(
-                                    context,
-                                    selectedIndex,
-                                    showAllLogs,
-                                    logs,
-                                    logScrollOffset,
-                                    console)
-                                : BuildView(context, selectedIndex, showAllLogs, logs, console));
-                        liveContext.Refresh();
-
-                        var key = _keyInputManager.TryGetNextKey();
-                        if (key is not null)
-                        {
-                            if (showLogViewer)
-                            {
-                                if (key.Key is ConsoleKey.L or ConsoleKey.Q or ConsoleKey.Escape)
-                                {
-                                    showLogViewer = false;
-                                    logScrollOffset = 0;
-                                }
-                                else
-                                {
-                                    logScrollOffset = AdjustLogScrollOffset(
-                                        key.Key,
-                                        logScrollOffset,
-                                        logs,
-                                        console);
-                                }
-                            }
-                            else if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
-                            {
-                                result = RunnerDashboardResult.Detached;
-                                break;
-                            }
-                            else if (key.Key is ConsoleKey.UpArrow or ConsoleKey.K)
-                            {
-                                selectedIndex = selectedIndex == 0 ? applications.Length - 1 : selectedIndex - 1;
-                            }
-                            else if (key.Key is ConsoleKey.DownArrow or ConsoleKey.J)
-                            {
-                                selectedIndex = (selectedIndex + 1) % applications.Length;
-                            }
-                            else if (key.Key == ConsoleKey.A)
-                            {
-                                showAllLogs = !showAllLogs;
-                            }
-                            else if (key.Key == ConsoleKey.L)
-                            {
-                                showLogViewer = true;
-                                logScrollOffset = 0;
-                            }
-                            else if (key.Key == ConsoleKey.R)
-                            {
-                                await _runnerClient.RestartAsync(
-                                    contextKey,
-                                    selectedApplication.Id,
-                                    cancellationToken: cancellationToken);
-                            }
-                            else if (key.Key == ConsoleKey.S && key.CtrlPressed)
-                            {
-                                await _runnerClient.StopAsync(
-                                    contextKey,
-                                    Array.Empty<string>(),
-                                    cancellationToken);
-                            }
-                            else if (key.Key == ConsoleKey.S)
-                            {
-                                await _runnerClient.StopAsync(
-                                    contextKey,
-                                    new[] { selectedApplication.Id },
-                                    cancellationToken);
-                            }
-                        }
-
-                        if (!applications.Any(x => x.IsActive))
-                        {
-                            result = RunnerDashboardResult.Completed;
-                            break;
-                        }
-
-                        await DelayAsync(cancellationToken);
+                if (openPlainLogViewer)
+                {
+                    var returnToDashboard = await RunPlainLogViewerAsync(
+                        contextKey,
+                        plainLogApplicationId,
+                        plainLogDisplayName,
+                        console,
+                        cancellationToken);
+                    if (!returnToDashboard)
+                    {
+                        result = RunnerDashboardResult.Cancelled;
+                        break;
                     }
-                });
+
+                    logs.Clear();
+                    latestLogSequence = 0;
+                    ClearInteractiveSurface(console);
+                }
+            } while (openPlainLogViewer);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -241,6 +247,73 @@ public sealed class RunnerDashboard : IRunnerDashboard
         }
 
         return result;
+    }
+
+    internal async Task<bool> RunPlainLogViewerAsync(
+        string contextKey,
+        string? applicationId,
+        string displayName,
+        IConsole console,
+        CancellationToken cancellationToken)
+    {
+        ClearInteractiveSurface(console);
+        await console.Output.WriteLineAsync(
+            $"Logs: {displayName} (showing at most the latest {PlainLogInitialLimit} entries; press Esc to return)");
+        await console.Output.WriteLineAsync();
+
+        var afterSequence = 0L;
+        var initialRequest = true;
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var key = _keyInputManager.TryGetNextKey();
+            if (key?.Key == ConsoleKey.Escape)
+            {
+                return true;
+            }
+
+            RunnerResponse? response;
+            try
+            {
+                response = await _runnerClient.GetLogsAsync(
+                    contextKey,
+                    applicationId,
+                    afterSequence,
+                    initialRequest ? PlainLogInitialLimit : PlainLogFollowBatchLimit,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            if (response?.Success != true)
+            {
+                await console.Output.WriteLineAsync(
+                    response?.Error ?? "The centralized runner became unavailable. Returning to the dashboard.");
+                return true;
+            }
+
+            if (response.Logs.Length == 0 && initialRequest)
+            {
+                await console.Output.WriteLineAsync("No captured output yet. Waiting for new output...");
+            }
+
+            foreach (var entry in response.Logs)
+            {
+                await console.Output.WriteLineAsync(
+                    FormatPlainLog(entry, includeApplicationName: applicationId is null));
+            }
+
+            if (response.Logs.Length > 0)
+            {
+                afterSequence = response.Logs[^1].Sequence;
+            }
+
+            initialRequest = false;
+            await DelayAsync(cancellationToken);
+        }
+
+        return false;
     }
 
     private async Task<RunnerDashboardResult> RunPlainAsync(
@@ -341,7 +414,7 @@ public sealed class RunnerDashboard : IRunnerDashboard
         }
 
         var help = new Text(
-            "↑/↓ or J/K Select | A All logs | L Full logs | R Restart | S Stop selected | Ctrl+S Stop context | Q/Esc Detach");
+            "↑/↓ or J/K Select | A All logs | L Logs | R Restart | S Stop selected | Ctrl+S Stop context | Q/Esc Detach");
 
         if (windowHeight <= MinimumLogPanelHeight)
         {
@@ -359,12 +432,11 @@ public sealed class RunnerDashboard : IRunnerDashboard
         var logPanelHeight = windowHeight - tableHeight - helpHeight;
         var logContentHeight = Math.Max(1, logPanelHeight - 2);
         var logContentWidth = Math.Max(1, windowWidth - PanelHorizontalChrome);
-        var logRows = BuildVisibleLogPage(
+        var logRows = BuildVisibleLogRows(
             logs,
             logContentHeight,
             logContentWidth,
-            renderOptions,
-            scrollOffset: 0).Rows;
+            renderOptions);
 
         var logTitle = showAllLogs
             ? "Logs: all applications"
@@ -390,106 +462,20 @@ public sealed class RunnerDashboard : IRunnerDashboard
         return new Layout().SplitRows(regions.ToArray());
     }
 
-    internal static IRenderable BuildLogView(
-        RunnerContextSnapshot context,
-        int selectedIndex,
-        bool showAllLogs,
-        IReadOnlyList<RunnerLogEntry> logs,
-        int scrollOffset,
-        IConsole console)
-    {
-        var dimensions = CalculateLogViewDimensions(console);
-        var maximumOffset = GetMaximumLogScrollOffset(logs, dimensions);
-        var boundedOffset = Math.Clamp(scrollOffset, 0, maximumOffset);
-        var page = BuildVisibleLogPage(
-            logs,
-            dimensions.ContentHeight,
-            dimensions.ContentWidth,
-            dimensions.RenderOptions,
-            boundedOffset);
-        var scope = showAllLogs
-            ? "all applications"
-            : context.Applications[selectedIndex].DisplayName;
-        var mode = boundedOffset == 0
-            ? "LIVE"
-            : $"PAUSED • {boundedOffset} newer entr{(boundedOffset == 1 ? "y" : "ies")}";
-        var panel = new Panel(new Rows(page.Rows))
-        {
-            Header = new PanelHeader(Markup.Escape($"Logs: {scope} • {mode}")),
-            Border = BoxBorder.Rounded,
-            Expand = true,
-            Height = dimensions.PanelHeight
-        };
-
-        var regions = new List<Layout>
-        {
-            new(panel) { Size = dimensions.PanelHeight }
-        };
-        if (dimensions.HelpHeight > 0)
-        {
-            regions.Add(new Layout(new Text(LogViewerHelp)) { Size = dimensions.HelpHeight });
-        }
-
-        return new Layout().SplitRows(regions.ToArray());
-    }
-
-    internal static int AdjustLogScrollOffset(
-        ConsoleKey key,
-        int currentOffset,
-        IReadOnlyList<RunnerLogEntry> logs,
-        IConsole console)
-    {
-        var dimensions = CalculateLogViewDimensions(console);
-        var maximumOffset = GetMaximumLogScrollOffset(logs, dimensions);
-        var boundedOffset = Math.Clamp(currentOffset, 0, maximumOffset);
-        var pageSize = Math.Max(
-            1,
-            BuildVisibleLogPage(
-                logs,
-                dimensions.ContentHeight,
-                dimensions.ContentWidth,
-                dimensions.RenderOptions,
-                boundedOffset).EntryCount);
-
-        return key switch
-        {
-            ConsoleKey.UpArrow or ConsoleKey.K => Math.Min(maximumOffset, boundedOffset + 1),
-            ConsoleKey.DownArrow or ConsoleKey.J => Math.Max(0, boundedOffset - 1),
-            ConsoleKey.PageUp => Math.Min(maximumOffset, boundedOffset + pageSize),
-            ConsoleKey.PageDown => Math.Max(0, boundedOffset - pageSize),
-            ConsoleKey.Home => maximumOffset,
-            ConsoleKey.End or ConsoleKey.F => 0,
-            _ => boundedOffset
-        };
-    }
-
-    private static int ClampLogScrollOffset(
-        int scrollOffset,
-        IReadOnlyList<RunnerLogEntry> logs,
-        IConsole console)
-    {
-        var dimensions = CalculateLogViewDimensions(console);
-        return Math.Clamp(scrollOffset, 0, GetMaximumLogScrollOffset(logs, dimensions));
-    }
-
-    private static VisibleLogPage BuildVisibleLogPage(
+    private static IRenderable[] BuildVisibleLogRows(
         IReadOnlyList<RunnerLogEntry> logs,
         int availableHeight,
         int availableWidth,
-        RenderOptions renderOptions,
-        int scrollOffset)
+        RenderOptions renderOptions)
     {
         if (logs.Count == 0)
         {
-            return new VisibleLogPage(
-                new IRenderable[] { new Text("No captured output yet.") },
-                EntryCount: 0);
+            return new IRenderable[] { new Text("No captured output yet.") };
         }
 
         var rows = new List<IRenderable>();
         var remainingHeight = availableHeight;
-        var lastIndex = Math.Clamp(logs.Count - 1 - scrollOffset, 0, logs.Count - 1);
-        for (var index = lastIndex; index >= 0 && remainingHeight > 0; index--)
+        for (var index = logs.Count - 1; index >= 0 && remainingHeight > 0; index--)
         {
             var log = logs[index];
             var row = new Text(
@@ -505,62 +491,7 @@ public sealed class RunnerDashboard : IRunnerDashboard
         }
 
         rows.Reverse();
-        return new VisibleLogPage(rows.ToArray(), rows.Count);
-    }
-
-    private static int GetMaximumLogScrollOffset(
-        IReadOnlyList<RunnerLogEntry> logs,
-        LogViewDimensions dimensions)
-    {
-        if (logs.Count == 0)
-        {
-            return 0;
-        }
-
-        var usedHeight = 0;
-        var lastVisibleIndex = 0;
-        for (var index = 0; index < logs.Count; index++)
-        {
-            var log = logs[index];
-            var row = new Text(
-                $"{log.Timestamp.ToLocalTime():HH:mm:ss} {log.ApplicationName} [{log.Stream}] {log.Message}");
-            var rowHeight = MeasureRenderableHeight(
-                row,
-                dimensions.RenderOptions,
-                dimensions.ContentWidth);
-            if (usedHeight + rowHeight > dimensions.ContentHeight && index > 0)
-            {
-                break;
-            }
-
-            usedHeight += Math.Min(rowHeight, dimensions.ContentHeight);
-            lastVisibleIndex = index;
-            if (usedHeight >= dimensions.ContentHeight)
-            {
-                break;
-            }
-        }
-
-        return Math.Max(0, logs.Count - 1 - lastVisibleIndex);
-    }
-
-    private static LogViewDimensions CalculateLogViewDimensions(IConsole console)
-    {
-        var windowWidth = Math.Max(1, GetWindowWidth(console));
-        var windowHeight = Math.Max(1, GetWindowHeight(console));
-        var renderOptions = CreateRenderOptions(windowWidth, windowHeight);
-        var help = new Text(LogViewerHelp);
-        var measuredHelpHeight = MeasureRenderableHeight(help, renderOptions, windowWidth);
-        var helpHeight = Math.Min(
-            measuredHelpHeight,
-            Math.Max(0, windowHeight - MinimumLogPanelHeight));
-        var panelHeight = Math.Max(1, windowHeight - helpHeight);
-        return new LogViewDimensions(
-            panelHeight,
-            Math.Max(1, panelHeight - 2),
-            Math.Max(1, windowWidth - PanelHorizontalChrome),
-            helpHeight,
-            renderOptions);
+        return rows.ToArray();
     }
 
     private static RenderOptions CreateRenderOptions(int width, int height)
@@ -591,15 +522,6 @@ public sealed class RunnerDashboard : IRunnerDashboard
         }
     }
 
-    private readonly record struct VisibleLogPage(IRenderable[] Rows, int EntryCount);
-
-    private readonly record struct LogViewDimensions(
-        int PanelHeight,
-        int ContentHeight,
-        int ContentWidth,
-        int HelpHeight,
-        RenderOptions RenderOptions);
-
     private static IRenderable BuildUnavailableView(int attempt)
     {
         return new Panel(new Text($"Runner unavailable; reconnecting ({attempt}/5)..."))
@@ -625,6 +547,15 @@ public sealed class RunnerDashboard : IRunnerDashboard
 #else
         await Task.Delay(400, cancellationToken);
 #endif
+    }
+
+    private static string FormatPlainLog(
+        RunnerLogEntry entry,
+        bool includeApplicationName)
+    {
+        return includeApplicationName
+            ? $"[{entry.ApplicationName}] {entry.Message}"
+            : entry.Message;
     }
 
     private static string FormatUptime(DateTimeOffset? startedAt)

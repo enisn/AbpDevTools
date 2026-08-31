@@ -58,7 +58,7 @@ abpdev attach [workingdirectory]
 
 The dashboard clears the terminal once when it opens. Its status table remains at the top, while the log panel is constrained to the rows left in the current viewport and recalculated when the terminal size changes.
 
-Press `L` to open a full-page streaming log viewer for the currently selected application, or for all applications when all-log mode is active. Use the arrow keys or `J`/`K` to scroll, `Page Up`/`Page Down` to move by a page, `Home`/`End` to jump to the oldest or newest output, and `F` to resume following new output. Press `L`, `Q`, or `Esc` to return to the dashboard without detaching.
+Press `L` to leave the live dashboard temporarily and print plain, streaming logs for the currently selected application, or for all applications when all-log mode is active. The initial output is limited to the latest 1000 entries, after which new entries are appended without being retained by the dashboard. Because this is ordinary terminal output, terminal-native mouse-wheel scrollback and text search remain available. Press `Esc` to clear the log view and return to the dashboard without detaching; `Ctrl+C` keeps its normal command cancellation behavior.
 
 Quitting or pressing `Ctrl+C` from `attach` only disconnects the dashboard; it does not stop applications. Use `S`, `Ctrl+S`, or `abpdev stop` for explicit process control.
 

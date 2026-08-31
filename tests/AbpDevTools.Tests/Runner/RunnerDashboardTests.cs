@@ -1,6 +1,8 @@
 using System.Text;
 using AbpDevTools.Runner;
+using AbpDevTools.Services;
 using CliFx.Infrastructure;
+using NSubstitute;
 using Shouldly;
 using Spectre.Console;
 using Spectre.Console.Rendering;
@@ -56,65 +58,71 @@ public sealed class RunnerDashboardTests
     }
 
     [Fact]
-    public void BuildLogView_FillsTheViewportAndShowsLiveOrPausedPosition()
+    public async Task RunPlainLogViewerAsync_PrintsNativeOutputAndReturnsOnEscape()
     {
-        var console = new TestConsole { WindowWidth = 80, WindowHeight = 24 };
-        var context = CreateContext(2);
-        var logs = CreateLogs(100);
+        var runnerClient = Substitute.For<IRunnerClient>();
+        var keyInputManager = Substitute.For<IKeyInputManager>();
+        var console = new TestConsole();
+        var initialLogs = CreateLogs(1);
+        var followedLog = new RunnerLogEntry
+        {
+            Sequence = 2,
+            Timestamp = DateTimeOffset.UtcNow,
+            ApplicationId = "app-0",
+            ApplicationName = "App 0",
+            Message = "followed-log"
+        };
+        keyInputManager.TryGetNextKey().Returns(
+            (KeyPressEventArgs?)null,
+            (KeyPressEventArgs?)null,
+            new KeyPressEventArgs { Key = ConsoleKey.Escape });
+        runnerClient.GetLogsAsync(
+                "context",
+                "app-0",
+                0,
+                1_000,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<RunnerResponse?>(new RunnerResponse { Logs = initialLogs }));
+        runnerClient.GetLogsAsync(
+                "context",
+                "app-0",
+                1,
+                500,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<RunnerResponse?>(new RunnerResponse { Logs = new[] { followedLog } }));
+        var dashboard = new RunnerDashboard(runnerClient, keyInputManager);
 
-        var live = Render(
-            RunnerDashboard.BuildLogView(context, 0, false, logs, 0, console),
-            console);
-        var paused = Render(
-            RunnerDashboard.BuildLogView(context, 0, false, logs, 10, console),
-            console);
-        console.WindowHeight = 32;
-        var resized = Render(
-            RunnerDashboard.BuildLogView(context, 0, false, logs, 10, console),
-            console);
+        var returnedToDashboard = await dashboard.RunPlainLogViewerAsync(
+            "context",
+            "app-0",
+            "App 0",
+            console,
+            CancellationToken.None);
 
-        live.Count.ShouldBe(24);
-        paused.Count.ShouldBe(24);
-        resized.Count.ShouldBe(32);
-        string.Join(Environment.NewLine, live).ShouldContain("Logs: App 0 • LIVE");
-        string.Join(Environment.NewLine, live).ShouldContain("log-99");
-        string.Join(Environment.NewLine, paused).ShouldContain("PAUSED • 10 newer entries");
-        string.Join(Environment.NewLine, paused).ShouldContain("log-89");
-        string.Join(Environment.NewLine, paused).ShouldNotContain("log-99");
-    }
-
-    [Fact]
-    public void AdjustLogScrollOffset_ScrollsPagesAndResumesFollowing()
-    {
-        var console = new TestConsole { WindowWidth = 100, WindowHeight = 16 };
-        var logs = CreateLogs(100);
-
-        var oneLineUp = RunnerDashboard.AdjustLogScrollOffset(
-            ConsoleKey.UpArrow,
+        returnedToDashboard.ShouldBeTrue();
+        console.ClearCount.ShouldBe(1);
+        var output = console.GetOutput();
+        output.ShouldContain("Logs: App 0");
+        output.ShouldContain("latest 1000 entries");
+        output.ShouldContain("press Esc to return");
+        output.ShouldContain("log-0");
+        output.ShouldContain("followed-log");
+        output.ShouldNotContain("╭");
+        output.ShouldNotContain("│");
+        output.ShouldNotContain("PAUSED");
+        output.ShouldNotContain("stdout");
+        await runnerClient.Received(1).GetLogsAsync(
+            "context",
+            "app-0",
             0,
-            logs,
-            console);
-        var onePageUp = RunnerDashboard.AdjustLogScrollOffset(
-            ConsoleKey.PageUp,
-            0,
-            logs,
-            console);
-        var oldest = RunnerDashboard.AdjustLogScrollOffset(
-            ConsoleKey.Home,
-            0,
-            logs,
-            console);
-
-        oneLineUp.ShouldBe(1);
-        onePageUp.ShouldBeGreaterThan(oneLineUp);
-        oldest.ShouldBeGreaterThan(onePageUp);
-        var oldestPage = Render(
-            RunnerDashboard.BuildLogView(CreateContext(1), 0, false, logs, oldest, console),
-            console);
-        string.Join(Environment.NewLine, oldestPage).ShouldContain("] log-0");
-        string.Join(Environment.NewLine, oldestPage).ShouldNotContain("] log-99");
-        RunnerDashboard.AdjustLogScrollOffset(ConsoleKey.End, oldest, logs, console).ShouldBe(0);
-        RunnerDashboard.AdjustLogScrollOffset(ConsoleKey.F, oldest, logs, console).ShouldBe(0);
+            1_000,
+            Arg.Any<CancellationToken>());
+        await runnerClient.Received(1).GetLogsAsync(
+            "context",
+            "app-0",
+            1,
+            500,
+            Arg.Any<CancellationToken>());
     }
 
     private static RunnerContextSnapshot CreateContext(int applicationCount)
@@ -205,6 +213,16 @@ public sealed class RunnerDashboardTests
         public int CursorLeft { get; set; }
         public int CursorTop { get; set; }
         public int ClearCount { get; private set; }
+
+        public string GetOutput()
+        {
+            if (_output.IsValueCreated)
+            {
+                _output.Value.Flush();
+            }
+
+            return Encoding.UTF8.GetString(_outputStream.ToArray());
+        }
 
         public CancellationToken RegisterCancellationHandler() => CancellationToken.None;
         public ConsoleKeyInfo ReadKey(bool intercept = false) => default;
