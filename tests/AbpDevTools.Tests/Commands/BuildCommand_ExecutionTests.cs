@@ -82,7 +82,7 @@ public class BuildCommand_ExecutionTests : CommandTestBase
     /// Creates a real console for testing CLI commands.
     /// Uses CliFx's built-in console abstraction.
     /// </summary>
-    private IConsole CreateTestConsole()
+    private TestConsole CreateTestConsole()
     {
         return new TestConsole();
     }
@@ -92,6 +92,9 @@ public class BuildCommand_ExecutionTests : CommandTestBase
     /// </summary>
     private class TestConsole : IConsole
     {
+        private readonly MemoryStream _inputStream = new();
+        private readonly MemoryStream _outputStream = new();
+        private readonly MemoryStream _errorStream = new();
         private readonly Lazy<ConsoleReader> _input;
         private readonly Lazy<ConsoleWriter> _output;
         private readonly Lazy<ConsoleWriter> _error;
@@ -115,17 +118,17 @@ public class BuildCommand_ExecutionTests : CommandTestBase
         {
             _input = new Lazy<ConsoleReader>(() => new ConsoleReader(
                 (IConsole)this,
-                System.Console.OpenStandardInput(),
+                _inputStream,
                 System.Text.Encoding.UTF8));
 
             _output = new Lazy<ConsoleWriter>(() => new ConsoleWriter(
                 (IConsole)this,
-                System.Console.OpenStandardOutput(),
+                _outputStream,
                 System.Text.Encoding.UTF8));
 
             _error = new Lazy<ConsoleWriter>(() => new ConsoleWriter(
                 (IConsole)this,
-                System.Console.OpenStandardError(),
+                _errorStream,
                 System.Text.Encoding.UTF8));
         }
 
@@ -136,6 +139,16 @@ public class BuildCommand_ExecutionTests : CommandTestBase
         public void Clear() { }
 
         public void ResetColor() { }
+
+        public string GetOutput()
+        {
+            if (_output.IsValueCreated)
+            {
+                _output.Value.Flush();
+            }
+
+            return System.Text.Encoding.UTF8.GetString(_outputStream.ToArray());
+        }
     }
 
     /// <summary>
@@ -199,6 +212,103 @@ EndGlobal
     #endregion
 
     #region Build Execution Tests
+
+    [Fact]
+    public void DryRun_IsExposedAsCommandOption()
+    {
+        var property = typeof(BuildCommand).GetProperty(nameof(BuildCommand.DryRun));
+        var option = property?.GetCustomAttribute<CliFx.Attributes.CommandOptionAttribute>();
+
+        property.Should().NotBeNull();
+        property!.PropertyType.Should().Be(typeof(bool));
+        option.Should().NotBeNull();
+        option!.Name.Should().Be("dry-run");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithDryRunAndMixedSolutionFormats_ListsAffectedSolutionsWithoutBuilding()
+    {
+        // Arrange
+        var legacyDirectory = Path.Combine(_testRootPath, "solutions", "legacy");
+        var modernDirectory = Path.Combine(_testRootPath, "solutions", "modern");
+        CreateSolutionFile("Legacy", legacyDirectory);
+        CreateSolutionXFile("Modern", modernDirectory);
+
+        var command = CreateBuildCommand();
+        command.DryRun = true;
+        var console = CreateTestConsole();
+
+        // Act
+        await command.ExecuteAsync(console);
+
+        // Assert
+        var output = console.GetOutput();
+        output.Should().Contain("Dry run: 2 solutions and 0 projects selected for build.");
+        output.Should().Contain($"  solution: {Path.Combine("solutions", "legacy", "Legacy.sln")}");
+        output.Should().Contain($"  solution: {Path.Combine("solutions", "modern", "Modern.slnx")}");
+        output.Should().Contain("No build commands were run.");
+
+        await _mockNotificationManager.DidNotReceive().SendAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithDryRunAndFilteredProjects_ListsOnlyAffectedProjectsWithoutBuilding()
+    {
+        // Arrange
+        var appDirectory = Path.Combine(_testRootPath, "apps", "Selected.App");
+        var serviceDirectory = Path.Combine(_testRootPath, "services", "Selected.Service");
+        var ignoredDirectory = Path.Combine(_testRootPath, "services", "Ignored.Service");
+        CreateProjectFile("Selected.App", appDirectory);
+        CreateProjectFile("Selected.Service", serviceDirectory);
+        CreateProjectFile("Ignored.Service", ignoredDirectory);
+
+        var command = CreateBuildCommand();
+        command.DryRun = true;
+        command.BuildFiles = new[] { "Selected" };
+        var console = CreateTestConsole();
+
+        // Act
+        await command.ExecuteAsync(console);
+
+        // Assert
+        var output = console.GetOutput();
+        output.Should().Contain("Dry run: 0 solutions and 2 projects selected for build.");
+        output.Should().Contain($"  project: {Path.Combine("apps", "Selected.App", "Selected.App.csproj")}");
+        output.Should().Contain($"  project: {Path.Combine("services", "Selected.Service", "Selected.Service.csproj")}");
+        output.Should().NotContain("Ignored.Service.csproj");
+        output.Should().Contain("No build commands were run.");
+
+        await _mockNotificationManager.DidNotReceive().SendAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithEmptyDryRun_ReportsZeroAffectedTargetsWithoutBuilding()
+    {
+        // Arrange
+        var command = CreateBuildCommand();
+        command.DryRun = true;
+        var console = CreateTestConsole();
+
+        // Act
+        await command.ExecuteAsync(console);
+
+        // Assert
+        var output = console.GetOutput();
+        output.Should().Contain("No .csproj files found. No files to build.");
+        output.Should().Contain("Dry run: 0 solutions and 0 projects selected for build.");
+        output.Should().Contain("No build commands were run.");
+
+        await _mockNotificationManager.DidNotReceive().SendAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
 
     [Fact]
     public async Task ExecuteAsync_WithSingleSolutionFile_InvokesDotnetBuild()
