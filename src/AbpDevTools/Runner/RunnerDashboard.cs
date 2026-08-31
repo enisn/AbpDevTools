@@ -24,9 +24,11 @@ public interface IRunnerDashboard
 [RegisterTransient]
 public sealed class RunnerDashboard : IRunnerDashboard
 {
-    private const int DashboardLogLimit = 500;
+    private const int DashboardLogLimit = 5_000;
     private const int MinimumLogPanelHeight = 3;
     private const int PanelHorizontalChrome = 4;
+    private const string LogViewerHelp =
+        "↑/↓ or J/K Scroll | PgUp/PgDn Page | Home/End Oldest/Newest | F Follow | L/Q/Esc Back";
     private readonly IRunnerClient _runnerClient;
     private readonly IKeyInputManager _keyInputManager;
 
@@ -54,6 +56,8 @@ public sealed class RunnerDashboard : IRunnerDashboard
         var result = RunnerDashboardResult.Completed;
         var selectedIndex = 0;
         var showAllLogs = false;
+        var showLogViewer = false;
+        var logScrollOffset = 0;
         var logs = new List<RunnerLogEntry>();
         string? logApplicationId = null;
         long latestLogSequence = 0;
@@ -115,6 +119,7 @@ public sealed class RunnerDashboard : IRunnerDashboard
                         {
                             logApplicationId = requestedLogApplicationId;
                             latestLogSequence = 0;
+                            logScrollOffset = 0;
                             logs.Clear();
                         }
 
@@ -126,6 +131,11 @@ public sealed class RunnerDashboard : IRunnerDashboard
                             cancellationToken);
                         if (logsResponse?.Success == true && logsResponse.Logs.Length > 0)
                         {
+                            if (showLogViewer && logScrollOffset > 0)
+                            {
+                                logScrollOffset += logsResponse.Logs.Length;
+                            }
+
                             logs.AddRange(logsResponse.Logs);
                             latestLogSequence = logsResponse.Logs[^1].Sequence;
                             if (logs.Count > DashboardLogLimit)
@@ -134,19 +144,44 @@ public sealed class RunnerDashboard : IRunnerDashboard
                             }
                         }
 
-                        liveContext.UpdateTarget(BuildView(context, selectedIndex, showAllLogs, logs, console));
+                        logScrollOffset = ClampLogScrollOffset(logScrollOffset, logs, console);
+                        liveContext.UpdateTarget(
+                            showLogViewer
+                                ? BuildLogView(
+                                    context,
+                                    selectedIndex,
+                                    showAllLogs,
+                                    logs,
+                                    logScrollOffset,
+                                    console)
+                                : BuildView(context, selectedIndex, showAllLogs, logs, console));
                         liveContext.Refresh();
 
                         var key = _keyInputManager.TryGetNextKey();
                         if (key is not null)
                         {
-                            if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
+                            if (showLogViewer)
+                            {
+                                if (key.Key is ConsoleKey.L or ConsoleKey.Q or ConsoleKey.Escape)
+                                {
+                                    showLogViewer = false;
+                                    logScrollOffset = 0;
+                                }
+                                else
+                                {
+                                    logScrollOffset = AdjustLogScrollOffset(
+                                        key.Key,
+                                        logScrollOffset,
+                                        logs,
+                                        console);
+                                }
+                            }
+                            else if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
                             {
                                 result = RunnerDashboardResult.Detached;
                                 break;
                             }
-
-                            if (key.Key is ConsoleKey.UpArrow or ConsoleKey.K)
+                            else if (key.Key is ConsoleKey.UpArrow or ConsoleKey.K)
                             {
                                 selectedIndex = selectedIndex == 0 ? applications.Length - 1 : selectedIndex - 1;
                             }
@@ -157,6 +192,11 @@ public sealed class RunnerDashboard : IRunnerDashboard
                             else if (key.Key == ConsoleKey.A)
                             {
                                 showAllLogs = !showAllLogs;
+                            }
+                            else if (key.Key == ConsoleKey.L)
+                            {
+                                showLogViewer = true;
+                                logScrollOffset = 0;
                             }
                             else if (key.Key == ConsoleKey.R)
                             {
@@ -301,7 +341,7 @@ public sealed class RunnerDashboard : IRunnerDashboard
         }
 
         var help = new Text(
-            "↑/↓ or J/K Select | A All logs | R Restart | S Stop selected | Ctrl+S Stop context | Q/Esc Detach");
+            "↑/↓ or J/K Select | A All logs | L Full logs | R Restart | S Stop selected | Ctrl+S Stop context | Q/Esc Detach");
 
         if (windowHeight <= MinimumLogPanelHeight)
         {
@@ -319,11 +359,12 @@ public sealed class RunnerDashboard : IRunnerDashboard
         var logPanelHeight = windowHeight - tableHeight - helpHeight;
         var logContentHeight = Math.Max(1, logPanelHeight - 2);
         var logContentWidth = Math.Max(1, windowWidth - PanelHorizontalChrome);
-        var logRows = BuildVisibleLogRows(
+        var logRows = BuildVisibleLogPage(
             logs,
             logContentHeight,
             logContentWidth,
-            renderOptions);
+            renderOptions,
+            scrollOffset: 0).Rows;
 
         var logTitle = showAllLogs
             ? "Logs: all applications"
@@ -349,20 +390,106 @@ public sealed class RunnerDashboard : IRunnerDashboard
         return new Layout().SplitRows(regions.ToArray());
     }
 
-    private static IRenderable[] BuildVisibleLogRows(
+    internal static IRenderable BuildLogView(
+        RunnerContextSnapshot context,
+        int selectedIndex,
+        bool showAllLogs,
+        IReadOnlyList<RunnerLogEntry> logs,
+        int scrollOffset,
+        IConsole console)
+    {
+        var dimensions = CalculateLogViewDimensions(console);
+        var maximumOffset = GetMaximumLogScrollOffset(logs, dimensions);
+        var boundedOffset = Math.Clamp(scrollOffset, 0, maximumOffset);
+        var page = BuildVisibleLogPage(
+            logs,
+            dimensions.ContentHeight,
+            dimensions.ContentWidth,
+            dimensions.RenderOptions,
+            boundedOffset);
+        var scope = showAllLogs
+            ? "all applications"
+            : context.Applications[selectedIndex].DisplayName;
+        var mode = boundedOffset == 0
+            ? "LIVE"
+            : $"PAUSED • {boundedOffset} newer entr{(boundedOffset == 1 ? "y" : "ies")}";
+        var panel = new Panel(new Rows(page.Rows))
+        {
+            Header = new PanelHeader(Markup.Escape($"Logs: {scope} • {mode}")),
+            Border = BoxBorder.Rounded,
+            Expand = true,
+            Height = dimensions.PanelHeight
+        };
+
+        var regions = new List<Layout>
+        {
+            new(panel) { Size = dimensions.PanelHeight }
+        };
+        if (dimensions.HelpHeight > 0)
+        {
+            regions.Add(new Layout(new Text(LogViewerHelp)) { Size = dimensions.HelpHeight });
+        }
+
+        return new Layout().SplitRows(regions.ToArray());
+    }
+
+    internal static int AdjustLogScrollOffset(
+        ConsoleKey key,
+        int currentOffset,
+        IReadOnlyList<RunnerLogEntry> logs,
+        IConsole console)
+    {
+        var dimensions = CalculateLogViewDimensions(console);
+        var maximumOffset = GetMaximumLogScrollOffset(logs, dimensions);
+        var boundedOffset = Math.Clamp(currentOffset, 0, maximumOffset);
+        var pageSize = Math.Max(
+            1,
+            BuildVisibleLogPage(
+                logs,
+                dimensions.ContentHeight,
+                dimensions.ContentWidth,
+                dimensions.RenderOptions,
+                boundedOffset).EntryCount);
+
+        return key switch
+        {
+            ConsoleKey.UpArrow or ConsoleKey.K => Math.Min(maximumOffset, boundedOffset + 1),
+            ConsoleKey.DownArrow or ConsoleKey.J => Math.Max(0, boundedOffset - 1),
+            ConsoleKey.PageUp => Math.Min(maximumOffset, boundedOffset + pageSize),
+            ConsoleKey.PageDown => Math.Max(0, boundedOffset - pageSize),
+            ConsoleKey.Home => maximumOffset,
+            ConsoleKey.End or ConsoleKey.F => 0,
+            _ => boundedOffset
+        };
+    }
+
+    private static int ClampLogScrollOffset(
+        int scrollOffset,
+        IReadOnlyList<RunnerLogEntry> logs,
+        IConsole console)
+    {
+        var dimensions = CalculateLogViewDimensions(console);
+        return Math.Clamp(scrollOffset, 0, GetMaximumLogScrollOffset(logs, dimensions));
+    }
+
+    private static VisibleLogPage BuildVisibleLogPage(
         IReadOnlyList<RunnerLogEntry> logs,
         int availableHeight,
         int availableWidth,
-        RenderOptions renderOptions)
+        RenderOptions renderOptions,
+        int scrollOffset)
     {
         if (logs.Count == 0)
         {
-            return new IRenderable[] { new Text("No captured output yet.") };
+            return new VisibleLogPage(
+                new IRenderable[] { new Text("No captured output yet.") },
+                EntryCount: 0);
         }
 
         var rows = new List<IRenderable>();
         var remainingHeight = availableHeight;
-        for (var index = logs.Count - 1; index >= 0 && remainingHeight > 0; index--)
+        var lastIndex = Math.Clamp(logs.Count - 1 - scrollOffset, 0, logs.Count - 1);
+        for (var index = lastIndex; index >= 0 && remainingHeight > 0; index--)
         {
             var log = logs[index];
             var row = new Text(
@@ -378,7 +505,62 @@ public sealed class RunnerDashboard : IRunnerDashboard
         }
 
         rows.Reverse();
-        return rows.ToArray();
+        return new VisibleLogPage(rows.ToArray(), rows.Count);
+    }
+
+    private static int GetMaximumLogScrollOffset(
+        IReadOnlyList<RunnerLogEntry> logs,
+        LogViewDimensions dimensions)
+    {
+        if (logs.Count == 0)
+        {
+            return 0;
+        }
+
+        var usedHeight = 0;
+        var lastVisibleIndex = 0;
+        for (var index = 0; index < logs.Count; index++)
+        {
+            var log = logs[index];
+            var row = new Text(
+                $"{log.Timestamp.ToLocalTime():HH:mm:ss} {log.ApplicationName} [{log.Stream}] {log.Message}");
+            var rowHeight = MeasureRenderableHeight(
+                row,
+                dimensions.RenderOptions,
+                dimensions.ContentWidth);
+            if (usedHeight + rowHeight > dimensions.ContentHeight && index > 0)
+            {
+                break;
+            }
+
+            usedHeight += Math.Min(rowHeight, dimensions.ContentHeight);
+            lastVisibleIndex = index;
+            if (usedHeight >= dimensions.ContentHeight)
+            {
+                break;
+            }
+        }
+
+        return Math.Max(0, logs.Count - 1 - lastVisibleIndex);
+    }
+
+    private static LogViewDimensions CalculateLogViewDimensions(IConsole console)
+    {
+        var windowWidth = Math.Max(1, GetWindowWidth(console));
+        var windowHeight = Math.Max(1, GetWindowHeight(console));
+        var renderOptions = CreateRenderOptions(windowWidth, windowHeight);
+        var help = new Text(LogViewerHelp);
+        var measuredHelpHeight = MeasureRenderableHeight(help, renderOptions, windowWidth);
+        var helpHeight = Math.Min(
+            measuredHelpHeight,
+            Math.Max(0, windowHeight - MinimumLogPanelHeight));
+        var panelHeight = Math.Max(1, windowHeight - helpHeight);
+        return new LogViewDimensions(
+            panelHeight,
+            Math.Max(1, panelHeight - 2),
+            Math.Max(1, windowWidth - PanelHorizontalChrome),
+            helpHeight,
+            renderOptions);
     }
 
     private static RenderOptions CreateRenderOptions(int width, int height)
@@ -408,6 +590,15 @@ public sealed class RunnerDashboard : IRunnerDashboard
         {
         }
     }
+
+    private readonly record struct VisibleLogPage(IRenderable[] Rows, int EntryCount);
+
+    private readonly record struct LogViewDimensions(
+        int PanelHeight,
+        int ContentHeight,
+        int ContentWidth,
+        int HelpHeight,
+        RenderOptions RenderOptions);
 
     private static IRenderable BuildUnavailableView(int attempt)
     {

@@ -55,6 +55,68 @@ public sealed class RunnerDashboardTests
         console.ClearCount.ShouldBe(1);
     }
 
+    [Fact]
+    public void BuildLogView_FillsTheViewportAndShowsLiveOrPausedPosition()
+    {
+        var console = new TestConsole { WindowWidth = 80, WindowHeight = 24 };
+        var context = CreateContext(2);
+        var logs = CreateLogs(100);
+
+        var live = Render(
+            RunnerDashboard.BuildLogView(context, 0, false, logs, 0, console),
+            console);
+        var paused = Render(
+            RunnerDashboard.BuildLogView(context, 0, false, logs, 10, console),
+            console);
+        console.WindowHeight = 32;
+        var resized = Render(
+            RunnerDashboard.BuildLogView(context, 0, false, logs, 10, console),
+            console);
+
+        live.Count.ShouldBe(24);
+        paused.Count.ShouldBe(24);
+        resized.Count.ShouldBe(32);
+        string.Join(Environment.NewLine, live).ShouldContain("Logs: App 0 • LIVE");
+        string.Join(Environment.NewLine, live).ShouldContain("log-99");
+        string.Join(Environment.NewLine, paused).ShouldContain("PAUSED • 10 newer entries");
+        string.Join(Environment.NewLine, paused).ShouldContain("log-89");
+        string.Join(Environment.NewLine, paused).ShouldNotContain("log-99");
+    }
+
+    [Fact]
+    public void AdjustLogScrollOffset_ScrollsPagesAndResumesFollowing()
+    {
+        var console = new TestConsole { WindowWidth = 100, WindowHeight = 16 };
+        var logs = CreateLogs(100);
+
+        var oneLineUp = RunnerDashboard.AdjustLogScrollOffset(
+            ConsoleKey.UpArrow,
+            0,
+            logs,
+            console);
+        var onePageUp = RunnerDashboard.AdjustLogScrollOffset(
+            ConsoleKey.PageUp,
+            0,
+            logs,
+            console);
+        var oldest = RunnerDashboard.AdjustLogScrollOffset(
+            ConsoleKey.Home,
+            0,
+            logs,
+            console);
+
+        oneLineUp.ShouldBe(1);
+        onePageUp.ShouldBeGreaterThan(oneLineUp);
+        oldest.ShouldBeGreaterThan(onePageUp);
+        var oldestPage = Render(
+            RunnerDashboard.BuildLogView(CreateContext(1), 0, false, logs, oldest, console),
+            console);
+        string.Join(Environment.NewLine, oldestPage).ShouldContain("] log-0");
+        string.Join(Environment.NewLine, oldestPage).ShouldNotContain("] log-99");
+        RunnerDashboard.AdjustLogScrollOffset(ConsoleKey.End, oldest, logs, console).ShouldBe(0);
+        RunnerDashboard.AdjustLogScrollOffset(ConsoleKey.F, oldest, logs, console).ShouldBe(0);
+    }
+
     private static RunnerContextSnapshot CreateContext(int applicationCount)
     {
         return new RunnerContextSnapshot
@@ -75,6 +137,20 @@ public sealed class RunnerDashboardTests
                 })
                 .ToArray()
         };
+    }
+
+    private static RunnerLogEntry[] CreateLogs(int count)
+    {
+        return Enumerable.Range(0, count)
+            .Select(index => new RunnerLogEntry
+            {
+                Sequence = index + 1,
+                Timestamp = DateTimeOffset.UtcNow,
+                ApplicationId = "app-0",
+                ApplicationName = "App 0",
+                Message = $"log-{index}"
+            })
+            .ToArray();
     }
 
     private static IReadOnlyList<string> Render(IRenderable renderable, TestConsole console)
