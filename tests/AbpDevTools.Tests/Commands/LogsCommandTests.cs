@@ -1,6 +1,9 @@
 using System.Text;
 using AbpDevTools.Commands;
 using AbpDevTools.Configuration;
+using AbpDevTools.Environments;
+using AbpDevTools.LocalConfigurations;
+using AbpDevTools.Runner;
 using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using FluentAssertions;
@@ -8,6 +11,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace AbpDevTools.Tests.Commands;
 
@@ -15,6 +19,8 @@ public class LogsCommandTests : IDisposable
 {
     private readonly string _testRootPath;
     private readonly RunnableProjectsProvider _runnableProjectsProvider;
+    private readonly IRunnerClient _runnerClient = Substitute.For<IRunnerClient>();
+    private readonly RunnerContextResolver _contextResolver;
 
     public LogsCommandTests()
     {
@@ -23,6 +29,14 @@ public class LogsCommandTests : IDisposable
 
         _runnableProjectsProvider = new RunnableProjectsProvider(
             new RunConfiguration(Substitute.For<IDeserializer>(), Substitute.For<ISerializer>()));
+        var localConfigurationManager = new LocalConfigurationManager(
+            new DeserializerBuilder().WithNamingConvention(HyphenatedNamingConvention.Instance).Build(),
+            new SerializerBuilder().WithNamingConvention(HyphenatedNamingConvention.Instance).Build(),
+            new FileExplorer(),
+            Substitute.For<IProcessEnvironmentManager>());
+        _contextResolver = new RunnerContextResolver(localConfigurationManager);
+        _runnerClient.ListAsync(Arg.Any<string>(), true, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<RunnerResponse?>(null));
     }
 
     public void Dispose()
@@ -62,11 +76,84 @@ public class LogsCommandTests : IDisposable
         await command.ExecuteAsync(console);
 
         var output = console.GetOutput();
+        output.ShouldContain("Falling back to filesystem logs (Logs/logs.txt).");
         output.ShouldContain("Showing last 3 line(s)");
         output.ShouldContain("line 3");
         output.ShouldContain("line 4");
         output.ShouldContain("line 5");
         output.ShouldNotContain("line 2");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenManagedApplicationIsRunning_PrintsBoundedRunnerLogs()
+    {
+        CreateRunnableProjectWithLogs("MyApp.Web", new[] { "filesystem line" });
+        var descriptor = RunnerContextIdentity.Create(_testRootPath, null);
+        var application = CreateManagedApplication("MyApp.Web", RunnerApplicationState.Running);
+        _runnerClient.ListAsync(descriptor.ContextKey, true, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<RunnerResponse?>(new RunnerResponse
+            {
+                Contexts = new[] { CreateManagedContext(descriptor, application) }
+            }));
+        _runnerClient.GetLogsAsync(
+                descriptor.ContextKey,
+                application.Id,
+                0,
+                2,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<RunnerResponse?>(new RunnerResponse
+            {
+                Logs = new[]
+                {
+                    CreateManagedLog(application, 1, "managed line 1"),
+                    CreateManagedLog(application, 2, "managed line 2")
+                }
+            }));
+        var command = CreateCommand();
+        command.WorkingDirectory = _testRootPath;
+        command.ProjectName = "MyApp.Web";
+        command.Lines = 2;
+        var console = new TestConsole();
+
+        await command.ExecuteAsync(console);
+
+        var output = console.GetOutput();
+        output.ShouldContain("Showing the last 2 managed log line(s)");
+        output.ShouldContain("managed line 1");
+        output.ShouldContain("managed line 2");
+        output.ShouldNotContain("filesystem line");
+        output.ShouldNotContain("Falling back");
+        await _runnerClient.Received(1).GetLogsAsync(
+            descriptor.ContextKey,
+            application.Id,
+            0,
+            2,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenManagedApplicationIsNotRunning_ExplainsFilesystemFallback()
+    {
+        CreateRunnableProjectWithLogs("MyApp.Web", new[] { "filesystem line" });
+        var descriptor = RunnerContextIdentity.Create(_testRootPath, null);
+        var application = CreateManagedApplication("MyApp.Web", RunnerApplicationState.Stopped);
+        _runnerClient.ListAsync(descriptor.ContextKey, true, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<RunnerResponse?>(new RunnerResponse
+            {
+                Contexts = new[] { CreateManagedContext(descriptor, application) }
+            }));
+        var command = CreateCommand();
+        command.WorkingDirectory = _testRootPath;
+        command.ProjectName = "MyApp.Web";
+        var console = new TestConsole();
+
+        await command.ExecuteAsync(console);
+
+        var output = console.GetOutput();
+        output.ShouldContain("No active managed process was found for 'MyApp.Web'.");
+        output.ShouldContain("Falling back to filesystem logs (Logs/logs.txt).");
+        output.ShouldContain("filesystem line");
+        await _runnerClient.DidNotReceiveWithAnyArgs().GetLogsAsync(default!, default, default, default, default);
     }
 
     [Fact]
@@ -121,7 +208,54 @@ public class LogsCommandTests : IDisposable
 
     private LogsCommand CreateCommand(Platform? platform = null)
     {
-        return new LogsCommand(_runnableProjectsProvider, platform ?? new TestPlatform());
+        return new LogsCommand(
+            _runnableProjectsProvider,
+            platform ?? new TestPlatform(),
+            _runnerClient,
+            _contextResolver);
+    }
+
+    private RunnerApplicationSnapshot CreateManagedApplication(string projectName, RunnerApplicationState state)
+    {
+        var projectPath = Path.Combine(_testRootPath, projectName, $"{projectName}.csproj");
+        return new RunnerApplicationSnapshot
+        {
+            Id = RunnerContextIdentity.CreateApplicationId(projectPath),
+            Name = projectName,
+            DisplayName = projectName,
+            TargetPath = projectPath,
+            WorkingDirectory = Path.GetDirectoryName(projectPath)!,
+            State = state
+        };
+    }
+
+    private static RunnerContextSnapshot CreateManagedContext(
+        RunnerContextDescriptor descriptor,
+        RunnerApplicationSnapshot application)
+    {
+        return new RunnerContextSnapshot
+        {
+            ContextKey = descriptor.ContextKey,
+            DisplayName = descriptor.DisplayName,
+            WorkingDirectory = descriptor.WorkingDirectory,
+            Applications = new[] { application }
+        };
+    }
+
+    private static RunnerLogEntry CreateManagedLog(
+        RunnerApplicationSnapshot application,
+        long sequence,
+        string message)
+    {
+        return new RunnerLogEntry
+        {
+            Sequence = sequence,
+            Timestamp = DateTimeOffset.UtcNow,
+            ApplicationId = application.Id,
+            ApplicationName = application.DisplayName,
+            Stream = RunnerLogStream.StandardOutput,
+            Message = message
+        };
     }
 
     private string CreateRunnableProject(string projectName)

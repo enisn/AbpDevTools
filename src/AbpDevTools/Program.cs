@@ -4,6 +4,7 @@ using AbpDevTools.Commands.References;
 using AbpDevTools.Notifications;
 using AbpDevTools.Processes;
 using AbpDevTools.RecycleBin;
+using AbpDevTools.Runner;
 using AbpDevTools.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
@@ -15,14 +16,23 @@ namespace AbpDevTools;
 
 public class Program
 {
-    public static async Task<int> Main() =>
-        await new CliApplicationBuilder()
+    public const string RunnerServerArgument = "__runner";
+
+    public static async Task<int> Main(string[] args)
+    {
+        if (args.Length == 1 && string.Equals(args[0], RunnerServerArgument, StringComparison.Ordinal))
+        {
+            return await RunnerServer.RunDefaultAsync();
+        }
+
+        return await new CliApplicationBuilder()
             .SetExecutableName("abpdev")
             .SetDescription("A set of tools to make development with ABP easier.")
             .SetTitle("Abp Dev Tools")
             .BuildServices()
             .Build()
             .RunAsync();
+    }
 }
 
 public static class Startup
@@ -61,6 +71,9 @@ public static class Startup
             typeof(MigrateCommand),
             typeof(ReplaceCommand),
             typeof(RunCommand),
+            typeof(PsCommand),
+            typeof(StopCommand),
+            typeof(AttachCommand),
             typeof(EnvironmentCommand),
             typeof(EnvironmentConfigurationCommand),
             typeof(AbpBundleCommand),
@@ -94,8 +107,10 @@ public static class Startup
         }
 
         services.AutoRegisterFromAbpDevTools();
-        
+
         services.AddSingleton<IKeyInputManager, KeyInputManager>();
+        services.AddSingleton<IRunnerClient, RunnerClient>();
+        services.AddTransient<IRunnerDashboard, RunnerDashboard>();
 
         var yamlSerializer = new SerializerBuilder()
             .WithNamingConvention(HyphenatedNamingConvention.Instance)

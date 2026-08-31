@@ -7,7 +7,7 @@ Pre-built instruction sets that teach AI coding assistants how to use [AbpDevToo
 | Skill | Description |
 |-------|-------------|
 | [abpdev-add-package](abpdev-add-package/SKILL.md) | Add NuGet packages from any source and automatically wire ABP module dependencies (`abpdev add-package`) |
-| [abpdev-workflow](abpdev-workflow/SKILL.md) | Core developer workflow commands (`abpdev build`, `migrate`, `run`, `test`, `prepare`, `logs`, `bundle`) |
+| [abpdev-workflow](abpdev-workflow/SKILL.md) | Core workflows and centralized process management (`build`, `migrate`, `run`, `ps`, `logs`, `stop`, `attach`, `test`, `prepare`, `bundle`) |
 | [abpdev-environments](abpdev-environments/SKILL.md) | Virtual environments and infra apps (`abpdev env`, `envapp`, `switch-to-env`) |
 | [abpdev-migrations](abpdev-migrations/SKILL.md) | EF Core migration and database workflows (`abpdev migrations`, `database-drop`) |
 | [abpdev-maintenance](abpdev-maintenance/SKILL.md) | Maintenance/utilities (`abpdev clean`, `replace`, `logs clear`, `tools`, `update`, `find-port`, etc.) |
@@ -216,7 +216,7 @@ Pre-built agent skills with detailed instructions for each `abpdev` command are 
 | Skill name | When to fetch |
 |------------|---------------|
 | `abpdev-add-package` | User asks about installing a NuGet package into an ABP project and automatically adding module dependencies with `abpdev add-package`. |
-| `abpdev-workflow` | User asks about building, migrating, running, testing, preparing, bundling, or opening logs with AbpDevTools. |
+| `abpdev-workflow` | User asks about building, migrating, running, inspecting, logging, stopping, attaching to, testing, preparing, or bundling AbpDevTools applications. |
 | `abpdev-environments` | User asks about virtual environments, `abpdev env`, `envapp`, Docker-backed infra tools, or switching shells with environment variables. |
 | `abpdev-migrations` | User asks about EF Core migrations, recreating migrations, or dropping databases across multiple projects. |
 | `abpdev-maintenance` | User asks about cleanup, replacements, tool-path config, updates, notifications, occupied ports, file finding, or ABP Studio version switching. |

@@ -123,7 +123,9 @@ public class RunCommand_ConfigurationTests : IDisposable
                 null!,
                 fileExplorer,
                 localConfigurationManager,
-                Substitute.For<IKeyInputManager>())
+                Substitute.For<IKeyInputManager>(),
+                null!,
+                null!)
         {
         }
 

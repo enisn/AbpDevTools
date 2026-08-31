@@ -68,7 +68,7 @@ Apply it directly while running:
 
 ```bash
 abpdev run --env SqlServer
-abpdev run --env PostgreSql -p MyApp.HttpApi.Host
+abpdev run --detach --env PostgreSql -p MyApp.HttpApi.Host
 ```
 
 Or open a new terminal with that environment applied:
@@ -131,6 +131,7 @@ Legacy single-string keys are still supported, but arrays are preferred.
 ## Guidance for agents
 
 - Use `abpdev run --env <name>` when the user wants an environment only for that run.
+- When an agent must continue working after launch, add `--detach`, then use `abpdev ps --current --json` to inspect readiness and `abpdev stop` for context-scoped cleanup.
 - Use `abpdev switch-to-env <name>` when the user explicitly wants a shell/session switched.
 - Use `abpdev envapp start` only for the infra tools the project actually needs.
 - If the user is onboarding a project, `abpdev prepare` may be a better entry point because it can infer and start required env apps automatically.
