@@ -35,9 +35,12 @@ abpdev ps C:\Projects\MyApp --json
 
 ```bash
 abpdev stop [workingdirectory]
+abpdev stop --all [--force]
 ```
 
-With no directory, `stop` resolves the current directory and nearest `abpdev.yml`, exactly as `run` does. It never stops applications from another context.
+With no directory, `stop` first looks for the exact current directory/YAML context, then for a unique nearest active ancestor context. If neither matches, an interactive terminal asks which active context to stop. A non-interactive terminal exits with command help and copyable `abpdev stop <workingdirectory> [--yml <path>]` commands for every active context.
+
+Passing a directory or `--yml` always targets that exact context and never falls back to another one.
 
 Use `-p`/`--projects` to stop only matching application names, paths, display names, or npm scripts:
 
@@ -48,13 +51,24 @@ abpdev stop C:\Projects\MyApp -p api -p web
 
 Without `-p`, every active application in the resolved context is stopped.
 
+Use `--all`/`-a` to stop every active application across every runner context:
+
+```bash
+abpdev stop --all
+abpdev stop --all --force
+```
+
+On an interactive terminal, `--all` displays a confirmation that defaults to No. `--force` bypasses that confirmation and is required in non-interactive environments. Calling `abpdev stop --all` without `--force` from CI, an agent, or redirected input exits with a non-zero status, prints command help, and shows the exact `abpdev stop --all --force` usage.
+
+Because `--all` is global, it cannot be combined with a working directory, `--yml`, or `-p`/`--projects`. `--force` is valid only with `--all`.
+
 ## Attach to the Dashboard
 
 ```bash
 abpdev attach [workingdirectory]
 ```
 
-`attach` opens the same state-and-log dashboard used by a foreground `abpdev run`. If the current directory does not match and only one context is active, that context is selected automatically. With multiple active contexts, an interactive terminal offers a context picker.
+`attach` opens the same state-and-log dashboard used by a foreground `abpdev run`. It first selects the exact current context or a unique nearest active ancestor context. If neither matches and only one context is active, that context is selected automatically. With multiple active contexts, an interactive terminal offers a context picker.
 
 `attach` requires an interactive terminal. When standard streams are redirected or a non-interactive environment is detected, it exits with a non-zero status instead of prompting or opening the dashboard. The error includes command help and points automation to bounded alternatives:
 
@@ -77,6 +91,6 @@ Quitting or pressing `Ctrl+C` from `attach` only disconnects the dashboard; it d
 - Project selectors are applied before the immutable launch plan is sent to the runner.
 - Starting the same application again does not create a duplicate process.
 - Active applications keep their original launch plan when YAML or CLI options change. Stop and run them again to apply changes.
-- Stopping a context leaves other directories and YAML contexts untouched.
+- A scoped stop leaves other directories and YAML contexts untouched. `stop --all` is the only stop mode that deliberately crosses context boundaries.
 
 Runner communication uses a current-user-only named pipe and a per-user authentication token. Captured logs are bounded in memory and persisted with size-based rotation.

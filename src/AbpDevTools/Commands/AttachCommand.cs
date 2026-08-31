@@ -79,11 +79,12 @@ public sealed class AttachCommand : ICommand
         {
             var allContextsResponse = await _runnerClient.ListAsync(includeInactive: false, cancellationToken: cancellationToken);
             var activeContexts = allContextsResponse?.Contexts ?? Array.Empty<RunnerContextSnapshot>();
-            if (activeContexts.Length == 1)
+            context = _contextResolver.FindBestActiveContext(descriptor, activeContexts);
+            if (context is null && activeContexts.Length == 1)
             {
                 context = activeContexts[0];
             }
-            else if (activeContexts.Length > 1)
+            else if (context is null && activeContexts.Length > 1)
             {
                 context = AnsiConsole.Prompt(
                     new SelectionPrompt<RunnerContextSnapshot>()
