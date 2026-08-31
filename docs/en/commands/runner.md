@@ -56,6 +56,15 @@ abpdev attach [workingdirectory]
 
 `attach` opens the same state-and-log dashboard used by a foreground `abpdev run`. If the current directory does not match and only one context is active, that context is selected automatically. With multiple active contexts, an interactive terminal offers a context picker.
 
+`attach` requires an interactive terminal. When standard streams are redirected or a non-interactive environment is detected, it exits with a non-zero status instead of prompting or opening the dashboard. The error includes command help and points automation to bounded alternatives:
+
+```bash
+abpdev ps --json
+abpdev logs --managed --path <working-directory> --lines 100
+```
+
+Detection recognizes `ABPDEV_NON_INTERACTIVE=1`, `ABPDEV_INTERACTIVE=0`, common `CI`/`NONINTERACTIVE` markers, `DEBIAN_FRONTEND=noninteractive`, and `TERM=dumb`. `ABPDEV_INTERACTIVE=1` can override ambient CI markers when the command still has a real terminal; redirected streams remain non-interactive.
+
 The dashboard clears the terminal once when it opens. Its status table remains at the top, while the log panel is constrained to the rows left in the current viewport and recalculated when the terminal size changes.
 
 Press `L` to leave the live dashboard temporarily and print plain, streaming logs for the currently selected application, or for all applications when all-log mode is active. The initial output is limited to the latest 1000 entries, after which new entries are appended without being retained by the dashboard. Because this is ordinary terminal output, terminal-native mouse-wheel scrollback and text search remain available. Press `Esc` to clear the log view and return to the dashboard without detaching; `Ctrl+C` keeps its normal command cancellation behavior.

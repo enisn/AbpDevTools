@@ -4,6 +4,7 @@ using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Runner;
 using AbpDevTools.Services;
+using CliFx.Exceptions;
 using CliFx.Infrastructure;
 using NSubstitute;
 using Shouldly;
@@ -99,7 +100,11 @@ public sealed class RunnerCommandTests : IDisposable
             .Returns(Task.FromResult<RunnerResponse?>(new RunnerResponse { Contexts = new[] { context } }));
         _dashboard.RunAsync(descriptor.ContextKey, Arg.Any<IConsole>(), Arg.Any<CancellationToken>())
             .Returns(RunnerDashboardResult.Detached);
-        var command = new AttachCommand(_runnerClient, _contextResolver, _dashboard)
+        var command = new AttachCommand(
+            _runnerClient,
+            _contextResolver,
+            _dashboard,
+            _ => true)
         {
             WorkingDirectory = _root
         };
@@ -114,6 +119,24 @@ public sealed class RunnerCommandTests : IDisposable
         await _runnerClient.DidNotReceiveWithAnyArgs().StopAsync(default!, default!, default);
         console.GetOutput().ShouldContain("Applications continue running in the background.");
         console.GetOutput().ShouldContain("Run 'abpdev attach' to reopen the dashboard.");
+    }
+
+    [Fact]
+    public async Task Attach_FailsFastWithHelpWhenTheConsoleIsNonInteractive()
+    {
+        var command = new AttachCommand(_runnerClient, _contextResolver, _dashboard);
+        var console = new TestConsole();
+
+        var exception = await Should.ThrowAsync<CommandException>(
+            () => command.ExecuteAsync(console).AsTask());
+
+        exception.ExitCode.ShouldBe(1);
+        exception.ShowHelp.ShouldBeTrue();
+        exception.Message.ShouldContain("requires an interactive terminal");
+        exception.Message.ShouldContain("abpdev ps --json");
+        exception.Message.ShouldContain("abpdev logs --managed");
+        await _runnerClient.DidNotReceiveWithAnyArgs().ListAsync(default, default, default);
+        await _dashboard.DidNotReceiveWithAnyArgs().RunAsync(default!, default!, default);
     }
 
     public void Dispose()

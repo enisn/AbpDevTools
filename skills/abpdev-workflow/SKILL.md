@@ -222,7 +222,7 @@ Behavior:
 - For agent work, use `abpdev run --detach` so the launch command returns, then poll `abpdev ps --current --json` for state/readiness. A successful launch request does not by itself mean every application is ready.
 - Use `abpdev logs <project> --lines <count>` for bounded diagnostics. It is non-interactive and automatically chooses active runner output or filesystem fallback.
 - Use `abpdev stop -p <project>` for a selected app or unfiltered `abpdev stop` only when the user intends to stop the entire current context.
-- Do not use `abpdev attach` in non-interactive automation; it is the human dashboard.
+- Do not use `abpdev attach` in non-interactive automation; it is the human dashboard and fails fast with command help when no interactive terminal is available. Use `abpdev ps --json` for state and bounded `abpdev logs` calls for diagnostics.
 
 ## Typical workflows
 

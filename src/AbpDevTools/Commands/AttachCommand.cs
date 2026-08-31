@@ -11,15 +11,30 @@ public sealed class AttachCommand : ICommand
     private readonly IRunnerClient _runnerClient;
     private readonly RunnerContextResolver _contextResolver;
     private readonly IRunnerDashboard _runnerDashboard;
+    private readonly Func<IConsole?, bool> _supportsInteractiveConsole;
 
     public AttachCommand(
         IRunnerClient runnerClient,
         RunnerContextResolver contextResolver,
         IRunnerDashboard runnerDashboard)
+        : this(
+            runnerClient,
+            contextResolver,
+            runnerDashboard,
+            ConsoleSupport.SupportsInteractiveConsole)
+    {
+    }
+
+    internal AttachCommand(
+        IRunnerClient runnerClient,
+        RunnerContextResolver contextResolver,
+        IRunnerDashboard runnerDashboard,
+        Func<IConsole?, bool> supportsInteractiveConsole)
     {
         _runnerClient = runnerClient;
         _contextResolver = contextResolver;
         _runnerDashboard = runnerDashboard;
+        _supportsInteractiveConsole = supportsInteractiveConsole;
     }
 
     [CommandParameter(0, IsRequired = false, Description = "Working directory to attach. Default: current directory, or the only active context.")]
@@ -30,6 +45,16 @@ public sealed class AttachCommand : ICommand
 
     public async ValueTask ExecuteAsync(IConsole console)
     {
+        if (!_supportsInteractiveConsole(console))
+        {
+            throw new CommandException(
+                "Cannot open the dashboard because 'abpdev attach' requires an interactive terminal.\n" +
+                "Use 'abpdev ps --json' for managed state, or " +
+                "'abpdev logs --managed --path <working-directory> --lines 100' for bounded logs.",
+                exitCode: 1,
+                showHelp: true);
+        }
+
         var cancellationToken = console.RegisterCancellationHandler();
         var explicitContext = !string.IsNullOrWhiteSpace(WorkingDirectory) || !string.IsNullOrWhiteSpace(YmlPath);
         RunnerContextDescriptor descriptor;
@@ -58,7 +83,7 @@ public sealed class AttachCommand : ICommand
             {
                 context = activeContexts[0];
             }
-            else if (activeContexts.Length > 1 && ConsoleSupport.SupportsInteractiveConsole(console))
+            else if (activeContexts.Length > 1)
             {
                 context = AnsiConsole.Prompt(
                     new SelectionPrompt<RunnerContextSnapshot>()
