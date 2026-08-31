@@ -42,13 +42,19 @@ Useful options:
 
 - `-f`, `--build-files`: filter target `.sln`, `.slnx`, or `.csproj` files by name
 - `-i`, `--interactive`: choose targets interactively
+- `--dry-run`: list the selected targets and separate solution/project counts without building
 - `-c`, `--configuration`: pass build configuration
 
 Behavior:
 
-- Searches recursively for `.sln` and `.slnx`
-- Falls back to `.csproj` if no solutions exist
-- Uses `dotnet build /graphBuild`
+- Searches recursively for `.sln` and `.slnx`, with filters and interactive selection determining the final targets
+- Falls back to `.csproj` only when no solutions are selected
+- A dry run lists the exact selected solution/project targets and reports their counts separately without running `dotnet build` or sending a completion notification
+- A normal build uses `dotnet build /graphBuild`
+
+```bash
+abpdev build --dry-run
+```
 
 ## run
 

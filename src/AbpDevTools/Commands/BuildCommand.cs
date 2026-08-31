@@ -22,6 +22,9 @@ public class BuildCommand : ICommand
     [CommandOption("configuration", 'c')]
     public string? Configuration { get; set; }
 
+    [CommandOption("dry-run", Description = "List solution/project build targets without running dotnet build.")]
+    public bool DryRun { get; set; }
+
     protected IConsole? console;
     Process? runningProcess;
     protected readonly INotificationManager notificationManager;
@@ -57,6 +60,17 @@ public class BuildCommand : ICommand
         {
             await console.Output.WriteLineAsync("No .csproj files found. No files to build.");
 
+            if (DryRun)
+            {
+                await WriteDryRunSummaryAsync(buildFiles);
+            }
+
+            return;
+        }
+
+        if (DryRun)
+        {
+            await WriteDryRunSummaryAsync(buildFiles);
             return;
         }
 
@@ -181,6 +195,35 @@ public class BuildCommand : ICommand
         }
 
         cancellationToken.Register(KillRunningProcesses);
+    }
+
+    private async Task WriteDryRunSummaryAsync(IReadOnlyCollection<FileInfo> buildFiles)
+    {
+        var solutionCount = buildFiles.Count(IsSolutionFile);
+        var projectCount = buildFiles.Count - solutionCount;
+
+        await console!.Output.WriteLineAsync(
+            $"Dry run: {FormatTargetCount(solutionCount, "solution")} and {FormatTargetCount(projectCount, "project")} selected for build.");
+
+        foreach (var buildFile in buildFiles)
+        {
+            var targetType = IsSolutionFile(buildFile) ? "solution" : "project";
+            var relativePath = Path.GetRelativePath(WorkingDirectory!, buildFile.FullName);
+            await console.Output.WriteLineAsync($"  {targetType}: {relativePath}");
+        }
+
+        await console.Output.WriteLineAsync("No build commands were run.");
+    }
+
+    private static bool IsSolutionFile(FileInfo buildFile)
+    {
+        return buildFile.Extension.Equals(".sln", StringComparison.OrdinalIgnoreCase)
+               || buildFile.Extension.Equals(".slnx", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatTargetCount(int count, string targetType)
+    {
+        return $"{count} {targetType}{(count == 1 ? string.Empty : "s")}";
     }
 
     private async Task<FileInfo[]> FindBuildFilesAsync(string pattern, string? nameOfPattern = null)

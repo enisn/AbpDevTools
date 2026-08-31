@@ -71,10 +71,13 @@ OPTIONS
   -f|--build-files  (Array) Names or part of names of projects or solutions will be built.
   -i|--interactive  Interactive build file selection. Default: "False".
   -c|--configuration
+  --dry-run         List selected build targets and their counts without building. Default: "False".
   -h|--help         Shows help text.
 ```
 
-Convention: `*.sln` files are considered as solutions and `*.csproj` files are considered as projects.
+Convention: `*.sln` and `*.slnx` files are considered solutions, and `*.csproj` files are considered projects. Target selection is recursive and prefers solutions, falling back to projects only when no solutions are selected. Build-file filters and interactive selection still determine the final targets.
+
+Use `--dry-run` to list those exact targets and report solution and project counts separately. A dry run does not execute `dotnet build` or send a completion notification.
 
 ![abpdev build](images/abpdevbuild.gif)
 
@@ -101,6 +104,11 @@ Convention: `*.sln` files are considered as solutions and `*.csproj` files are c
     abpdev build -i
     ```
     ![abpdev build interactive](images/abpdevbuild-interactive.gif)
+
+- Preview selected targets without building
+    ```bash
+    abpdev build --dry-run
+    ```
 
 ## abpdev add-package
 
