@@ -245,7 +245,6 @@ run:
     ```bash
     abpdev run C:\Path\To\Top\Folder\Of\Solutions
     ```
-    ![abpdev run multiple solutions](images/abpdevrun-multiplesolutions.gif)
 
 - Run in a specific path
     ```bash
