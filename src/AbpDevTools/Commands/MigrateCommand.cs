@@ -161,8 +161,9 @@ public class MigrateCommand : ICommand
 
     protected FileInfo[] FindDbMigrators(out int discoveredCount)
     {
-        var dbMigrators = Directory
-            .EnumerateFiles(WorkingDirectory!, "*.csproj", SearchOption.AllDirectories)
+        var projectFiles = Directory.EnumerateFiles(WorkingDirectory!, "*.csproj", SearchOption.AllDirectories);
+
+        var dbMigrators = GitIgnoreFilter.ExcludeIgnoredFiles(WorkingDirectory!, projectFiles)
             .Where(IsDbMigrator)
             .Select(path => new FileInfo(path))
             .ToArray();

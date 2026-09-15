@@ -4,6 +4,7 @@ using AbpDevTools.Environments;
 using AbpDevTools.LocalConfigurations;
 using AbpDevTools.Notifications;
 using AbpDevTools.Services;
+using AbpDevTools.Tests.Helpers;
 using CliFx.Infrastructure;
 using FluentAssertions;
 using NSubstitute;
@@ -207,6 +208,29 @@ public class MigrateCommandTests : IDisposable
 
         // Assert
         result.Should().BeFalse("non-DbMigrator project should return false");
+    }
+
+    [Fact]
+    public void FindDbMigrators_InGitRepository_SkipsDbMigratorsInIgnoredWorktrees()
+    {
+        // Arrange
+        CreateDbMigratorProject(Path.Combine(_testRootPath, "src"), "Foo.DbMigrator");
+
+        GitTestHelper.InitRepository(_testRootPath);
+        GitTestHelper.CommitAll(_testRootPath);
+        GitTestHelper.AddExcludePattern(_testRootPath, ".claude/worktrees/");
+        GitTestHelper.Run(_testRootPath, "worktree", "add", "-q", ".claude/worktrees/bar-feature", "-b", "bar-feature");
+
+        var command = CreateCommand();
+        command.WorkingDirectory = _testRootPath;
+
+        // Act
+        var dbMigrators = command.InvokeFindDbMigrators(out var discoveredCount);
+
+        // Assert
+        discoveredCount.Should().Be(1, "the worktree only holds another checkout of the same DbMigrator");
+        dbMigrators.Should().ContainSingle()
+            .Which.FullName.Should().Be(Path.Combine(_testRootPath, "src", "Foo.DbMigrator", "Foo.DbMigrator.csproj"));
     }
 
     #endregion

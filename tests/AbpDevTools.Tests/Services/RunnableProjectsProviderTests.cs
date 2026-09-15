@@ -318,6 +318,35 @@ public class RunnableProjectsProviderTests : CommandTestBase
         results.Should().ContainSingle(x => x.Type == RunnableAppType.Npm && x.Name == "angular:start");
     }
 
+    [Fact]
+    public void GetRunnableApplications_InGitRepository_SkipsIgnoredAppsAndNestedWorktrees()
+    {
+        // Arrange
+        var provider = CreateProvider();
+        CreateProjectWithProgramCs("Foo.HttpApi.Host");
+        CreateProjectWithProgramCs("Bar.Playground");
+        CreatePackageJson("foo-client", """
+        {
+          "scripts": {
+            "dev": "vite"
+          }
+        }
+        """);
+        File.WriteAllText(Path.Combine(_testRootPath, ".gitignore"), "Bar.Playground/" + Environment.NewLine);
+
+        GitTestHelper.InitRepository(_testRootPath);
+        GitTestHelper.CommitAll(_testRootPath);
+        GitTestHelper.Run(_testRootPath, "worktree", "add", "-q", "worktrees/bar-feature", "-b", "bar-feature");
+
+        // Act
+        var results = provider.GetRunnableApplications(_testRootPath);
+
+        // Assert
+        results.Select(x => x.Name).Should().BeEquivalentTo(
+            new[] { "Foo.HttpApi.Host.csproj", "foo-client:dev" },
+            "ignored folders and nested worktrees are not part of the solution");
+    }
+
     #endregion
 
     #region GetRunnableProjectsWithMigrateDatabaseParameter Tests
