@@ -7,12 +7,14 @@ namespace AbpDevTools.Tests.Helpers;
 /// </summary>
 public static class GitTestHelper
 {
-    // Keeps tests independent from the machine's git identity, commit signing and file protocol settings.
+    // Keeps fixture setup independent from the machine's git identity, commit signing, global excludes file
+    // and file protocol settings. Discovery itself still honors global excludes; only the fixtures ignore them.
     private static readonly string[] IsolatedConfiguration =
     {
         "-c", "user.name=Foo",
         "-c", "user.email=foo@example.com",
         "-c", "commit.gpgsign=false",
+        "-c", "core.excludesFile=/dev/null",
         "-c", "protocol.file.allow=always"
     };
 
@@ -55,10 +57,11 @@ public static class GitTestHelper
         var errorTask = process.StandardError.ReadToEndAsync();
         process.StandardOutput.ReadToEnd();
         process.WaitForExit();
+        var error = errorTask.GetAwaiter().GetResult();
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException($"'git {string.Join(" ", arguments)}' failed: {errorTask.Result}");
+            throw new InvalidOperationException($"'git {string.Join(" ", arguments)}' failed: {error}");
         }
     }
 }
