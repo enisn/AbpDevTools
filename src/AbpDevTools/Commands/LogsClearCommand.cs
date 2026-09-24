@@ -1,4 +1,4 @@
-﻿using AbpDevTools.Configuration;
+using AbpDevTools.Configuration;
 using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
@@ -38,6 +38,11 @@ public class LogsClearCommand : ICommand
         }
 
         var csprojs = runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
+
+        if (Interactive && !ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            Interactive = false;
+        }
 
         if (string.IsNullOrEmpty(ProjectName))
         {

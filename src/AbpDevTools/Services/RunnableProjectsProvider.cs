@@ -38,7 +38,9 @@ public class RunnableProjectsProvider
 
     public FileInfo[] GetRunnableProjects(string path)
     {
-        return Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories)
+        var projectFiles = Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories);
+
+        return GitIgnoreFilter.ExcludeIgnoredFiles(path, projectFiles)
             .Where(DoesHaveProgramClass)
             .Select(x => new FileInfo(x))
             .ToArray();
@@ -46,7 +48,9 @@ public class RunnableProjectsProvider
 
     public FileInfo[] GetRunnableProjectsWithMigrateDatabaseParameter(string path)
     {
-        return Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories)
+        var projectFiles = Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories);
+
+        return GitIgnoreFilter.ExcludeIgnoredFiles(path, projectFiles)
             .Where(DoesHaveProgramClass)
             .Where(DoesHaveMigrateDatabaseParameter)
             .Select(x => new FileInfo(x))
@@ -60,7 +64,7 @@ public class RunnableProjectsProvider
             return Array.Empty<RunnableAppInfo>();
         }
 
-        return EnumeratePackageJsonFiles(path)
+        return GitIgnoreFilter.ExcludeIgnoredFiles(path, EnumeratePackageJsonFiles(path))
             .Select(packageJsonPath => TryCreateNpmRunnableApp(packageJsonPath, configuredScripts))
             .Where(x => x != null)
             .Cast<RunnableAppInfo>()

@@ -125,7 +125,9 @@ public class RunCommand_NonInteractiveTests
                 null!,
                 null!,
                 null!,
-                Substitute.For<IKeyInputManager>())
+                Substitute.For<IKeyInputManager>(),
+                null!,
+                null!)
         {
         }
 

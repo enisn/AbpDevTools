@@ -11,6 +11,8 @@ items:
         href: commands/build.md
       - name: Run Command
         href: commands/run.md
+      - name: Centralized Runner Commands
+        href: commands/runner.md
       - name: Add Package Command
         href: commands/add-package.md
       - name: Prepare Command
@@ -41,7 +43,7 @@ items:
         href: environment/virtual-environments.md
       - name: Environment Apps
         href: environment/environment-apps.md
-  - name: Configuration
+  - name: abpdev.yml Configuration
     href: configuration.md
   - name: Notifications
     href: notifications.md

@@ -17,13 +17,14 @@
 - `src/AbpDevTools/Program.cs` is the CLI composition root.
 - New commands are not auto-discovered. After creating a command, add its type to the hard-coded `commands` array in `Startup.BuildServices()` or the CLI will never expose it.
 - Non-command services/config classes use AutoRegisterInject: add `[RegisterTransient]` or `[RegisterSingleton]` and let `services.AutoRegisterFromAbpDevTools()` wire them up.
-- `tests/AbpDevTools.Tests` is the only test project. Tests are unit-style and mostly use temp directories/mocks, so they do not need Docker or real ABP apps.
+- `tests/AbpDevTools.Tests` is the only test project. Tests are unit-style and mostly use temp directories/mocks, so they do not need Docker or real ABP apps. Discovery tests that cover git ignore rules call the real `git` CLI, so git must be on PATH.
 
 ## Config And Discovery Quirks
 - Global tool config lives under `%AppData%/abpdev` as YAML files such as `tools-configuration.yml` and `replacements.yml`. Legacy JSON config is auto-migrated on read.
-- Repo/project-local overrides live in `abpdev.yml`. `PrepareCommand` creates it; `RunCommand` loads the root file from `WorkingDirectory`; per-project loads search ancestor folders via `LocalConfigurationManager`.
+- Repo/project-local overrides live in `abpdev.yml`. `PrepareCommand` creates it; `RunCommand` loads the nearest root file from `WorkingDirectory` or its parents; per-project loads also search ancestor folders via `LocalConfigurationManager`.
 - Do not build new behavior on `RunConfiguration`. It is `[Obsolete]`, and `RunnableProjectsProvider` deletes `run-configuration.yml` on startup.
 - Runnable project discovery is now heuristic-based: any `*.csproj` with sibling `Program.cs` is runnable. Migrate fallback also scans `Program.cs` and top-level `*Module.cs` for `--migrate-database`.
+- `run` and `migrate` discovery drops files that `git ls-files` doesn't list, which covers ignored files and nested worktrees such as `.claude/worktrees/*`; see `GitIgnoreFilter`. Outside a git repository, or when git lists no files, every folder is scanned.
 
 ## Current Baseline
 - `dotnet test tests/AbpDevTools.Tests/AbpDevTools.Tests.csproj` currently passes, but expect existing warnings: duplicate `FluentAssertions` references in the test csproj, xUnit version resolution warnings, and many nullable/obsolete warnings in both projects.

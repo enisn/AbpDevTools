@@ -47,7 +47,17 @@ public class LocalConfigurationManager
 
     public bool TryLoad(string path, out LocalConfiguration? localConfiguration, FileSearchDirection direction = FileSearchDirection.Ascendants)
     {
+        return TryLoad(path, out localConfiguration, out _, direction);
+    }
+
+    public bool TryLoad(
+        string path,
+        out LocalConfiguration? localConfiguration,
+        out string? loadedPath,
+        FileSearchDirection direction = FileSearchDirection.Ascendants)
+    {
         localConfiguration = null;
+        loadedPath = null;
 
         var directory = Path.GetDirectoryName(path);
         if (directory == null)
@@ -75,7 +85,8 @@ public class LocalConfigurationManager
             return false;
         }
 
-        var ymlContent = File.ReadAllText(ymlPath);
+        loadedPath = Path.GetFullPath(ymlPath);
+        var ymlContent = File.ReadAllText(loadedPath);
 
         localConfiguration = _deserializer.Deserialize<LocalConfiguration>(ymlContent);
 

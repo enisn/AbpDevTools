@@ -71,10 +71,13 @@ OPTIONS
   -f|--build-files  (Array) Names or part of names of projects or solutions will be built.
   -i|--interactive  Interactive build file selection. Default: "False".
   -c|--configuration
+  --dry-run         List selected build targets and their counts without building. Default: "False".
   -h|--help         Shows help text.
 ```
 
-Convention: `*.sln` files are considered as solutions and `*.csproj` files are considered as projects.
+Convention: `*.sln` and `*.slnx` files are considered solutions, and `*.csproj` files are considered projects. Target selection is recursive and prefers solutions, falling back to projects only when no solutions are selected. Build-file filters and interactive selection still determine the final targets.
+
+Use `--dry-run` to list those exact targets and report solution and project counts separately. A dry run does not execute `dotnet build` or send a completion notification.
 
 ![abpdev build](images/abpdevbuild.gif)
 
@@ -101,6 +104,11 @@ Convention: `*.sln` files are considered as solutions and `*.csproj` files are c
     abpdev build -i
     ```
     ![abpdev build interactive](images/abpdevbuild-interactive.gif)
+
+- Preview selected targets without building
+    ```bash
+    abpdev build --dry-run
+    ```
 
 ## abpdev add-package
 
@@ -209,6 +217,7 @@ OPTIONS
   -g|--graphBuild   Uses /graphBuild while running the applications. So no need building before running. But it may cause some performance. Default: "False".
   -p|--projects     (Array) Names or part of names of projects will be ran.
   --msbuild-property MSBuild property passed to every selected dotnet run process. Use Name=Value and repeat for multiple properties.
+  -d|--detach       Starts applications in the centralized runner and returns immediately.
   -c|--configuration
   -e| --env        Virtual Environment name. You can manage virtual environments by using 'abpdev env config'
   -h|--help         Shows help text.
@@ -236,7 +245,6 @@ run:
     ```bash
     abpdev run C:\Path\To\Top\Folder\Of\Solutions
     ```
-    ![abpdev run multiple solutions](images/abpdevrun-multiplesolutions.gif)
 
 - Run in a specific path
     ```bash
@@ -265,6 +273,31 @@ run:
     abpdev run -w
     ```
     > Please note that we cannot print URL's because dotnet does give any output.
+
+- Start in the background
+    ```bash
+    abpdev run --detach
+    ```
+
+### Centralized runner
+
+`abpdev run` always delegates process ownership and stdout/stderr capture to a per-user runner. Without `--detach`, the command remains attached to the interactive status dashboard, so the default experience stays familiar. The runner starts automatically and exits shortly after its final application stops.
+
+```bash
+# List active apps from every directory context
+abpdev ps
+
+# Reopen the dashboard for the current context
+abpdev attach
+
+# Stop only this directory/YAML context
+abpdev stop
+
+# Stop matching apps in this context
+abpdev stop -p MyApp.Web
+```
+
+Each context is identified by its canonical working directory and resolved root `abpdev.yml`. Repeating `abpdev run` reconciles with existing applications instead of creating duplicate processes. In the dashboard, `Q` detaches, `S` stops the selected app, `Ctrl+S` stops the context, and `A` toggles combined logs.
 
 ## Virtual Environments
 Virtual environments are used to run multiple solutions with different configurations. For example, you can run different solutions with different environments _(connectionstrings etc.)_.
@@ -369,6 +402,8 @@ OPTIONS
   -p|--path         Working directory of the command. Probably solution directory. Default: . (CurrentDirectory)
   -i|--interactive  Options will be asked as prompt when this option used. Default: "False".
   -n|--lines        Number of lines to print from the end of logs.txt. Default: 100.
+  -f|--follow       Follows stdout and stderr captured by the centralized runner.
+  --managed         Uses runner-captured logs; without a project, combines the context's logs.
   -o|--open         Opens logs with the operating system default app instead of printing them.
   -h|--help         Shows help text.
 
@@ -391,6 +426,16 @@ COMMANDS
 - Open the log file or folder with the operating system default app
     ```bash
     abpdev logs Web --open
+    ```
+
+- Follow output captured by the centralized runner
+    ```bash
+    abpdev logs Web --follow
+    ```
+
+- Show combined managed logs for the current context
+    ```bash
+    abpdev logs --managed --lines 200
     ```
 
 - Clear logs of the **.Web** project
@@ -632,7 +677,8 @@ MongoDB and Redis use their images' passwordless defaults. Use `-p` or
 `--password` to override the configured password when creating a container.
 
 ## Switch ABP Studio Version
-Switches the locally installed **ABP Studio** to any published version/channel, ensuring directories exist, caching packages for reuse, and invoking the platform-specific updater with live log streaming and desktop notifications.
+
+Switches an existing **ABP Studio** installation to a published version and channel. Windows and macOS use the platform updater; Linux replaces the installed AppImage from the official package.
 
 ```bash
 abpdev abp-studio switch <version> [options]
@@ -645,30 +691,31 @@ PARAMETERS
 OPTIONS
   -c|--channel       Channel to download from. Default: "stable".
   -f|--force         Forces re-download even if the package already exists.
-  -i|--install-dir   Custom install directory. Default: %LOCALAPPDATA%\abp-studio (Windows) or OS equivalent.
+  -i|--install-dir   Custom install directory. On Linux, an AppImage file or its containing directory.
   -p|--packages-dir  Custom cache directory for downloaded packages.
   -h|--help          Shows help text.
 ```
 
 The command:
 
-- Detects your OS/CPU (Windows x64/ARM, macOS Intel/ARM, Linux) to pick the right package suffix.
-- Creates/uses the requested install and packages directories _(defaults to `%LOCALAPPDATA%\abp-studio` on Windows, `/Applications` or `~/Applications` on macOS)_.
-- Streams download progress while fetching `abp-studio-{version}-{channel}-full.nupkg`; `--force` wipes existing packages first.
-- Verifies that the platform updater (`Update.exe` on Windows or `UpdateMac` on macOS) exists before applying `apply --package <path>`.
-- Applies the downloaded package to the installed ABP Studio by using official updater. 
+- Selects the release feed from the OS and architecture. Linux x64 uses `linux`; Linux ARM64 uses `linux-arm64`.
+- Downloads `AbpStudio-{version}-{channel}-full.nupkg` on Linux. Windows and macOS packages retain the `abp-studio-{version}-{channel}-full.nupkg` name.
+- Caches Linux packages in `~/.abpdev/cache/AbpStudio/packages` by default. The complete default cache hierarchy is private to the current user. `--packages-dir` overrides the cache on every platform; only use a custom cache you trust.
+- Locates the installed Linux AppImage from `--install-dir` (a file or directory), `APPIMAGE`, an `abp-studio.desktop` entry, or a standard install location, in that order.
+- On Linux, extracts `lib/app/AbpStudio.AppImage` from the package and atomically replaces the installed AppImage. Close and reopen ABP Studio afterward.
+- On Windows and macOS, applies the package with the existing platform updater (`Update.exe` or `UpdateMac`).
 
-> ⚠️ This command doesn't add any custom DLL or executable files to your system. It only applies **official** ABP Studio nuget packages to the existing installation.
+> ⚠️ This command doesn't add any custom DLL or executable files to your system. It only applies **official** ABP Studio NuGet packages to the existing installation.
 
 Using a shared packages directory (for example on a fast SSD or network drive) makes switching between versions nearly instant because only the apply step needs to run.
 
-### When to use?
+### Common Use Cases
 
 - You're working on a project that requires a specific version of ABP Studio.
 - You need to create a new project with a specific version of ABP Studio.
 - You have a critical bug in a specific version of ABP Studio and you need to **rollback** to a previous version.
 
-> ❌ Don't use this command to install ABP Studio for the first time. Use the official installer instead. This command is only for switching between versions by applying nuget package updates.
+> ❌ Don't use this command to install ABP Studio for the first time. Use the official installer instead. This command is only for switching between versions by applying NuGet package updates.
 
 ### Example commands
 

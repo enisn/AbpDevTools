@@ -1,4 +1,4 @@
-﻿using AbpDevTools.Configuration;
+using AbpDevTools.Configuration;
 using CliFx.Infrastructure;
 using Spectre.Console;
 using System.Diagnostics;
@@ -126,7 +126,7 @@ public class TestCommand : ICommand
                     return fileInfo;
                 });
 
-        if (Interactive && files.Length > 1)
+        if (Interactive && ConsoleSupport.SupportsInteractiveConsole(console) && files.Length > 1)
         {
             var choosed = AnsiConsole.Prompt(
                 new MultiSelectionPrompt<string>()

@@ -255,6 +255,12 @@ public class SwitchReferencesToLocalCommand : ICommand
         
         AnsiConsole.MarkupLine($"[yellow]Source '{sourceKey}' is empty or doesn't exist at:[/] {sourceConfig.Path}");
         
+        if (!ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            console.Output.WriteLine($"Interactive prompt unavailable; skipping missing source '{sourceKey}'.");
+            return SourceAction.Skip;
+        }
+
         var choices = new List<string>
         {
             "Skip this source",

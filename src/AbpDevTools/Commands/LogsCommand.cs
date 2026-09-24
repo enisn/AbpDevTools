@@ -1,10 +1,11 @@
+using AbpDevTools.Runner;
 using AbpDevTools.Services;
 using CliFx.Infrastructure;
 using Spectre.Console;
 
 namespace AbpDevTools.Commands;
 
-[Command("logs", Description = "Print the last lines of project logs or open them with the operating system default app.")]
+[Command("logs", Description = "Print recent logs from a running managed application, with filesystem fallback, or open filesystem logs.")]
 public class LogsCommand : ICommand
 {
     private const int DefaultTailLineCount = 100;
@@ -21,16 +22,30 @@ public class LogsCommand : ICommand
     [CommandOption("open", 'o', Description = "Open the log file or folder with the operating system default app instead of printing log lines.")]
     public bool OpenWithDefaultApp { get; set; }
 
-    [CommandOption("lines", 'n', Description = "Number of lines to print from the end of logs.txt when not using --open. Default: 100.")]
+    [CommandOption("lines", 'n', Description = "Maximum number of recent log lines to print. Default: 100.")]
     public int Lines { get; set; } = DefaultTailLineCount;
+
+    [CommandOption("follow", 'f', Description = "Follow stdout and stderr captured by the centralized runner.")]
+    public bool Follow { get; set; }
+
+    [CommandOption("managed", Description = "Without a project, combine logs captured by the centralized runner for the current context.")]
+    public bool Managed { get; set; }
 
     protected readonly RunnableProjectsProvider runnableProjectsProvider;
     protected readonly Platform platform;
+    private readonly IRunnerClient? runnerClient;
+    private readonly RunnerContextResolver? contextResolver;
 
-    public LogsCommand(RunnableProjectsProvider runnableProjectsProvider, Platform platform)
+    public LogsCommand(
+        RunnableProjectsProvider runnableProjectsProvider,
+        Platform platform,
+        IRunnerClient? runnerClient = null,
+        RunnerContextResolver? contextResolver = null)
     {
         this.runnableProjectsProvider = runnableProjectsProvider;
         this.platform = platform;
+        this.runnerClient = runnerClient;
+        this.contextResolver = contextResolver;
     }
 
     public async ValueTask ExecuteAsync(IConsole console)
@@ -40,7 +55,24 @@ public class LogsCommand : ICommand
             WorkingDirectory = Directory.GetCurrentDirectory();
         }
 
+        if (Lines <= 0)
+        {
+            await console.Error.WriteLineAsync("The '--lines' option must be greater than 0.");
+            return;
+        }
+
+        if (!OpenWithDefaultApp &&
+            await TryHandleManagedLogsAsync(console, console.RegisterCancellationHandler()))
+        {
+            return;
+        }
+
         var csprojs = runnableProjectsProvider.GetRunnableProjects(WorkingDirectory);
+
+        if (Interactive && !ConsoleSupport.SupportsInteractiveConsole(console))
+        {
+            Interactive = false;
+        }
 
         if (string.IsNullOrEmpty(ProjectName))
         {
@@ -66,12 +98,6 @@ public class LogsCommand : ICommand
                     string.Join("\n\t - ", csprojs.Select(x => x.Name.Split(Path.DirectorySeparatorChar).Last())));
                 return;
             }
-        }
-
-        if (Lines <= 0)
-        {
-            await console.Error.WriteLineAsync("The '--lines' option must be greater than 0.");
-            return;
         }
 
         var selectedCsproj = csprojs.FirstOrDefault(x => x.FullName.Contains(ProjectName, StringComparison.InvariantCultureIgnoreCase));
@@ -134,6 +160,163 @@ public class LogsCommand : ICommand
         {
             await console.Output.WriteLineAsync(line);
         }
+    }
+
+    private async Task<bool> TryHandleManagedLogsAsync(IConsole console, CancellationToken cancellationToken)
+    {
+        if (runnerClient is null || contextResolver is null)
+        {
+            return false;
+        }
+
+        var descriptor = contextResolver.Resolve(WorkingDirectory);
+        var listResponse = await runnerClient.ListAsync(
+            descriptor.ContextKey,
+            includeInactive: true,
+            cancellationToken);
+        var context = listResponse?.Success == true
+            ? listResponse.Contexts.FirstOrDefault()
+            : null;
+
+        if (context is null)
+        {
+            if (!string.IsNullOrWhiteSpace(ProjectName))
+            {
+                await WriteFilesystemFallbackAsync(console);
+                return false;
+            }
+
+            if (Managed || Follow)
+            {
+                await console.Output.WriteLineAsync(
+                    listResponse is null
+                        ? "The centralized runner is not running."
+                        : "No managed logs were found for this directory and YAML context.");
+                return true;
+            }
+
+            return false;
+        }
+
+        RunnerApplicationSnapshot? selectedApplication = null;
+        if (!string.IsNullOrWhiteSpace(ProjectName))
+        {
+            var matches = context.Applications
+                .Where(x => RunnerProjectMatcher.Matches(x, ProjectName))
+                .ToArray();
+            selectedApplication = matches.FirstOrDefault(x =>
+                                      string.Equals(x.Name, ProjectName, StringComparison.OrdinalIgnoreCase) ||
+                                      string.Equals(x.DisplayName, ProjectName, StringComparison.OrdinalIgnoreCase))
+                                  ?? (matches.Length == 1 ? matches[0] : null);
+
+            if (selectedApplication is null)
+            {
+                if (matches.Length > 1)
+                {
+                    await console.Output.WriteLineAsync(
+                        $"Multiple managed applications match '{ProjectName}': {string.Join(", ", matches.Select(x => x.DisplayName))}");
+                    return true;
+                }
+
+                await WriteFilesystemFallbackAsync(console);
+                return false;
+            }
+
+            if (!selectedApplication.IsActive)
+            {
+                await WriteFilesystemFallbackAsync(console);
+                return false;
+            }
+        }
+        else if (!Managed && !Follow)
+        {
+            return false;
+        }
+
+        var applicationId = selectedApplication?.Id;
+        var afterSequence = 0L;
+        var wroteHeader = false;
+        do
+        {
+            RunnerResponse? logsResponse;
+            try
+            {
+                logsResponse = await runnerClient.GetLogsAsync(
+                    descriptor.ContextKey,
+                    applicationId,
+                    afterSequence,
+                    Lines,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            if (logsResponse?.Success != true)
+            {
+                if (!wroteHeader)
+                {
+                    await console.Output.WriteLineAsync(logsResponse?.Error ?? "The centralized runner became unavailable.");
+                }
+
+                return true;
+            }
+
+            if (!wroteHeader)
+            {
+                var target = selectedApplication?.DisplayName ?? context.DisplayName;
+                await console.Output.WriteLineAsync(
+                    Follow
+                        ? $"Following managed logs for '{target}'. Press Ctrl+C to detach."
+                        : $"Showing the last {logsResponse.Logs.Length} managed log line(s) for '{target}':");
+                wroteHeader = true;
+            }
+
+            foreach (var entry in logsResponse.Logs)
+            {
+                await console.Output.WriteLineAsync(FormatManagedLog(entry));
+            }
+
+            if (logsResponse.Logs.Length > 0)
+            {
+                afterSequence = logsResponse.Logs[^1].Sequence;
+            }
+
+            if (!Follow)
+            {
+                break;
+            }
+
+            try
+            {
+                await Task.Delay(350, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        } while (!cancellationToken.IsCancellationRequested);
+
+        return true;
+    }
+
+    private async Task WriteFilesystemFallbackAsync(IConsole console)
+    {
+        await console.Output.WriteLineAsync(
+            $"No active managed process was found for '{ProjectName}'. " +
+            "Falling back to filesystem logs (Logs/logs.txt).");
+    }
+
+    private static string FormatManagedLog(RunnerLogEntry entry)
+    {
+        var stream = entry.Stream switch
+        {
+            RunnerLogStream.StandardError => "stderr",
+            RunnerLogStream.System => "runner",
+            _ => "stdout"
+        };
+        return $"[{entry.Timestamp:HH:mm:ss}] [{entry.ApplicationName}] [{stream}] {entry.Message}";
     }
 
     private static async Task<IReadOnlyList<string>> ReadLastLinesAsync(string filePath, int lineCount)

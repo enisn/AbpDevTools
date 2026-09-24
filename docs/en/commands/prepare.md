@@ -83,12 +83,14 @@ Bundles Blazor WASM projects if detected.
 
 Creates `abpdev.yml` files with appropriate environment settings.
 
-## Configuration File
+## `abpdev.yml` Configuration
 
 After running prepare, you'll have an `abpdev.yml` file in your project directory. This file contains:
 - Database connection strings
 - Environment variables
 - Custom settings
+
+See the [`abpdev.yml` configuration reference](../configuration.md) for the complete schema, file lookup rules, project-level overrides, and command-line precedence.
 
 ### Placeholders
 
@@ -96,14 +98,14 @@ The configuration supports these placeholders:
 
 | Placeholder | Description |
 |-------------|-------------|
-| `{AppName}` | Application name (folder name if not detected) |
-| `{Today}` | Current date (useful for separate databases per day) |
+| `{AppName}` | Normalized application name derived from the target application's working directory |
+| `{Today}` | Current local date in `yyyyMMdd` format |
 
 Example:
-```json
-{
-  "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True"
-}
+```yaml
+environment:
+  variables:
+    ConnectionStrings__Default: "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True"
 ```
 
 ## Troubleshooting
