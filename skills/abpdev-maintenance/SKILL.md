@@ -85,7 +85,7 @@ Example shape:
 ConnectionStrings:
   file-pattern: appsettings.json
   find: Trusted_Connection=True;
-  replace: User ID=SA;Password=12345678Aa;
+  replace: User ID=SA;Password=yourStrong(!)Password;
 ```
 
 ## tools

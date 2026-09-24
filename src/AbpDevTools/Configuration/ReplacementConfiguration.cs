@@ -38,7 +38,7 @@ public class ReplacementConfiguration : ConfigurationBase<Dictionary<string, Rep
                 {
                     FilePattern = "appsettings.json",
                     Find = "Trusted_Connection=True;",
-                    Replace = "User ID=SA;Password=12345678Aa;"
+                    Replace = $"User ID=SA;Password={EnvironmentAppConfiguration.SqlServerDefaultPassword};"
                 }
             },
             {
