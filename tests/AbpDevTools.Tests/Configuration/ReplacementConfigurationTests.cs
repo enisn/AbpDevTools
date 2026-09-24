@@ -510,6 +510,24 @@ DollarSignReplacement:
 
     #endregion
 
+    #region Defaults
+
+    [Fact]
+    public void Default_ConnectionStrings_Rule_Should_Match_SqlServer_EnvironmentApp_Credentials()
+    {
+        // Arrange
+        var configuration = new TestReplacementConfiguration(YamlDeserializer, YamlSerializer);
+
+        // Act
+        var connectionStringsRule = configuration.GetDefaultOptions()["ConnectionStrings"];
+
+        // Assert
+        connectionStringsRule.Find.ShouldBe("Trusted_Connection=True;");
+        connectionStringsRule.Replace.ShouldBe("User ID=SA;Password=yourStrong(!)Password;");
+    }
+
+    #endregion
+
     private sealed class TestReplacementConfiguration : ReplacementConfiguration
     {
         public TestReplacementConfiguration(YamlDotNet.Serialization.IDeserializer yamlDeserializer, YamlDotNet.Serialization.ISerializer yamlSerializer)
@@ -521,5 +539,7 @@ DollarSignReplacement:
         {
             return NormalizeWildcardFilePatterns(yamlContent);
         }
+
+        public Dictionary<string, ReplacementOption> GetDefaultOptions() => GetDefaults();
     }
 }

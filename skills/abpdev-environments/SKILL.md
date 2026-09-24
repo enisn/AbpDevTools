@@ -53,7 +53,7 @@ Example shape:
 ```yaml
 SqlServer:
   variables:
-    ConnectionStrings__Default: Server=localhost;Database={AppName}_{Today};User ID=SA;Password=12345678Aa;TrustServerCertificate=True
+    ConnectionStrings__Default: Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True
 
 MongoDb:
   variables:
@@ -106,7 +106,9 @@ abpdev envapp stop all
 Notes:
 
 - `envapp start` can take multiple app names.
-- `-p`, `--password` replaces the placeholder `Passw0rd` inside configured start commands.
+- Default development credentials are `sa` / `yourStrong(!)Password` for SQL Server, `postgres` / `postgres` for PostgreSQL, and `root` / `root` for MySQL.
+- MongoDB and Redis keep the official images' passwordless defaults; RabbitMQ keeps `guest` / `guest`.
+- `-p`, `--password` overrides the configured default and replaces the placeholder `Passw0rd` inside start commands.
 - `-v`, `--verbose` shows Docker command output.
 - `envapp stop` currently expects Docker-based stop commands.
 
@@ -118,9 +120,10 @@ Preferred schema:
 
 ```yaml
 sqlserver:
+  DefaultPassword: yourStrong(!)Password
   start-cmds:
     - docker start tmp-sqlserver
-    - docker run --name tmp-sqlserver --restart unless-stopped -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Passw0rd" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-CU8-ubuntu
+    - docker run --name tmp-sqlserver --restart unless-stopped -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Passw0rd" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-CU8-ubuntu
   stop-cmds:
     - docker kill tmp-sqlserver
     - docker rm tmp-sqlserver

@@ -24,7 +24,7 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
                 {
                     Variables = new Dictionary<string, string>
                     {
-                        { "ConnectionStrings__Default", "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=12345678Aa;TrustServerCertificate=True" }
+                        { "ConnectionStrings__Default", $"Server=localhost;Database={{AppName}}_{{Today}};User ID=SA;Password={EnvironmentAppConfiguration.SqlServerDefaultPassword};TrustServerCertificate=True" }
                     }
                 }
             },
@@ -42,7 +42,7 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
                 {
                     Variables = new Dictionary<string, string>
                     {
-                        { "ConnectionStrings__Default", "Server=localhost;Port=5432;Database={AppName}_{Today};User Id=postgres;Password=12345678Aa;" }
+                        { "ConnectionStrings__Default", $"Server=localhost;Port=5432;Database={{AppName}}_{{Today}};User Id=postgres;Password={EnvironmentAppConfiguration.PostgreSqlDefaultPassword};" }
                     }
                 }
             },
@@ -51,7 +51,7 @@ public class EnvironmentConfiguration : DictionaryConfigurationBase<EnvironmentO
                 {
                     Variables = new Dictionary<string, string>
                     {
-                        { "ConnectionStrings__Default", "Server=localhost;Port=3306;Database={AppName}_{Today};User Id=root;Password=12345678Aa;" }
+                        { "ConnectionStrings__Default", $"Server=localhost;Port=3306;Database={{AppName}}_{{Today}};User Id=root;Password={EnvironmentAppConfiguration.MySqlDefaultPassword};" }
                     }
                 }
             }

@@ -105,7 +105,7 @@ Example:
 ```yaml
 environment:
   variables:
-    ConnectionStrings__Default: "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=12345678Aa;"
+    ConnectionStrings__Default: "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True"
 ```
 
 ## Troubleshooting

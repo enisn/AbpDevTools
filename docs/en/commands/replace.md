@@ -79,7 +79,7 @@ The replacement configuration is stored in `abpvdev.yml` under the `replacement`
   "ConnectionStrings": {
     "FilePattern": "appsettings.json",
     "Find": "Trusted_Connection=True;",
-    "Replace": "User ID=SA;Password=12345678Aa;"
+    "Replace": "User ID=SA;Password=yourStrong(!)Password;"
   }
 }
 ```

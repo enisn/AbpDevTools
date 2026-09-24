@@ -20,7 +20,7 @@ Virtual environments solve the problem of managing different configurations for:
 ### Using the Command
 
 ```bash
-abpvdev env config
+abpdev env config
 ```
 
 This opens an interactive configuration tool where you can:
@@ -31,14 +31,15 @@ This opens an interactive configuration tool where you can:
 
 ## Configuration File
 
-The virtual environments are stored in your `abpvdev.yml` file:
+The global virtual environments are stored in
+`%AppData%/abpdev/EnvironmentConfiguration.yml` on Windows:
 
 ```json
 {
   "Environments": {
     "SqlServer": {
       "Variables": {
-        "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=12345678Aa;TrustServerCertificate=True"
+        "ConnectionStrings__Default": "Server=localhost;Database={AppName}_{Today};User ID=SA;Password=yourStrong(!)Password;TrustServerCertificate=True"
       }
     },
     "MongoDB": {
@@ -70,7 +71,7 @@ This allows running multiple instances with separate databases each day.
 ### Run with Environment
 
 ```bash
-abpvdev run -e SqlServer
+abpdev run -e SqlServer
 ```
 
 Uses the SqlServer environment configuration.
@@ -78,7 +79,7 @@ Uses the SqlServer environment configuration.
 ### Build with Environment
 
 ```bash
-abpvdev build -e SqlServer
+abpdev build -e SqlServer
 ```
 
 ### Add Custom Variables
@@ -105,10 +106,10 @@ Run the same solution with different databases:
 
 ```bash
 # Run with SQL Server
-abpvdev run -e SqlServer
+abpdev run -e SqlServer
 
 # Run with MongoDB
-abpvdev run -e MongoDB
+abpdev run -e MongoDB
 ```
 
 ### Development vs Production
@@ -134,7 +135,8 @@ abpvdev run -e MongoDB
 
 ### Environment Not Found
 
-Make sure the environment is defined in your `abpvdev.yml` file.
+Make sure the environment is defined in the global environment configuration
+opened by `abpdev env config`, or in the project's `abpdev.yml` file.
 
 ### Variables Not Applied
 
