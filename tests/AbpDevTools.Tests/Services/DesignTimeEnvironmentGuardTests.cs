@@ -6,6 +6,102 @@ namespace AbpDevTools.Tests.Services;
 public class DesignTimeEnvironmentGuardTests
 {
     [Theory]
+    [InlineData("<ItemGroup><Compile Remove=\"Factory.cs\" /></ItemGroup>")]
+    [InlineData("<ItemGroup><Compile Include=\"../Replacement.cs\" Link=\"Factory.cs\" /></ItemGroup>")]
+    [InlineData("<ItemGroup><Compile Update=\"Factory.cs\" /></ItemGroup>")]
+    [InlineData("<PropertyGroup><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>")]
+    [InlineData("<PropertyGroup><EnableDefaultCompileItems>true</EnableDefaultCompileItems></PropertyGroup>")]
+    [InlineData("<PropertyGroup><EnableDefaultItems>false</EnableDefaultItems></PropertyGroup>")]
+    [InlineData("<PropertyGroup><DefaultItemExcludes>Factory.cs</DefaultItemExcludes></PropertyGroup>")]
+    [InlineData("<PropertyGroup><DefaultExcludesInProjectFolder>Factory.cs</DefaultExcludesInProjectFolder></PropertyGroup>")]
+    [InlineData("<Import Project=\"custom.targets\" />")]
+    [InlineData("<PropertyGroup><DefaultItemExcludesInProjectFolder>Factory.cs</DefaultItemExcludesInProjectFolder></PropertyGroup>")]
+    [InlineData("<Target Name=\"CustomizeCompile\" />")]
+    public void CustomizedCompileMembershipIsUnresolved(string customization)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "guard-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var project = new FileInfo(Path.Combine(directory, "Sample.csproj"));
+            foreach (var (setup, expectedDefault) in new[]
+            {
+                ("", EnvironmentSupport.Missing),
+                (".AddEnvironmentVariables()", EnvironmentSupport.Supported)
+            })
+            {
+                File.WriteAllText(Path.Combine(directory, "Factory.cs"),
+                    "class Factory : IDesignTimeDbContextFactory<C> { public C CreateDbContext(string[] args) { return new C(new ConfigurationBuilder()" + setup + ".Build()); } }");
+                var guard = new DesignTimeEnvironmentGuard();
+                File.WriteAllText(project.FullName, "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+                Assert.Equal(expectedDefault, guard.Inspect(project).Support);
+
+                File.WriteAllText(project.FullName, "<Project Sdk=\"Microsoft.NET.Sdk\">" + customization + "</Project>");
+                Assert.Equal(EnvironmentSupport.Unresolved, guard.Inspect(project).Support);
+            }
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Theory]
+    [InlineData("<Project />")]
+    [InlineData("<Project Sdk=\"Custom.Sdk\" />")]
+    [InlineData("<Project")]
+    public void UnknownOrMalformedProjectIsUnresolved(string definition)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "guard-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var project = new FileInfo(Path.Combine(directory, "Sample.csproj"));
+            File.WriteAllText(project.FullName, definition);
+            File.WriteAllText(Path.Combine(directory, "Factory.cs"),
+                "class Factory : IDesignTimeDbContextFactory<C> { public C CreateDbContext(string[] args) { return new C(new ConfigurationBuilder().AddEnvironmentVariables().Build()); } }");
+            Assert.Equal(EnvironmentSupport.Unresolved, new DesignTimeEnvironmentGuard().Inspect(project).Support);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Theory]
+    [InlineData("=> new ConfigurationBuilder().AddEnvironmentVariables().Build();")]
+    [InlineData("{ return new ConfigurationBuilder().AddEnvironmentVariables().Build(); }")]
+    public void LocalDelegateShadowingClassHelperIsUnresolved(string helperBody)
+    {
+        var source = $$"""
+            class Factory : IDesignTimeDbContextFactory<C>
+            {
+                public C CreateDbContext(string[] args)
+                {
+                    Func<IConfigurationRoot> BuildConfiguration = () =>
+                        new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+                    return new C(BuildConfiguration());
+                }
+                private static IConfigurationRoot BuildConfiguration()
+                    {{helperBody}}
+            }
+            """;
+        Assert.Equal(EnvironmentSupport.Unresolved, DesignTimeEnvironmentGuard.InspectSource(source));
+    }
+
+    [Theory]
+    [InlineData("SetBasePath(Helpers.ConfigureAndGetPath(b))")]
+    [InlineData("AddJsonFile(Helpers.ConfigureAndGetPath(b))")]
+    public void BuilderPassedToInvocationArgumentIsUnresolved(string call)
+    {
+        var source = $$"""
+            class Factory : IDesignTimeDbContextFactory<C>
+            {
+                public C CreateDbContext(string[] args)
+                {
+                    var b = new ConfigurationBuilder();
+                    return new C(b.{{call}}.Build());
+                }
+            }
+            """;
+        Assert.Equal(EnvironmentSupport.Unresolved, DesignTimeEnvironmentGuard.InspectSource(source));
+    }
+
+    [Theory]
     [InlineData("", EnvironmentSupport.Missing)]
     [InlineData(".AddEnvironmentVariables()", EnvironmentSupport.Supported)]
     public void CommonEfFactoryFollowsConnectionStringToLocalHelper(string setup, EnvironmentSupport expected)
@@ -42,7 +138,7 @@ public class DesignTimeEnvironmentGuardTests
         try
         {
             var project = new FileInfo(Path.Combine(directory, "Sample.csproj"));
-            File.WriteAllText(project.FullName, "<Project />");
+            File.WriteAllText(project.FullName, "<Project Sdk=\"Microsoft.NET.Sdk\" />");
             File.WriteAllText(Path.Combine(directory, "Factory.cs"),
                 "class Factory : IDesignTimeDbContextFactory<C> { public C CreateDbContext(string[] a) { return new C(new ConfigurationBuilder()" + setup + ".Build()); } }");
             Directory.CreateDirectory(Path.Combine(directory, "obj"));

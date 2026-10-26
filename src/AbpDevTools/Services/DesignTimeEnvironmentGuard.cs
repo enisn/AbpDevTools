@@ -1,6 +1,8 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace AbpDevTools.Services;
 
@@ -15,6 +17,17 @@ public class DesignTimeEnvironmentGuard
     {
         try
         {
+            // Only assume default SDK compile items when the project itself gives no
+            // indication that membership is customized. Do not evaluate MSBuild.
+            var definition = XDocument.Load(project.FullName);
+            if (definition.Root?.Name.LocalName != "Project" ||
+                definition.Root.Attribute("Sdk")?.Value != "Microsoft.NET.Sdk" ||
+                definition.Descendants().Any(e => e.Name.LocalName is
+                    "Compile" or "EnableDefaultCompileItems" or "EnableDefaultItems" or
+                    "DefaultItemExcludes" or "DefaultItemExcludesInProjectFolder" or
+                    "DefaultExcludesInProjectFolder" or "OverrideDefaultCompileItems" or
+                    "Import" or "ImportGroup" or "Target" or "Sdk"))
+                return new(EnvironmentSupport.Unresolved, project.FullName);
             var sources = Directory.EnumerateFiles(project.DirectoryName!, "*.cs", SearchOption.AllDirectories)
                 .Where(p => !Path.GetRelativePath(project.DirectoryName!, p).Split(Path.DirectorySeparatorChar)
                     .Any(s => s is "bin" or "obj"))
@@ -30,6 +43,7 @@ public class DesignTimeEnvironmentGuard
         }
         catch (IOException) { return new(EnvironmentSupport.Unresolved, project.FullName); }
         catch (UnauthorizedAccessException) { return new(EnvironmentSupport.Unresolved, project.FullName); }
+        catch (XmlException) { return new(EnvironmentSupport.Unresolved, project.FullName); }
     }
 
     private static bool IsFactory(ClassDeclarationSyntax c) => c.BaseList?.Types.Any(t =>
@@ -103,6 +117,9 @@ public class DesignTimeEnvironmentGuard
                 }
                 else if (expression is InvocationExpressionSyntax helper && helper.Expression is IdentifierNameSyntax name)
                 {
+                    if (locals.Any(v => v.Identifier.ValueText == name.Identifier.ValueText) ||
+                        method.ParameterList.Parameters.Any(p => p.Identifier.ValueText == name.Identifier.ValueText))
+                    { results.Add(EnvironmentSupport.Unresolved); return; }
                     var matches = methods.Where(m => m.Identifier.ValueText == name.Identifier.ValueText && m.ParameterList.Parameters.Count == 0).ToArray();
                     if (matches.Length == 1 && helper.ArgumentList.Arguments.Count == 0) Visit(matches[0]);
                     else results.Add(EnvironmentSupport.Unresolved);
@@ -131,6 +148,10 @@ public class DesignTimeEnvironmentGuard
                     if (name == "AddEnvironmentVariables" && invocation.ArgumentList.Arguments.Count != 0) return EnvironmentSupport.Unresolved;
                     if (name is not ("AddEnvironmentVariables" or "SetBasePath" or "AddJsonFile")) return EnvironmentSupport.Unresolved;
                     var prior = Builder(access.Expression, visited, depth + 1);
+                    // Arguments can pass the traced builder to code that mutates it.
+                    if (invocation.ArgumentList.Arguments.Any(a => a.Expression.DescendantNodesAndSelf()
+                        .OfType<IdentifierNameSyntax>().Any(id => visited.Contains(id.Identifier.ValueText))))
+                        return EnvironmentSupport.Unresolved;
                     return prior == EnvironmentSupport.Unresolved ? prior : name == "AddEnvironmentVariables" ? EnvironmentSupport.Supported : prior;
                 }
                 return EnvironmentSupport.Unresolved;
